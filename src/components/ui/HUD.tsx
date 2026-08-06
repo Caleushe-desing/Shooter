@@ -1,4 +1,4 @@
-import { COLORS, PLAYER } from '../../constants'
+import { PLAYER } from '../../constants'
 import { useGameStore } from '../../store/gameStore'
 
 export function HUD() {
