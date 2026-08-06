@@ -5,6 +5,7 @@ import { Sky } from './scene/Sky'
 import { PlayerController } from './scene/PlayerController'
 import { Tracers } from './scene/Tracers'
 import { Enemies } from './scene/Enemies'
+import { Birds } from './scene/Birds'
 import { Explosions } from './scene/Explosions'
 import { PierceHoles } from './scene/PierceHoles'
 import { CRTOverlay } from './ui/CRTOverlay'
@@ -29,6 +30,7 @@ function Scene() {
       <Arena />
       <PlayerController />
       <Enemies />
+      <Birds />
       <Tracers />
       <Explosions />
       <PierceHoles />
