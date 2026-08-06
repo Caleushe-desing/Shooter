@@ -2,22 +2,29 @@ import { useRef, useEffect, useMemo } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { PerspectiveCamera } from '@react-three/drei'
 import * as THREE from 'three'
-import { PLAYER, resolveCircleBoxCollision, COMBAT, SCOPE } from '../../constants'
+import { PLAYER, CAMERA, resolveCircleBoxCollision, COMBAT, SCOPE } from '../../constants'
 import { useGameStore } from '../../store/gameStore'
 import { getMuzzleWorldPosition } from '../../store/muzzle'
 import { setPlayerPosition } from '../../store/enemyRuntime'
 import { useSettingsStore } from '../../store/settings'
-import { Weapon } from './Weapon'
+import { PlayerAvatar } from './PlayerAvatar'
 
 /** NDC center — matches HUD crosshair at 50%/50%. */
 const SCREEN_CENTER = new THREE.Vector2(0, 0)
 
+/**
+ * Third-person player: Sim body on the ground, over-the-shoulder camera that
+ * orbits with look input. Hitscan still goes through screen center.
+ */
 export function PlayerController() {
   const rig = useRef<THREE.Group>(null)
+  const yawPivot = useRef<THREE.Group>(null)
   const pitchObj = useRef<THREE.Group>(null)
   const yaw = useRef(0)
   const pitch = useRef(0)
-  const pos = useRef(new THREE.Vector3(PLAYER.spawn.x, PLAYER.eyeHeight, PLAYER.spawn.z))
+  const boomDistance = useRef<number>(CAMERA.distance)
+  const pos = useRef(new THREE.Vector3(PLAYER.spawn.x, 0, PLAYER.spawn.z))
+  const moving = useRef(false)
   const lastFire = useRef(0)
   const forward = useRef(new THREE.Vector3())
   const right = useRef(new THREE.Vector3())
@@ -71,7 +78,6 @@ export function PlayerController() {
       }
     }
 
-    // Right mouse button toggles the scope, so block the context menu.
     const onContextMenu = (e: MouseEvent) => {
       e.preventDefault()
       if (isTouch || useSettingsStore.getState().open) return
@@ -131,14 +137,13 @@ export function PlayerController() {
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05)
     const store = useGameStore.getState()
-    if (!rig.current || !pitchObj.current) return
+    if (!rig.current || !yawPivot.current || !pitchObj.current) return
+
     // Enemies still need the player's position while the round is over.
-    setPlayerPosition(pos.current.x, pos.current.y, pos.current.z)
+    setPlayerPosition(pos.current.x, PLAYER.eyeHeight, pos.current.z)
     if (store.sectorCleared || store.caught) return
     if (useSettingsStore.getState().open) return
 
-    // Ease the field of view toward the scope target and keep look speed
-    // proportional to the zoom, otherwise aiming gets twitchy when magnified.
     const targetFov = store.scoped ? SCOPE.zoomedFov : SCOPE.baseFov
     const perspective = camera as THREE.PerspectiveCamera
     if (perspective.isPerspectiveCamera && Math.abs(perspective.fov - targetFov) > 0.01) {
@@ -154,6 +159,16 @@ export function PlayerController() {
       ? perspective.fov / SCOPE.baseFov
       : 1
 
+    const targetBoom = store.scoped ? CAMERA.scopedDistance : CAMERA.distance
+    boomDistance.current = THREE.MathUtils.damp(
+      boomDistance.current,
+      targetBoom,
+      CAMERA.boomSpeed,
+      dt,
+    )
+    // Camera sits behind the shoulder on +Z and looks toward -Z.
+    camera.position.set(CAMERA.shoulder, 0, boomDistance.current)
+
     const { dx, dy } = store.consumeLook()
     yaw.current -= dx * zoomFactor
     pitch.current = THREE.MathUtils.clamp(
@@ -162,7 +177,7 @@ export function PlayerController() {
       PLAYER.pitchMax,
     )
 
-    rig.current.rotation.y = yaw.current
+    yawPivot.current.rotation.y = yaw.current
     pitchObj.current.rotation.x = pitch.current
 
     forward.current.set(-Math.sin(yaw.current), 0, -Math.cos(yaw.current))
@@ -174,7 +189,9 @@ export function PlayerController() {
       .addScaledVector(right.current, moveX)
       .addScaledVector(forward.current, -moveZ)
 
-    if (wish.current.lengthSq() > 0) {
+    moving.current = wish.current.lengthSq() > 1e-6
+
+    if (moving.current) {
       const scopePenalty = store.scoped ? SCOPE.moveScale : 1
       const speed = PLAYER.speed * useSettingsStore.getState().moveSpeed * scopePenalty
       wish.current.normalize().multiplyScalar(speed * dt)
@@ -185,9 +202,9 @@ export function PlayerController() {
       pos.current.z = resolved.z
     }
 
-    pos.current.y = PLAYER.eyeHeight
-    rig.current.position.copy(pos.current)
-    setPlayerPosition(pos.current.x, pos.current.y, pos.current.z)
+    pos.current.y = 0
+    rig.current.position.set(pos.current.x, 0, pos.current.z)
+    setPlayerPosition(pos.current.x, PLAYER.eyeHeight, pos.current.z)
 
     const now = performance.now()
     if (store.consumeFire() && now - lastFire.current >= COMBAT.fireCooldownMs) {
@@ -195,8 +212,6 @@ export function PlayerController() {
       // World matrices must include this frame's yaw/pitch/position before aiming.
       rig.current.updateWorldMatrix(true, true)
       // Hitscan exactly through screen center (same as the CSS crosshair).
-      // IMPORTANT: use world ray — camera.position is local (0,0,0) and would
-      // make shots drift as the player moves around the map.
       aimRaycaster.setFromCamera(SCREEN_CENTER, camera)
       aimOrigin.current.copy(aimRaycaster.ray.origin)
       aimDir.current.copy(aimRaycaster.ray.direction)
@@ -210,10 +225,20 @@ export function PlayerController() {
   })
 
   return (
-    <group ref={rig} position={[PLAYER.spawn.x, PLAYER.eyeHeight, PLAYER.spawn.z]}>
-      <group ref={pitchObj}>
-        <PerspectiveCamera makeDefault fov={SCOPE.baseFov} near={0.05} far={600} />
-        <Weapon />
+    <group ref={rig} position={[PLAYER.spawn.x, 0, PLAYER.spawn.z]}>
+      <PlayerAvatar yawRef={yaw} movingRef={moving} />
+
+      {/* Look pivots sit at shoulder height; boom distance is applied on the camera. */}
+      <group ref={yawPivot} position={[0, CAMERA.height, 0]}>
+        <group ref={pitchObj}>
+          <PerspectiveCamera
+            makeDefault
+            fov={SCOPE.baseFov}
+            near={CAMERA.near}
+            far={CAMERA.far}
+            position={[CAMERA.shoulder, 0, CAMERA.distance]}
+          />
+        </group>
       </group>
     </group>
   )

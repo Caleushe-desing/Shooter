@@ -47,26 +47,45 @@ export const COLORS = {
 
 export const PLAYER = {
   eyeHeight: 1.65,
+  /** Body height scale for the Sim-like third-person avatar. */
+  height: 1.0,
   radius: 0.45,
   speed: 7.5,
   lookSensitivityDesktop: 0.0022,
   lookSensitivityMobile: 0.0034,
-  pitchMin: -1.2,
-  pitchMax: 1.2,
-  spawn: { x: 0, y: 1.65, z: 8 },
+  pitchMin: -1.05,
+  pitchMax: 0.85,
+  spawn: { x: 0, y: 0, z: 8 },
   maxHealth: 100,
+  /** Distinct wardrobe so the player reads apart from hostiles. */
+  skin: '#F0C5A0',
+  shirt: '#6FE04A',
+  pants: '#3D5A80',
+} as const
+
+/**
+ * Over-the-shoulder third-person camera.
+ * Distance pulls in while scoped so aiming still feels deliberate.
+ */
+export const CAMERA = {
+  shoulder: 0.55,
+  height: 1.55,
+  distance: 3.35,
+  scopedDistance: 1.55,
+  /** Smooth follow when zooming the boom in/out. */
+  boomSpeed: 10,
+  near: 0.12,
+  far: 600,
 } as const
 
 /** Telescopic sight (aim down scope). */
 export const SCOPE = {
-  baseFov: 75,
-  zoomedFov: 22,
+  baseFov: 70,
+  zoomedFov: 28,
   /** Higher is snappier when entering/leaving the scope. */
   transitionSpeed: 9,
   /** Movement penalty while scoped, so aiming feels deliberate. */
   moveScale: 0.45,
-  /** Hide the viewmodel once the zoom is past this fraction. */
-  hideWeaponAt: 0.35,
 } as const
 
 /** Hostile humans that hunt the player down. */

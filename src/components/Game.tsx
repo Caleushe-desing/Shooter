@@ -72,7 +72,7 @@ export function Game() {
       <LandscapeGate />
 
       <div className="pointer-events-none absolute bottom-3 left-1/2 z-30 hidden -translate-x-1/2 rounded-full bg-black/25 px-3 py-1 text-[10px] tracking-[0.22em] text-white/80 sm:block">
-        WASD · LOOK · CLICK/F FIRE · RMB/Z SCOPE
+        WASD · LOOK · CLICK/F FIRE · RMB/Z SCOPE · 3RD PERSON
       </div>
       <div className="pointer-events-none absolute bottom-3 left-1/2 z-30 -translate-x-1/2 rounded-full bg-black/25 px-3 py-1 text-[9px] tracking-[0.2em] text-white/75 sm:hidden">
         JOYSTICK · DRAG LOOK · PRESS FIRE · SCOPE
