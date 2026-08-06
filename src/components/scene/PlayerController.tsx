@@ -1,17 +1,29 @@
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useMemo } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { PerspectiveCamera } from '@react-three/drei'
 import * as THREE from 'three'
-import { PLAYER, CAMERA, resolveCircleBoxCollision, COMBAT, SCOPE } from '../../constants'
+import {
+  PLAYER,
+  CAMERA,
+  resolveCircleBoxCollision,
+  COMBAT,
+  SCOPE,
+  hipFireAimNdc,
+} from '../../constants'
 import { useGameStore } from '../../store/gameStore'
 import { getMuzzleWorldPosition } from '../../store/muzzle'
 import { setPlayerPosition } from '../../store/enemyRuntime'
 import { useSettingsStore } from '../../store/settings'
 import { PlayerAvatar } from './PlayerAvatar'
 
+/** Scoped optics stay centered in the eyepiece. */
+const SCOPE_AIM = new THREE.Vector2(0, 0)
+
 /**
- * Third-person chase cam locked on the player's back.
- * Shots always fire along the body's forward aim (never camera-side rays).
+ * No Man's Sky-style third person:
+ * - Over-right-shoulder camera so the back sits on the left of the frame
+ * - Hip-fire reticle shifted off-center; hitscan goes through that point
+ * - Body still faces look yaw and the gun tips with pitch
  */
 export function PlayerController() {
   const rig = useRef<THREE.Group>(null)
@@ -29,6 +41,11 @@ export function PlayerController() {
   const aimOrigin = useRef(new THREE.Vector3())
   const aimDir = useRef(new THREE.Vector3())
   const muzzlePos = useRef(new THREE.Vector3())
+  const hipAim = useMemo(() => {
+    const { x, y } = hipFireAimNdc()
+    return new THREE.Vector2(x, y)
+  }, [])
+  const aimRaycaster = useMemo(() => new THREE.Raycaster(), [])
   const { gl, camera } = useThree()
 
   const isTouch =
@@ -135,7 +152,6 @@ export function PlayerController() {
     const store = useGameStore.getState()
     if (!rig.current || !yawPivot.current || !pitchObj.current) return
 
-    // Enemies still need the player's position while the round is over.
     setPlayerPosition(pos.current.x, PLAYER.eyeHeight, pos.current.z)
     if (store.sectorCleared || store.caught) return
     if (useSettingsStore.getState().open) return
@@ -162,8 +178,9 @@ export function PlayerController() {
       CAMERA.boomSpeed,
       dt,
     )
-    // Dead-center behind the spine; camera looks toward -Z (the character's front).
-    camera.position.set(CAMERA.shoulder, 0, boomDistance.current)
+    // Over-right-shoulder boom — character's back fills the left side.
+    const shoulder = store.scoped ? CAMERA.shoulder * 0.35 : CAMERA.shoulder
+    camera.position.set(shoulder, 0, boomDistance.current)
 
     const { dx, dy } = store.consumeLook()
     yaw.current -= dx * zoomFactor
@@ -174,7 +191,6 @@ export function PlayerController() {
     )
 
     yawPivot.current.rotation.y = yaw.current
-    // Bias pitch slightly so the chase cam always frames the back.
     pitchObj.current.rotation.x = pitch.current + CAMERA.pitchBias
 
     forward.current.set(-Math.sin(yaw.current), 0, -Math.cos(yaw.current))
@@ -206,32 +222,15 @@ export function PlayerController() {
     const now = performance.now()
     if (store.consumeFire() && now - lastFire.current >= COMBAT.fireCooldownMs) {
       lastFire.current = now
-      // Sync gun pose before reading the muzzle tip.
       rig.current.updateWorldMatrix(true, true)
 
-      // Fire straight out the character's front (yaw + pitch), not a camera ray.
-      const cp = Math.cos(pitch.current)
-      const sp = Math.sin(pitch.current)
-      aimDir.current
-        .set(
-          -Math.sin(yaw.current) * cp,
-          sp,
-          -Math.cos(yaw.current) * cp,
-        )
-        .normalize()
+      // Hip fire: ray through the off-center reticle. Scoped: eyepiece center.
+      const aimPoint = store.scoped ? SCOPE_AIM : hipAim
+      aimRaycaster.setFromCamera(aimPoint, camera)
+      aimOrigin.current.copy(aimRaycaster.ray.origin)
+      aimDir.current.copy(aimRaycaster.ray.direction)
 
       const hasMuzzle = getMuzzleWorldPosition(muzzlePos.current)
-      if (hasMuzzle) {
-        aimOrigin.current.copy(muzzlePos.current)
-      } else {
-        aimOrigin.current.set(
-          pos.current.x,
-          PLAYER.eyeHeight * 0.9,
-          pos.current.z,
-        )
-        aimOrigin.current.addScaledVector(forward.current, 0.45)
-      }
-
       store.spawnTracer(
         aimOrigin.current,
         aimDir.current,
@@ -244,7 +243,6 @@ export function PlayerController() {
     <group ref={rig} position={[PLAYER.spawn.x, 0, PLAYER.spawn.z]}>
       <PlayerAvatar yawRef={yaw} pitchRef={pitch} movingRef={moving} />
 
-      {/* Chase pivots on the upper back; boom stays centered on the spine. */}
       <group ref={yawPivot} position={[0, CAMERA.height, 0]}>
         <group ref={pitchObj}>
           <PerspectiveCamera

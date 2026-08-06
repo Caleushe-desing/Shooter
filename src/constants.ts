@@ -64,22 +64,36 @@ export const PLAYER = {
 } as const
 
 /**
- * Chase camera locked behind the player's back.
- * Distance pulls in while scoped so aiming still feels deliberate.
+ * No Man's Sky-style chase cam: over the right shoulder so the back stays
+ * visible on the left, with a hip-fire reticle shifted off true center.
  */
 export const CAMERA = {
-  /** Keep centered on the spine so the back stays in frame. */
-  shoulder: 0,
-  height: 1.7,
-  distance: 4.1,
-  scopedDistance: 2.2,
+  /** Positive = over the right shoulder (character sits left of frame). */
+  shoulder: 0.95,
+  height: 1.58,
+  distance: 3.75,
+  scopedDistance: 1.85,
   /** Soft look-down bias so the back of the Sim stays readable. */
-  pitchBias: 0.12,
+  pitchBias: 0.1,
   /** Smooth follow when zooming the boom in/out. */
   boomSpeed: 10,
   near: 0.12,
   far: 600,
+  /**
+   * Hip-fire reticle position as % of the viewport (top-left origin).
+   * Kept off-center like No Man's Sky so the body owns the left side.
+   */
+  aimLeftPct: 62,
+  aimTopPct: 43,
 } as const
+
+/** NDC coords matching `CAMERA.aimLeftPct` / `aimTopPct` for hitscan. */
+export function hipFireAimNdc(): { x: number; y: number } {
+  return {
+    x: (CAMERA.aimLeftPct / 100) * 2 - 1,
+    y: 1 - (CAMERA.aimTopPct / 100) * 2,
+  }
+}
 
 /** Telescopic sight (aim down scope). */
 export const SCOPE = {
