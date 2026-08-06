@@ -87,6 +87,16 @@ button {
   animation: sector-in 0.45s ease-out both;
 }
 
+/* Blacked-out surround for the telescopic sight; the circle is the eyepiece. */
+.scope-mask {
+  background: radial-gradient(
+    circle at center,
+    transparent 0 33vmin,
+    rgba(0, 0, 0, 0.72) 33.6vmin,
+    rgba(0, 0, 0, 0.99) 36vmin
+  );
+}
+
 .stick-slider {
   -webkit-appearance: none;
   appearance: none;

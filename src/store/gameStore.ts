@@ -1,9 +1,8 @@
 import { create } from 'zustand'
 import * as THREE from 'three'
-import { BIRD, COLORS, COMBAT, ENEMY, PLAYER } from '../constants'
+import { COLORS, COMBAT, ENEMY, PLAYER } from '../constants'
 import { clearAllEnemyRuntimes, clearEnemyRuntime } from './enemyRuntime'
-import { clearAllBirdRuntimes, clearBirdRuntime, getBirdRuntime } from './birdRuntime'
-import { findClosestBirdHit, findClosestEnemyHit, findCratePierces } from './combat'
+import { findClosestEnemyHit, findCratePierces } from './combat'
 import { audio } from '../audio/audio'
 
 /** A hostile human hunting the player. Motion lives in `enemyRuntime`. */
@@ -20,17 +19,6 @@ export type EnemyData = {
   alive: boolean
   /** performance.now() of death, used to fade the corpse out. */
   diedAt: number
-}
-
-/** Bonus bird flushed out from behind a crate. Motion lives in `birdRuntime`. */
-export type BirdData = {
-  id: string
-  color: string
-  size: number
-  alive: boolean
-  /** performance.now() of death, used to clean up after the tumble. */
-  diedAt: number
-  bornAt: number
 }
 
 export type TracerData = {
@@ -78,13 +66,14 @@ type InputState = {
 type GameState = {
   score: number
   enemies: EnemyData[]
-  birds: BirdData[]
   tracers: TracerData[]
   explosions: ExplosionData[]
   pierceHoles: PierceHole[]
   health: number
   caught: boolean
   sectorCleared: boolean
+  /** Telescopic sight engaged. */
+  scoped: boolean
   round: number
   input: InputState
   recoilNonce: number
@@ -95,6 +84,8 @@ type GameState = {
   consumeLook: () => { dx: number; dy: number }
   queueFire: () => void
   consumeFire: () => boolean
+  toggleScope: () => void
+  setScoped: (scoped: boolean) => void
   /**
    * Hitscan from aimOrigin/aimDir (screen-center / crosshair).
    * Visual tracer starts at visualOrigin (muzzle) and flies to the aim point.
@@ -107,9 +98,6 @@ type GameState = {
   ) => void
   updateTracers: (dt: number, now: number) => void
   killEnemy: (enemyId: string, hitPos: THREE.Vector3, head: boolean) => void
-  addBirds: (birds: BirdData[]) => void
-  killBird: (birdId: string, hitPos: THREE.Vector3) => void
-  removeBirds: (ids: string[]) => void
   damagePlayer: (amount: number) => void
   pruneCorpses: (now: number) => void
   updateExplosions: (dt: number, now: number) => void
@@ -181,33 +169,6 @@ function createBloodBurst(pos: THREE.Vector3, head: boolean): ExplosionData {
   return { id: uid('boom'), fragments }
 }
 
-/** Feather puff when a bird is shot out of the air. */
-function createFeatherBurst(pos: THREE.Vector3): ExplosionData {
-  const fragments: Fragment[] = []
-  for (let i = 0; i < 10; i++) {
-    const dir = new THREE.Vector3(
-      Math.random() * 2 - 1,
-      Math.random() * 1.4,
-      Math.random() * 2 - 1,
-    ).normalize()
-    const speed = 1 + Math.random() * 2.6
-    fragments.push({
-      id: uid('feather'),
-      position: [pos.x, pos.y, pos.z],
-      velocity: [dir.x * speed, dir.y * speed, dir.z * speed],
-      color: Math.random() > 0.4 ? COLORS.feather : COLORS.featherDark,
-      born: performance.now(),
-      size: 0.05 + Math.random() * 0.07,
-      spin: [
-        (Math.random() - 0.5) * 16,
-        (Math.random() - 0.5) * 16,
-        (Math.random() - 0.5) * 16,
-      ],
-    })
-  }
-  return { id: uid('boom'), fragments }
-}
-
 /** Light foam chip burst when a round punches through plumavit. */
 function createFoamBurst(
   pos: THREE.Vector3,
@@ -265,13 +226,13 @@ const initialInput: InputState = {
 export const useGameStore = create<GameState>((set, get) => ({
   score: 0,
   enemies: createEnemies(1),
-  birds: [],
   tracers: [],
   explosions: [],
   pierceHoles: [],
   health: PLAYER.maxHealth,
   caught: false,
   sectorCleared: false,
+  scoped: false,
   round: 1,
   input: { ...initialInput },
   recoilNonce: 0,
@@ -314,6 +275,18 @@ export const useGameStore = create<GameState>((set, get) => ({
     return true
   },
 
+  toggleScope: () => {
+    const scoped = !get().scoped
+    audio.scopeToggle(scoped)
+    set({ scoped })
+  },
+
+  setScoped: (scoped) => {
+    if (get().scoped === scoped) return
+    audio.scopeToggle(scoped)
+    set({ scoped })
+  },
+
   spawnTracer: (aimOrigin, aimDir, visualOrigin) => {
     const dir = aimDir.clone().normalize()
     const now = performance.now()
@@ -321,25 +294,15 @@ export const useGameStore = create<GameState>((set, get) => ({
     // Precise hitscan exactly through the crosshair (camera center ray).
     // Crates are styrofoam — they never occlude this ray.
     const enemyHit = findClosestEnemyHit(aimOrigin, dir, get().enemies)
-    const birdHit = findClosestBirdHit(aimOrigin, dir, get().birds)
-
-    // Whichever target the crosshair reaches first takes the round.
-    const birdIsCloser =
-      birdHit != null && (enemyHit == null || birdHit.distance < enemyHit.distance)
-    const shotRange = birdIsCloser
-      ? birdHit.distance
-      : (enemyHit?.distance ?? COMBAT.tracerMaxDistance)
+    const shotRange = enemyHit?.distance ?? COMBAT.tracerMaxDistance
 
     // Aim point always lies on the crosshair ray (hit or max range).
     const aimPoint = aimOrigin.clone().addScaledVector(dir, shotRange)
 
-    if (birdIsCloser) {
-      get().killBird(birdHit.birdId, birdHit.point)
-    } else if (enemyHit) {
+    if (enemyHit) {
       get().killEnemy(enemyHit.enemyId, enemyHit.point, enemyHit.head)
     }
 
-    // Punch through any plumavit crates along the shot (entry + exit).
     audio.gunshot()
 
     const pierces = findCratePierces(aimOrigin, dir, shotRange)
@@ -419,41 +382,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       explosions: [...get().explosions, createBloodBurst(hitPos, head)],
       score: get().score + points,
       sectorCleared: cleared && !get().caught,
+      scoped: cleared ? false : get().scoped,
     })
-  },
-
-  addBirds: (birds) => {
-    if (birds.length === 0) return
-    audio.birdFlush()
-    set((s) => ({ birds: [...s.birds, ...birds] }))
-  },
-
-  killBird: (birdId, hitPos) => {
-    const bird = get().birds.find((b) => b.id === birdId)
-    if (!bird || !bird.alive) return
-
-    const now = performance.now()
-    const rt = getBirdRuntime(birdId)
-    if (rt) {
-      // Hand the body over to the falling branch of the flight sim.
-      rt.deadAt = now
-      rt.vy = Math.min(rt.vy, -0.5)
-    }
-
-    audio.birdHit()
-    set((s) => ({
-      birds: s.birds.map((b) =>
-        b.id === birdId ? { ...b, alive: false, diedAt: now } : b,
-      ),
-      explosions: [...s.explosions, createFeatherBurst(hitPos)],
-      score: s.score + BIRD.points,
-    }))
-  },
-
-  removeBirds: (ids) => {
-    if (ids.length === 0) return
-    for (const id of ids) clearBirdRuntime(id)
-    set((s) => ({ birds: s.birds.filter((b) => !ids.includes(b.id)) }))
   },
 
   damagePlayer: (amount) => {
@@ -467,6 +397,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({
       health,
       caught: health <= 0,
+      scoped: health <= 0 ? false : state.scoped,
       damageNonce: state.damageNonce + 1,
     })
   },
@@ -515,17 +446,16 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   resetRound: () => {
     clearAllEnemyRuntimes()
-    clearAllBirdRuntimes()
     const round = get().round + 1
     set({
       enemies: createEnemies(round),
-      birds: [],
       tracers: [],
       explosions: [],
       pierceHoles: [],
       health: PLAYER.maxHealth,
       caught: false,
       sectorCleared: false,
+      scoped: false,
       round,
       input: { ...initialInput },
     })
@@ -533,17 +463,16 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   restartGame: () => {
     clearAllEnemyRuntimes()
-    clearAllBirdRuntimes()
     set({
       score: 0,
       enemies: createEnemies(1),
-      birds: [],
       tracers: [],
       explosions: [],
       pierceHoles: [],
       health: PLAYER.maxHealth,
       caught: false,
       sectorCleared: false,
+      scoped: false,
       round: 1,
       input: { ...initialInput },
     })

@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { SETTINGS_RANGE, useSettingsStore } from '../../store/settings'
+import { useGameStore } from '../../store/gameStore'
 
 /** Gear button + panel to tune movement and look stick speed. */
 export function ControlSettings() {
@@ -32,6 +33,7 @@ export function ControlSettings() {
         onClick={() => {
           // Free the cursor so the sliders are usable on desktop.
           if (document.pointerLockElement) document.exitPointerLock()
+          useGameStore.getState().setScoped(false)
           setOpen(true)
         }}
         className="absolute left-1/2 top-3 z-40 -translate-x-1/2 border border-[#00FF00]/50 bg-black/60 px-3 py-1 text-[9px] tracking-[0.3em] text-[#00FF00]/80 transition hover:bg-[#00FF00]/15 active:scale-[0.98] sm:top-4 sm:text-[10px]"

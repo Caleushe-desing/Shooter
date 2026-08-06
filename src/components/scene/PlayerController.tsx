@@ -2,7 +2,7 @@ import { useRef, useEffect, useMemo } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { PerspectiveCamera } from '@react-three/drei'
 import * as THREE from 'three'
-import { PLAYER, resolveCircleBoxCollision, COMBAT } from '../../constants'
+import { PLAYER, resolveCircleBoxCollision, COMBAT, SCOPE } from '../../constants'
 import { useGameStore } from '../../store/gameStore'
 import { getMuzzleWorldPosition } from '../../store/muzzle'
 import { setPlayerPosition } from '../../store/enemyRuntime'
@@ -65,16 +65,29 @@ export function PlayerController() {
         e.preventDefault()
         useGameStore.getState().queueFire()
       }
+      if (e.code === 'KeyZ') {
+        e.preventDefault()
+        useGameStore.getState().toggleScope()
+      }
+    }
+
+    // Right mouse button toggles the scope, so block the context menu.
+    const onContextMenu = (e: MouseEvent) => {
+      e.preventDefault()
+      if (isTouch || useSettingsStore.getState().open) return
+      useGameStore.getState().toggleScope()
     }
 
     el.addEventListener('click', onClick)
     el.addEventListener('mousedown', onMouseDown)
+    el.addEventListener('contextmenu', onContextMenu)
     document.addEventListener('mousemove', onMouseMove)
     window.addEventListener('keydown', onKeyDown)
 
     return () => {
       el.removeEventListener('click', onClick)
       el.removeEventListener('mousedown', onMouseDown)
+      el.removeEventListener('contextmenu', onContextMenu)
       document.removeEventListener('mousemove', onMouseMove)
       window.removeEventListener('keydown', onKeyDown)
     }
@@ -124,10 +137,27 @@ export function PlayerController() {
     if (store.sectorCleared || store.caught) return
     if (useSettingsStore.getState().open) return
 
+    // Ease the field of view toward the scope target and keep look speed
+    // proportional to the zoom, otherwise aiming gets twitchy when magnified.
+    const targetFov = store.scoped ? SCOPE.zoomedFov : SCOPE.baseFov
+    const perspective = camera as THREE.PerspectiveCamera
+    if (perspective.isPerspectiveCamera && Math.abs(perspective.fov - targetFov) > 0.01) {
+      perspective.fov = THREE.MathUtils.damp(
+        perspective.fov,
+        targetFov,
+        SCOPE.transitionSpeed,
+        dt,
+      )
+      perspective.updateProjectionMatrix()
+    }
+    const zoomFactor = perspective.isPerspectiveCamera
+      ? perspective.fov / SCOPE.baseFov
+      : 1
+
     const { dx, dy } = store.consumeLook()
-    yaw.current -= dx
+    yaw.current -= dx * zoomFactor
     pitch.current = THREE.MathUtils.clamp(
-      pitch.current - dy,
+      pitch.current - dy * zoomFactor,
       PLAYER.pitchMin,
       PLAYER.pitchMax,
     )
@@ -145,7 +175,8 @@ export function PlayerController() {
       .addScaledVector(forward.current, -moveZ)
 
     if (wish.current.lengthSq() > 0) {
-      const speed = PLAYER.speed * useSettingsStore.getState().moveSpeed
+      const scopePenalty = store.scoped ? SCOPE.moveScale : 1
+      const speed = PLAYER.speed * useSettingsStore.getState().moveSpeed * scopePenalty
       wish.current.normalize().multiplyScalar(speed * dt)
       const nextX = pos.current.x + wish.current.x
       const nextZ = pos.current.z + wish.current.z
@@ -181,7 +212,7 @@ export function PlayerController() {
   return (
     <group ref={rig} position={[PLAYER.spawn.x, PLAYER.eyeHeight, PLAYER.spawn.z]}>
       <group ref={pitchObj}>
-        <PerspectiveCamera makeDefault fov={75} near={0.05} far={600} />
+        <PerspectiveCamera makeDefault fov={SCOPE.baseFov} near={0.05} far={600} />
         <Weapon />
       </group>
     </group>

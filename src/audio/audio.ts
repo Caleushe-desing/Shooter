@@ -256,87 +256,31 @@ class GameAudio {
     osc.stop(t + 0.3)
   }
 
-  /** Wing flutter plus alarm chirps as a flock breaks cover. */
-  birdFlush() {
-    const buses = this.buses
-    if (!buses) return
-    const { ctx, sfx, reverb } = buses
-    const t = ctx.currentTime
-
-    // Wing beats: short filtered noise pulses.
-    for (let i = 0; i < 7; i++) {
-      const at = t + i * 0.085 + Math.random() * 0.02
-      const filter = ctx.createBiquadFilter()
-      filter.type = 'bandpass'
-      filter.frequency.value = 700 + Math.random() * 500
-      filter.Q.value = 1.1
-      const gain = ctx.createGain()
-      gain.gain.setValueAtTime(0.0001, at)
-      gain.gain.exponentialRampToValueAtTime(0.22, at + 0.012)
-      gain.gain.exponentialRampToValueAtTime(0.0005, at + 0.075)
-
-      const src = ctx.createBufferSource()
-      src.buffer = buses.noise
-      src.loop = true
-      src.playbackRate.value = 0.6 + Math.random() * 0.5
-      src.connect(filter)
-      filter.connect(gain)
-      gain.connect(sfx)
-      src.start(at)
-      src.stop(at + 0.09)
-    }
-
-    // Chirps.
-    for (let i = 0; i < 3; i++) {
-      const at = t + 0.05 + i * 0.12 + Math.random() * 0.05
-      const osc = ctx.createOscillator()
-      osc.type = 'triangle'
-      const base = 1500 + Math.random() * 900
-      osc.frequency.setValueAtTime(base, at)
-      osc.frequency.exponentialRampToValueAtTime(base * 1.7, at + 0.05)
-      osc.frequency.exponentialRampToValueAtTime(base * 0.8, at + 0.11)
-      const gain = ctx.createGain()
-      gain.gain.setValueAtTime(0.0001, at)
-      gain.gain.exponentialRampToValueAtTime(0.16, at + 0.015)
-      gain.gain.exponentialRampToValueAtTime(0.0004, at + 0.13)
-      osc.connect(gain)
-      gain.connect(sfx)
-      gain.connect(reverb)
-      osc.start(at)
-      osc.stop(at + 0.14)
-    }
-  }
-
-  /** Squawk cut short plus a feather puff when a bird is hit. */
-  birdHit() {
+  /** Mechanical click when the telescopic sight is raised or lowered. */
+  scopeToggle(engaged: boolean) {
     const buses = this.buses
     if (!buses) return
     const { ctx, sfx } = buses
     const t = ctx.currentTime
 
     const osc = ctx.createOscillator()
-    osc.type = 'sawtooth'
-    osc.frequency.setValueAtTime(1350, t)
-    osc.frequency.exponentialRampToValueAtTime(280, t + 0.18)
+    osc.type = 'square'
+    osc.frequency.setValueAtTime(engaged ? 520 : 380, t)
+    osc.frequency.exponentialRampToValueAtTime(engaged ? 900 : 240, t + 0.06)
     const gain = ctx.createGain()
-    gain.gain.setValueAtTime(0.0001, t)
-    gain.gain.exponentialRampToValueAtTime(0.3, t + 0.012)
-    gain.gain.exponentialRampToValueAtTime(0.0005, t + 0.2)
-    osc.connect(gain)
-    gain.connect(sfx)
-    osc.start(t)
-    osc.stop(t + 0.22)
+    gain.gain.setValueAtTime(0.12, t)
+    gain.gain.exponentialRampToValueAtTime(0.0004, t + 0.08)
 
     const filter = ctx.createBiquadFilter()
     filter.type = 'bandpass'
-    filter.frequency.value = 3200
-    const puff = ctx.createGain()
-    puff.gain.setValueAtTime(0.22, t)
-    puff.gain.exponentialRampToValueAtTime(0.0005, t + 0.14)
-    const noise = this.noiseSource(buses, 0.16)
-    noise.connect(filter)
-    filter.connect(puff)
-    puff.connect(sfx)
+    filter.frequency.value = 1200
+    filter.Q.value = 2
+
+    osc.connect(filter)
+    filter.connect(gain)
+    gain.connect(sfx)
+    osc.start(t)
+    osc.stop(t + 0.09)
   }
 
   /** Long descending swell when the horde takes the player down. */

@@ -1,7 +1,6 @@
 import * as THREE from 'three'
-import { BIRD, COMBAT, ENEMY, OBSTACLES } from '../constants'
+import { COMBAT, ENEMY, OBSTACLES } from '../constants'
 import { getEnemyRuntime, getEnemyTargets, resolveEnemyHitPart } from './enemyRuntime'
-import { getBirdRuntime, getBirdTargets, resolveBirdId } from './birdRuntime'
 
 type EnemyLike = {
   id: string
@@ -104,63 +103,6 @@ export function findClosestEnemyHit(
       enemyId: enemy.id,
       distance: t,
       head,
-      point: new THREE.Vector3(
-        _origin.x + _dir.x * t,
-        _origin.y + _dir.y * t,
-        _origin.z + _dir.z * t,
-      ),
-    }
-  }
-
-  return best
-}
-
-export type BirdHit = {
-  birdId: string
-  distance: number
-  point: THREE.Vector3
-}
-
-/** Closest bird along the aim ray (mesh raycast, sphere fallback). */
-export function findClosestBirdHit(
-  origin: THREE.Vector3,
-  direction: THREE.Vector3,
-  birds: EnemyLike[],
-  maxDistance: number = COMBAT.tracerMaxDistance,
-): BirdHit | null {
-  if (birds.length === 0) return null
-  _origin.copy(origin)
-  _dir.copy(direction).normalize()
-
-  const targets = getBirdTargets()
-  if (targets.length > 0) {
-    _raycaster.set(_origin, _dir)
-    _raycaster.near = 0.05
-    _raycaster.far = maxDistance
-    const hits = _raycaster.intersectObjects(targets, true)
-    for (const h of hits) {
-      const birdId = resolveBirdId(h.object)
-      if (!birdId) continue
-      const bird = birds.find((b) => b.id === birdId && b.alive)
-      if (!bird) continue
-      return { birdId, distance: h.distance, point: h.point.clone() }
-    }
-  }
-
-  let best: BirdHit | null = null
-  for (const bird of birds) {
-    if (!bird.alive) continue
-    const rt = getBirdRuntime(bird.id)
-    if (!rt || rt.deadAt > 0) continue
-
-    _center.set(rt.x, rt.y, rt.z)
-    const t = raySphereDistance(_origin, _dir, _center, BIRD.hitRadius, 0.05, maxDistance)
-    if (t == null) continue
-    if (best && t >= best.distance) continue
-
-    best = {
-      birdId: bird.id,
-      distance: t,
       point: new THREE.Vector3(
         _origin.x + _dir.x * t,
         _origin.y + _dir.y * t,

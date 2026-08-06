@@ -31,12 +31,6 @@ export const COLORS = {
   enemyEye: '#FF3B30',
   blood: '#8E0F1A',
   bloodDark: '#4A0710',
-  /** Birds flushed out from behind the crates. */
-  birdBodies: ['#2E2A26', '#4A3B2E', '#1F2A33', '#5A4632'] as const,
-  birdBelly: '#D8CFC0',
-  birdBeak: '#E9A13B',
-  feather: '#EDE7DA',
-  featherDark: '#6B5B49',
 } as const
 
 export const PLAYER = {
@@ -49,6 +43,18 @@ export const PLAYER = {
   pitchMax: 1.2,
   spawn: { x: 0, y: 1.65, z: 8 },
   maxHealth: 100,
+} as const
+
+/** Telescopic sight (aim down scope). */
+export const SCOPE = {
+  baseFov: 75,
+  zoomedFov: 22,
+  /** Higher is snappier when entering/leaving the scope. */
+  transitionSpeed: 9,
+  /** Movement penalty while scoped, so aiming feels deliberate. */
+  moveScale: 0.45,
+  /** Hide the viewmodel once the zoom is past this fraction. */
+  hideWeaponAt: 0.35,
 } as const
 
 /** Hostile humans that hunt the player down. */
@@ -111,33 +117,6 @@ export const COMBAT = {
   pierceChips: 7,
   pierceHoleMax: 240,
   pierceHoleRadius: 0.06,
-} as const
-
-/** Birds that burst out from behind the crates as bonus targets. */
-export const BIRD = {
-  firstFlockDelayMs: 5000,
-  flockIntervalMinMs: 7000,
-  flockIntervalMaxMs: 13000,
-  flockMin: 2,
-  flockMax: 4,
-  /** Stagger between birds of the same flock. */
-  flockStaggerMs: 130,
-  speedMin: 3.4,
-  speedMax: 5,
-  climbMin: 3.2,
-  climbMax: 4.6,
-  /** Vertical speed decay so they level off instead of rocketing away. */
-  climbDamping: 0.72,
-  bobAmplitude: 0.55,
-  bobSpeed: 3.4,
-  flapSpeed: 17,
-  hitRadius: 0.48,
-  size: 0.38,
-  points: 75,
-  maxAltitude: 16,
-  maxRange: 34,
-  lifetimeMs: 14000,
-  featherFadeMs: 1800,
 } as const
 
 export type Collider = {

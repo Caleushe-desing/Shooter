@@ -5,12 +5,12 @@ import { Sky } from './scene/Sky'
 import { PlayerController } from './scene/PlayerController'
 import { Tracers } from './scene/Tracers'
 import { Enemies } from './scene/Enemies'
-import { Birds } from './scene/Birds'
 import { Explosions } from './scene/Explosions'
 import { PierceHoles } from './scene/PierceHoles'
 import { CRTOverlay } from './ui/CRTOverlay'
 import { HUD } from './ui/HUD'
 import { Crosshair } from './ui/Crosshair'
+import { ScopeButton, ScopeOverlay } from './ui/Scope'
 import { MobileControls } from './ui/MobileControls'
 import { ControlSettings } from './ui/ControlSettings'
 import { AudioBoot } from './ui/AudioBoot'
@@ -30,7 +30,6 @@ function Scene() {
       <Arena />
       <PlayerController />
       <Enemies />
-      <Birds />
       <Tracers />
       <Explosions />
       <PierceHoles />
@@ -60,6 +59,8 @@ export function Game() {
 
       <CRTOverlay />
       <Crosshair />
+      <ScopeOverlay />
+      <ScopeButton />
       <HUD />
       <MobileControls />
       <ControlSettings />
@@ -68,10 +69,10 @@ export function Game() {
       <LandscapeGate />
 
       <div className="pointer-events-none absolute bottom-3 left-1/2 z-30 hidden -translate-x-1/2 text-[10px] tracking-[0.3em] text-white/40 sm:block">
-        WASD MOVE · MOUSE LOOK · CLICK / F FIRE
+        WASD · LOOK · CLICK/F FIRE · RMB/Z SCOPE
       </div>
       <div className="pointer-events-none absolute bottom-3 left-1/2 z-30 -translate-x-1/2 text-[9px] tracking-[0.25em] text-white/35 sm:hidden">
-        JOYSTICK · DRAG LOOK · PRESS HARD TO FIRE
+        JOYSTICK · DRAG LOOK · PRESS FIRE · SCOPE BTN
       </div>
     </div>
   )

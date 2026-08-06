@@ -1,7 +1,7 @@
 import { useRef, useEffect, useLayoutEffect, type ReactNode } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { COLORS } from '../../constants'
+import { COLORS, SCOPE } from '../../constants'
 import { useGameStore } from '../../store/gameStore'
 import { setMuzzleObject } from '../../store/muzzle'
 
@@ -104,13 +104,33 @@ export function Weapon() {
     return unsub
   }, [])
 
-  useFrame((_, delta) => {
+  useFrame(({ camera }, delta) => {
     if (!group.current) return
     recoil.current = THREE.MathUtils.damp(recoil.current, 0, 10, delta)
 
+    // Swing the viewmodel toward the eye while scoping, then hide it so the
+    // scope optics own the screen.
+    const perspective = camera as THREE.PerspectiveCamera
+    const zoom = perspective.isPerspectiveCamera
+      ? THREE.MathUtils.clamp(
+          (SCOPE.baseFov - perspective.fov) / (SCOPE.baseFov - SCOPE.zoomedFov),
+          0,
+          1,
+        )
+      : 0
+    group.current.visible = zoom < SCOPE.hideWeaponAt
+
     const kick = recoil.current
-    group.current.position.set(0.28, -0.28 + kick * 0.05, -0.55 - kick * 0.1)
-    group.current.rotation.set(0.12 - kick * 0.35, -0.35, 0.08 + kick * 0.05)
+    group.current.position.set(
+      0.28 - zoom * 0.28,
+      -0.28 + kick * 0.05 - zoom * 0.05,
+      -0.55 - kick * 0.1 + zoom * 0.1,
+    )
+    group.current.rotation.set(
+      0.12 - kick * 0.35,
+      -0.35 + zoom * 0.35,
+      0.08 + kick * 0.05,
+    )
   })
 
   return (
