@@ -15,7 +15,7 @@ export function HUD() {
       <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between px-4 pt-3 sm:px-6 sm:pt-4">
         <div className="sims-panel select-none px-4 py-2.5">
           <div className="text-[10px] font-bold tracking-[0.2em] text-white/60 sm:text-xs">
-            SCORE
+            CHILE OPEN
           </div>
           <div className="pulse-glow text-2xl font-extrabold leading-none tracking-wide text-[#6FE04A] sm:text-3xl">
             {String(score).padStart(5, '0')}
@@ -24,7 +24,7 @@ export function HUD() {
 
         <div className="sims-panel select-none px-4 py-2.5 text-right">
           <div className="text-[10px] font-bold tracking-[0.2em] text-white/60 sm:text-xs">
-            WAVE {round}
+            BANDA {round}
           </div>
           <div className="text-lg font-extrabold tracking-wide text-white sm:text-xl">
             HOSTILES <span className="text-[#FF7A59]">{left}</span>

@@ -116,25 +116,29 @@ export const SCOPE = {
   moveScale: 0.45,
 } as const
 
-/** Hostile humans that hunt the player down. */
+export const ARENA = {
+  /** Legacy crate clearing size near spawn (open world uses WORLD). */
+  size: 28,
+  wallHeight: 4,
+  wallThickness: 0.4,
+} as const
+
+/** Hostile bandits still roam the open country. */
 export const ENEMY = {
-  baseCount: 6,
-  perRound: 2,
-  maxCount: 16,
-  firstSpawnDelayMs: 2200,
-  spawnIntervalMs: 2600,
-  spawnRingMin: 11,
-  spawnRingMax: 13,
-  /** Keep spawns this far from the player so nobody appears on top of them. */
-  spawnMinPlayerDistance: 9,
-  speedMin: 1.15,
-  speedMax: 1.75,
-  speedPerRound: 0.14,
+  baseCount: 3,
+  perRound: 1,
+  maxCount: 8,
+  firstSpawnDelayMs: 8000,
+  spawnIntervalMs: 5000,
+  spawnRingMin: 22,
+  spawnRingMax: 36,
+  spawnMinPlayerDistance: 14,
+  speedMin: 1.0,
+  speedMax: 1.45,
+  speedPerRound: 0.1,
   radius: 0.42,
-  /** Distance at which an enemy grabs the player. */
   grabDistance: 1.25,
-  grabDamagePerSec: 16,
-  /** Torso / head hit spheres (fallback when mesh raycast misses). */
+  grabDamagePerSec: 12,
   torsoY: 1.12,
   torsoRadius: 0.42,
   headY: 1.62,
@@ -143,12 +147,6 @@ export const ENEMY = {
   headshotBonus: 100,
   corpseFadeMs: 2800,
   spawnRiseMs: 420,
-} as const
-
-export const ARENA = {
-  size: 28,
-  wallHeight: 4,
-  wallThickness: 0.4,
 } as const
 
 /** Mobile look/fire zone: hard press fires; light drag only looks. */
@@ -169,10 +167,9 @@ export const COMBAT = {
   tracerSpeed: 120,
   tracerLength: 1.1,
   tracerRadius: 0.045,
-  tracerMaxDistance: 55,
+  tracerMaxDistance: 90,
   fireCooldownMs: 180,
   explosionFragments: 14,
-  /** Foam crate pierce VFX. Holes persist for the whole round. */
   pierceChips: 7,
   pierceHoleMax: 240,
   pierceHoleRadius: 0.06,
@@ -181,42 +178,36 @@ export const COMBAT = {
 export type Collider = {
   minX: number
   maxX: number
+  minY?: number
+  maxY?: number
   minZ: number
   maxZ: number
 }
 
-/** Static obstacle boxes (center + half extents on XZ). */
+/** Static obstacle boxes near spawn (center + half extents on XZ). */
 export const OBSTACLES: { x: number; z: number; w: number; d: number; h: number }[] = [
   { x: -6, z: -2, w: 2, d: 2, h: 2.5 },
   { x: 5, z: -5, w: 2.5, d: 2, h: 3 },
   { x: 0, z: -8, w: 3, d: 1.5, h: 2 },
   { x: -8, z: 4, w: 1.8, d: 1.8, h: 2.2 },
   { x: 8, z: 2, w: 2, d: 3, h: 2.8 },
-  { x: 3, z: 6, w: 1.5, d: 1.5, h: 1.8 },
-  { x: -3, z: -10, w: 2, d: 2, h: 2.4 },
 ]
 
 export function buildColliders(): Collider[] {
-  const half = ARENA.size / 2
-  const t = ARENA.wallThickness
-  const walls: Collider[] = [
-    { minX: -half - t, maxX: half + t, minZ: -half - t, maxZ: -half },
-    { minX: -half - t, maxX: half + t, minZ: half, maxZ: half + t },
-    { minX: -half - t, maxX: -half, minZ: -half, maxZ: half },
-    { minX: half, maxX: half + t, minZ: -half, maxZ: half },
-  ]
-
-  const boxes = OBSTACLES.map((o) => ({
+  // Open world: only spawn crates here. Trees / rim come from worldStore.
+  return OBSTACLES.map((o) => ({
     minX: o.x - o.w / 2,
     maxX: o.x + o.w / 2,
     minZ: o.z - o.d / 2,
     maxZ: o.z + o.d / 2,
   }))
-
-  return [...walls, ...boxes]
 }
 
 export const COLLIDERS = buildColliders()
+
+export function mergeColliders(extra: Collider[] = []): Collider[] {
+  return [...COLLIDERS, ...extra]
+}
 
 export function resolveCircleBoxCollision(
   x: number,

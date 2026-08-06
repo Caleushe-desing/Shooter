@@ -3,6 +3,8 @@ import * as THREE from 'three'
 import { COLORS, COMBAT, ENEMY, PLAYER } from '../constants'
 import { clearAllEnemyRuntimes, clearEnemyRuntime } from './enemyRuntime'
 import { findClosestEnemyHit, findCratePierces } from './combat'
+import { findClosestFaunaHit, findClosestWorldPropHit } from './faunaRuntime'
+import { useWorldStore } from './worldStore'
 import { audio } from '../audio/audio'
 
 /** A hostile human hunting the player. Motion lives in `enemyRuntime`. */
@@ -291,16 +293,24 @@ export const useGameStore = create<GameState>((set, get) => ({
     const dir = aimDir.clone().normalize()
     const now = performance.now()
 
-    // Hitscan along the character's forward aim (back-cam chase style).
-    // Crates are styrofoam — they never occlude this ray.
     const enemyHit = findClosestEnemyHit(aimOrigin, dir, get().enemies)
-    const shotRange = enemyHit?.distance ?? COMBAT.tracerMaxDistance
+    const faunaHit = findClosestFaunaHit(aimOrigin, dir, COMBAT.tracerMaxDistance)
+    const propHit = findClosestWorldPropHit(aimOrigin, dir, COMBAT.tracerMaxDistance)
 
-    // Aim point always lies on the crosshair ray (hit or max range).
+    let shotRange: number = COMBAT.tracerMaxDistance
+    if (enemyHit) shotRange = Math.min(shotRange, enemyHit.distance)
+    if (faunaHit) shotRange = Math.min(shotRange, faunaHit.distance)
+    if (propHit) shotRange = Math.min(shotRange, propHit.distance)
+
     const aimPoint = aimOrigin.clone().addScaledVector(dir, shotRange)
 
-    if (enemyHit) {
+    if (enemyHit && enemyHit.distance <= shotRange + 1e-4) {
       get().killEnemy(enemyHit.enemyId, enemyHit.point, enemyHit.head)
+    } else if (faunaHit && faunaHit.distance <= shotRange + 1e-4) {
+      useWorldStore.getState().damageFauna(faunaHit.id, 1)
+    } else if (propHit && propHit.distance <= shotRange + 1e-4) {
+      if (propHit.type === 'flora') useWorldStore.getState().damageFlora(propHit.id, 1)
+      else useWorldStore.getState().damageMineral(propHit.id, 1)
     }
 
     audio.gunshot()
@@ -316,7 +326,6 @@ export const useGameStore = create<GameState>((set, get) => ({
       newHoles.push(holeFrom(p.exit, p.exitNormal))
     }
 
-    // Visual streak: muzzle → aim point (flies straight through foam crates).
     const start = visualOrigin?.clone() ?? aimOrigin.clone()
     const visualDir = aimPoint.clone().sub(start)
     const maxDistance = Math.max(visualDir.length(), 0.5)

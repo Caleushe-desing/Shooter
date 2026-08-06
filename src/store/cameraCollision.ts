@@ -1,5 +1,7 @@
 import * as THREE from 'three'
-import { ARENA, CAMERA, OBSTACLES } from '../constants'
+import { CAMERA, OBSTACLES } from '../constants'
+import { FLORA, MINERALS, WORLD } from '../world/catalog'
+import { useWorldStore } from './worldStore'
 
 type Aabb = {
   minX: number
@@ -10,11 +12,9 @@ type Aabb = {
   maxZ: number
 }
 
-function buildCameraColliders(): Aabb[] {
-  const half = ARENA.size / 2
-  const t = ARENA.wallThickness
-  const h = ARENA.wallHeight
-  // Inflate solids so the lens keeps a clear margin outside the face.
+function buildStaticCameraColliders(): Aabb[] {
+  const half = WORLD.half
+  const t = 4
   const pad = CAMERA.collisionSkin
 
   const walls: Aabb[] = [
@@ -22,7 +22,7 @@ function buildCameraColliders(): Aabb[] {
       minX: -half - t - pad,
       maxX: half + t + pad,
       minY: -0.5,
-      maxY: h + pad,
+      maxY: 8,
       minZ: -half - t - pad,
       maxZ: -half + pad,
     },
@@ -30,7 +30,7 @@ function buildCameraColliders(): Aabb[] {
       minX: -half - t - pad,
       maxX: half + t + pad,
       minY: -0.5,
-      maxY: h + pad,
+      maxY: 8,
       minZ: half - pad,
       maxZ: half + t + pad,
     },
@@ -38,7 +38,7 @@ function buildCameraColliders(): Aabb[] {
       minX: -half - t - pad,
       maxX: -half + pad,
       minY: -0.5,
-      maxY: h + pad,
+      maxY: 8,
       minZ: -half - pad,
       maxZ: half + pad,
     },
@@ -46,7 +46,7 @@ function buildCameraColliders(): Aabb[] {
       minX: half - pad,
       maxX: half + t + pad,
       minY: -0.5,
-      maxY: h + pad,
+      maxY: 8,
       minZ: -half - pad,
       maxZ: half + pad,
     },
@@ -64,7 +64,40 @@ function buildCameraColliders(): Aabb[] {
   return [...walls, ...crates]
 }
 
-const BOXES = buildCameraColliders()
+const STATIC_BOXES = buildStaticCameraColliders()
+
+function liveBoxes(): Aabb[] {
+  const pad = CAMERA.collisionSkin * 0.8
+  const boxes: Aabb[] = []
+  const state = useWorldStore.getState()
+  for (const f of state.flora) {
+    if (!f.alive) continue
+    const def = FLORA[f.kind]
+    const r = def.radius * f.scale + pad
+    boxes.push({
+      minX: f.x - r,
+      maxX: f.x + r,
+      minY: -0.2,
+      maxY: def.height * f.scale + pad,
+      minZ: f.z - r,
+      maxZ: f.z + r,
+    })
+  }
+  for (const m of state.minerals) {
+    if (!m.alive) continue
+    const def = MINERALS[m.kind]
+    const r = def.radius * m.scale + pad
+    boxes.push({
+      minX: m.x - r,
+      maxX: m.x + r,
+      minY: -0.2,
+      maxY: def.height * m.scale + pad,
+      minZ: m.z - r,
+      maxZ: m.z + r,
+    })
+  }
+  return boxes
+}
 
 function pointInAabb(p: THREE.Vector3, box: Aabb): boolean {
   return (
@@ -78,13 +111,15 @@ function pointInAabb(p: THREE.Vector3, box: Aabb): boolean {
 }
 
 export function isInsideCameraSolid(point: THREE.Vector3): boolean {
-  for (const box of BOXES) {
+  for (const box of STATIC_BOXES) {
+    if (pointInAabb(point, box)) return true
+  }
+  for (const box of liveBoxes()) {
     if (pointInAabb(point, box)) return true
   }
   return false
 }
 
-/** Ray vs AABB (slab). Returns enter distance, or 0 when the origin is inside. */
 function rayAabbEnter(
   origin: THREE.Vector3,
   dir: THREE.Vector3,
@@ -119,18 +154,12 @@ function rayAabbEnter(
     if (t0 > t1) return null
   }
 
-  // Origin starts inside this solid — no boom travel allowed on this ray.
   if (t0 < 0 && t1 >= 0) return 0
-
   if (t1 < tMin || t0 > tMax) return null
   if (t0 < tMin) return null
   return t0
 }
 
-/**
- * How far the chase cam may travel from the shoulder pivot before hitting a
- * solid (arena wall or crate). Keeps the pup on screen near walls.
- */
 export function maxCameraBoomDistance(
   origin: THREE.Vector3,
   direction: THREE.Vector3,
@@ -141,11 +170,14 @@ export function maxCameraBoomDistance(
   const dir = direction.clone().multiplyScalar(1 / dirLen)
   const maxDist = Math.max(desiredDistance, CAMERA.minDistance)
 
-  // If the pivot itself is buried in a solid, hug the character.
   if (isInsideCameraSolid(origin)) return CAMERA.minDistance
 
   let hit = maxDist
-  for (const box of BOXES) {
+  for (const box of STATIC_BOXES) {
+    const t = rayAabbEnter(origin, dir, box, 0, maxDist)
+    if (t != null && t < hit) hit = t
+  }
+  for (const box of liveBoxes()) {
     const t = rayAabbEnter(origin, dir, box, 0, maxDist)
     if (t != null && t < hit) hit = t
   }
@@ -153,10 +185,6 @@ export function maxCameraBoomDistance(
   return THREE.MathUtils.clamp(hit, CAMERA.minDistance, maxDist)
 }
 
-/**
- * Walk the boom scale down until the lens is outside every solid.
- * Safety net for grazing corners the primary ray can miss.
- */
 export function fitCameraScaleOutsideSolids(
   pivot: THREE.Vector3,
   idealLocal: THREE.Vector3,
@@ -170,7 +198,6 @@ export function fitCameraScaleOutsideSolids(
 
   for (let i = 0; i < 10; i++) {
     probe.copy(idealLocal).multiplyScalar(scale).applyMatrix4(pitchMatrixWorld)
-    // Also keep a short segment from pivot→lens clear by testing the midpoint.
     const mid = probe.clone().add(pivot).multiplyScalar(0.5)
     if (!isInsideCameraSolid(probe) && !isInsideCameraSolid(mid)) return scale
     scale = Math.max(minScale, scale * 0.72)

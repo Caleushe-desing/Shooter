@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { ARENA, COLORS, ENEMY, resolveCircleBoxCollision } from '../../constants'
+import { COLORS, ENEMY, resolveCircleBoxCollision, mergeColliders } from '../../constants'
 import { useGameStore, type EnemyData } from '../../store/gameStore'
 import { useSettingsStore } from '../../store/settings'
+import { useWorldStore } from '../../store/worldStore'
+import { WORLD } from '../../world/catalog'
 import {
   clearEnemyRuntime,
   getAllEnemyRuntimes,
@@ -100,12 +102,13 @@ export function Enemies() {
       let nz = rt.z + (dz / dist) * step
 
       // Slide sideways when a crate blocks the direct path.
-      const resolved = resolveCircleBoxCollision(nx, nz, ENEMY.radius)
+      const worldCols = mergeColliders(useWorldStore.getState().getTreeColliders())
+      const resolved = resolveCircleBoxCollision(nx, nz, ENEMY.radius, worldCols)
       if (Math.abs(resolved.x - nx) > 1e-6 || Math.abs(resolved.z - nz) > 1e-6) {
         const side = rt.fallSide
         nx = resolved.x + (-dz / dist) * step * side
         nz = resolved.z + (dx / dist) * step * side
-        const slid = resolveCircleBoxCollision(nx, nz, ENEMY.radius)
+        const slid = resolveCircleBoxCollision(nx, nz, ENEMY.radius, worldCols)
         nx = slid.x
         nz = slid.z
       } else {
@@ -127,7 +130,7 @@ export function Enemies() {
         }
       }
 
-      const limit = ARENA.size / 2 - ENEMY.radius
+      const limit = WORLD.half - ENEMY.radius
       rt.x = THREE.MathUtils.clamp(nx, -limit, limit)
       rt.z = THREE.MathUtils.clamp(nz, -limit, limit)
     }

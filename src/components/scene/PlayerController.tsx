@@ -9,12 +9,15 @@ import {
   COMBAT,
   SCOPE,
   hipFireAimNdc,
+  mergeColliders,
 } from '../../constants'
 import { useGameStore } from '../../store/gameStore'
 import { getMuzzleWorldPosition } from '../../store/muzzle'
-import { setPlayerPosition } from '../../store/enemyRuntime'
+import { setPlayerPosition, getPlayerPosition } from '../../store/enemyRuntime'
 import { useSettingsStore } from '../../store/settings'
 import { maxCameraBoomDistance, fitCameraScaleOutsideSolids } from '../../store/cameraCollision'
+import { useWorldStore } from '../../store/worldStore'
+import { FLORA, MINERALS, WORLD } from '../../world/catalog'
 import { PlayerAvatar } from './PlayerAvatar'
 
 /** Scoped optics stay centered in the eyepiece. */
@@ -106,6 +109,11 @@ export function PlayerController() {
       if (e.code === 'KeyZ') {
         e.preventDefault()
         useGameStore.getState().toggleScope()
+      }
+      if (e.code === 'KeyE') {
+        e.preventDefault()
+        const p = getPlayerPosition()
+        useWorldStore.getState().tryInteract(p.x, p.z)
       }
     }
 
@@ -224,11 +232,16 @@ export function PlayerController() {
       wish.current.normalize().multiplyScalar(speed * dt)
       const nextX = pos.current.x + wish.current.x
       const nextZ = pos.current.z + wish.current.z
-      const resolved = resolveCircleBoxCollision(nextX, nextZ, PLAYER.radius)
+      const worldCols = useWorldStore.getState().getTreeColliders()
+      const resolved = resolveCircleBoxCollision(
+        nextX,
+        nextZ,
+        PLAYER.radius,
+        mergeColliders(worldCols),
+      )
       pos.current.x = resolved.x
       pos.current.z = resolved.z
 
-      // Face the direction of travel so strafing shows the side profile.
       const moveYaw = Math.atan2(-wish.current.x, -wish.current.z)
       bodyYaw.current = dampAngle(bodyYaw.current, moveYaw, CAMERA.bodyTurn, dt)
     } else {
@@ -238,6 +251,30 @@ export function PlayerController() {
     pos.current.y = 0
     rig.current.position.set(pos.current.x, 0, pos.current.z)
     setPlayerPosition(pos.current.x, PLAYER.eyeHeight, pos.current.z)
+
+    // Proximity hint for harvestable Chilean flora / minerals.
+    {
+      const range = WORLD.interactRange
+      const world = useWorldStore.getState()
+      let hint: string | null = null
+      for (const f of world.flora) {
+        if (!f.alive || f.harvested) continue
+        if (Math.hypot(f.x - pos.current.x, f.z - pos.current.z) <= range) {
+          hint = `E · Recolectar ${FLORA[f.kind].label}`
+          break
+        }
+      }
+      if (!hint) {
+        for (const m of world.minerals) {
+          if (!m.alive) continue
+          if (Math.hypot(m.x - pos.current.x, m.z - pos.current.z) <= range) {
+            hint = `E · Extraer ${MINERALS[m.kind].label}`
+            break
+          }
+        }
+      }
+      world.setInteractHint(hint)
+    }
 
     // --- Rear-right boom + wall collision ---
     const desiredZ = store.scoped ? CAMERA.scopedDistance : CAMERA.distance
