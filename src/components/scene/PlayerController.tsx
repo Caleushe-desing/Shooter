@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useMemo } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { PerspectiveCamera } from '@react-three/drei'
 import * as THREE from 'three'
@@ -6,6 +6,9 @@ import { PLAYER, resolveCircleBoxCollision, COMBAT } from '../../constants'
 import { useGameStore } from '../../store/gameStore'
 import { getMuzzleWorldPosition } from '../../store/muzzle'
 import { Weapon } from './Weapon'
+
+/** NDC center — matches HUD crosshair at 50%/50%. */
+const SCREEN_CENTER = new THREE.Vector2(0, 0)
 
 export function PlayerController() {
   const rig = useRef<THREE.Group>(null)
@@ -20,6 +23,7 @@ export function PlayerController() {
   const aimOrigin = useRef(new THREE.Vector3())
   const aimDir = useRef(new THREE.Vector3())
   const muzzlePos = useRef(new THREE.Vector3())
+  const aimRaycaster = useMemo(() => new THREE.Raycaster(), [])
   const { gl, camera } = useThree()
 
   const isTouch =
@@ -147,9 +151,14 @@ export function PlayerController() {
     const now = performance.now()
     if (store.consumeFire() && now - lastFire.current >= COMBAT.fireCooldownMs) {
       lastFire.current = now
-      // Aim ray = exact screen center / crosshair
-      camera.getWorldDirection(aimDir.current)
-      aimOrigin.current.copy(camera.position)
+      // World matrices must include this frame's yaw/pitch/position before aiming.
+      rig.current.updateWorldMatrix(true, true)
+      // Hitscan exactly through screen center (same as the CSS crosshair).
+      // IMPORTANT: use world ray — camera.position is local (0,0,0) and would
+      // make shots drift as the player moves around the map.
+      aimRaycaster.setFromCamera(SCREEN_CENTER, camera)
+      aimOrigin.current.copy(aimRaycaster.ray.origin)
+      aimDir.current.copy(aimRaycaster.ray.direction)
       const hasMuzzle = getMuzzleWorldPosition(muzzlePos.current)
       store.spawnTracer(
         aimOrigin.current,

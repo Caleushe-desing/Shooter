@@ -193,19 +193,25 @@ export const useGameStore = create<GameState>((set, get) => ({
     // Precise hitscan exactly through the crosshair (camera center ray)
     const hit = findClosestPlateHit(aimOrigin, dir, get().plates)
 
+    // Aim point always lies on the crosshair ray (hit or max range).
     const aimPoint = hit
-      ? hit.point.clone()
+      ? aimOrigin.clone().addScaledVector(dir, hit.distance)
       : aimOrigin.clone().addScaledVector(dir, COMBAT.tracerMaxDistance)
 
     if (hit) {
       get().hitPlate(hit.plateId, hit.point)
     }
 
-    // Visual streak: muzzle → aim point (converges on retícula)
+    // Visual streak starts at the muzzle but always flies toward the
+    // crosshair aim point so the shot reads as going through the retícula.
     const start = visualOrigin?.clone() ?? aimOrigin.clone()
     const visualDir = aimPoint.clone().sub(start)
     const maxDistance = Math.max(visualDir.length(), 0.5)
-    visualDir.normalize()
+    if (visualDir.lengthSq() < 1e-8) {
+      visualDir.copy(dir)
+    } else {
+      visualDir.normalize()
+    }
 
     set((s) => ({
       tracers: [
