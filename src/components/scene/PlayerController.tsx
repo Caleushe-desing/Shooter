@@ -1,12 +1,14 @@
 import { useRef, useEffect } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
+import { PerspectiveCamera } from '@react-three/drei'
 import * as THREE from 'three'
 import { PLAYER, resolveCircleBoxCollision, COMBAT } from '../../constants'
 import { useGameStore } from '../../store/gameStore'
 import { Weapon } from './Weapon'
 
 export function PlayerController() {
-  const { camera, gl } = useThree()
+  const rig = useRef<THREE.Group>(null)
+  const pitchObj = useRef<THREE.Group>(null)
   const yaw = useRef(0)
   const pitch = useRef(0)
   const pos = useRef(new THREE.Vector3(PLAYER.spawn.x, PLAYER.eyeHeight, PLAYER.spawn.z))
@@ -16,12 +18,12 @@ export function PlayerController() {
   const wish = useRef(new THREE.Vector3())
   const origin = useRef(new THREE.Vector3())
   const dir = useRef(new THREE.Vector3())
+  const { gl, camera } = useThree()
 
   const isTouch =
     typeof window !== 'undefined' &&
     ('ontouchstart' in window || navigator.maxTouchPoints > 0)
 
-  // Pointer lock click + mouse look (desktop)
   useEffect(() => {
     const el = gl.domElement
 
@@ -60,7 +62,6 @@ export function PlayerController() {
     }
   }, [gl, isTouch])
 
-  // WASD keyboard movement
   useEffect(() => {
     const keys = new Set<string>()
 
@@ -76,7 +77,6 @@ export function PlayerController() {
         x /= len
         z /= len
       }
-      // Only set from keyboard when not using touch joystick (joystick overwrites each frame)
       if (!isTouch) useGameStore.getState().setMove(x, z)
     }
 
@@ -100,7 +100,7 @@ export function PlayerController() {
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05)
     const store = useGameStore.getState()
-
+    if (!rig.current || !pitchObj.current) return
     if (store.sectorCleared) return
 
     const { dx, dy } = store.consumeLook()
@@ -111,11 +111,9 @@ export function PlayerController() {
       PLAYER.pitchMax,
     )
 
-    camera.rotation.order = 'YXZ'
-    camera.rotation.y = yaw.current
-    camera.rotation.x = pitch.current
+    rig.current.rotation.y = yaw.current
+    pitchObj.current.rotation.x = pitch.current
 
-    // Movement relative to yaw
     forward.current.set(-Math.sin(yaw.current), 0, -Math.cos(yaw.current))
     right.current.set(Math.cos(yaw.current), 0, -Math.sin(yaw.current))
 
@@ -135,19 +133,23 @@ export function PlayerController() {
     }
 
     pos.current.y = PLAYER.eyeHeight
-    camera.position.copy(pos.current)
+    rig.current.position.copy(pos.current)
 
-    // Fire
     const now = performance.now()
     if (store.consumeFire() && now - lastFire.current >= COMBAT.fireCooldownMs) {
       lastFire.current = now
       camera.getWorldDirection(dir.current)
-      origin.current.copy(camera.position).addScaledVector(dir.current, 0.4)
-      // Slight muzzle offset toward bottom-right weapon feel
-      origin.current.y -= 0.05
+      origin.current.copy(camera.position).addScaledVector(dir.current, 0.35)
       store.spawnTracer(origin.current, dir.current)
     }
   })
 
-  return <Weapon />
+  return (
+    <group ref={rig} position={[PLAYER.spawn.x, PLAYER.eyeHeight, PLAYER.spawn.z]}>
+      <group ref={pitchObj}>
+        <PerspectiveCamera makeDefault fov={75} near={0.05} far={80} />
+        <Weapon />
+      </group>
+    </group>
+  )
 }

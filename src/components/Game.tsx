@@ -11,7 +11,7 @@ import { Crosshair } from './ui/Crosshair'
 import { MobileControls } from './ui/MobileControls'
 import { SectorCleared } from './ui/SectorCleared'
 import { LandscapeGate } from './ui/LandscapeGate'
-import { COLORS, PLAYER } from '../constants'
+import { COLORS } from '../constants'
 
 function Scene() {
   return (
@@ -39,15 +39,8 @@ export function Game() {
           powerPreference: 'high-performance',
         }}
         dpr={[1, 1.75]}
-        camera={{
-          fov: 75,
-          near: 0.08,
-          far: 80,
-          position: [PLAYER.spawn.x, PLAYER.eyeHeight, PLAYER.spawn.z],
-        }}
-        onCreated={({ gl, camera }) => {
+        onCreated={({ gl }) => {
           gl.setClearColor(COLORS.black, 1)
-          camera.rotation.order = 'YXZ'
         }}
       >
         <Suspense fallback={null}>
