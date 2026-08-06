@@ -1,87 +1,71 @@
-import type { ReactElement } from 'react'
 import { useMemo } from 'react'
-import * as THREE from 'three'
-import { COLORS, ARENA, OBSTACLES } from '../../constants'
+import { ARENA, COLORS, OBSTACLES } from '../../constants'
+import { getBrickTexture, getGrassTexture } from '../../scene/textures'
 import { WoodCrate } from './WoodCrate'
 
-/**
- * Opaque solid wall box — fully opaque faces, optional neon edge silhouette.
- * No wireframe / transparency on the solid volume.
- */
-function SolidWall({
+/** Solid brick wall segment with a stone coping along the top. */
+function BrickWall({
   position,
   args,
-  color = COLORS.wall,
-  edgeColor = COLORS.wallEdge,
 }: {
   position: [number, number, number]
   args: [number, number, number]
-  color?: string
-  edgeColor?: string
 }) {
   const [w, h, d] = args
-  const edges = useMemo(() => {
-    const geo = new THREE.BoxGeometry(w, h, d)
-    const edgeGeo = new THREE.EdgesGeometry(geo, 15)
-    geo.dispose()
-    return edgeGeo
+  const brick = useMemo(() => {
+    const map = getBrickTexture().clone()
+    map.needsUpdate = true
+    // Keep brick size consistent regardless of how long the wall is.
+    map.repeat.set(Math.max(w, d) / 2.6, h / 2.6)
+    return map
   }, [w, h, d])
 
   return (
     <group position={position}>
-      <mesh>
+      <mesh castShadow receiveShadow>
         <boxGeometry args={[w, h, d]} />
-        <meshBasicMaterial color={color} toneMapped={false} />
+        <meshStandardMaterial map={brick} roughness={0.95} metalness={0} />
       </mesh>
-      <lineSegments geometry={edges}>
-        <lineBasicMaterial color={edgeColor} toneMapped={false} />
-      </lineSegments>
+
+      {/* Concrete coping caps the wall so the top edge reads cleanly */}
+      <mesh position={[0, h / 2 + 0.09, 0]}>
+        <boxGeometry args={[w + 0.16, 0.18, d + 0.16]} />
+        <meshStandardMaterial color={COLORS.wallCap} roughness={0.9} metalness={0} />
+      </mesh>
     </group>
   )
 }
 
-function SolidFloor() {
-  const half = ARENA.size / 2
-  const step = 2
-  const tiles: ReactElement[] = []
+/** Grass field covering the play area. */
+function GrassFloor() {
+  const size = ARENA.size + ARENA.wallThickness * 2
 
-  for (let x = -half + 1; x < half; x += step) {
-    for (let z = -half + 1; z < half; z += step) {
-      const alt = ((x + half) / step + (z + half) / step) % 2 === 0
-      tiles.push(
-        <mesh key={`tile-${x}-${z}`} position={[x, -0.04, z]} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[step * 0.98, step * 0.98]} />
-          <meshBasicMaterial color={alt ? COLORS.floor : COLORS.floorAlt} toneMapped={false} />
-        </mesh>,
-      )
-    }
-  }
+  const grass = useMemo(() => {
+    const map = getGrassTexture().clone()
+    map.needsUpdate = true
+    map.repeat.set(size / 2.2, size / 2.2)
+    return map
+  }, [size])
 
-  const grid = useMemo(() => {
-    const pts: number[] = []
-    for (let i = -half; i <= half; i += step) {
-      pts.push(-half, 0.002, i, half, 0.002, i)
-      pts.push(i, 0.002, -half, i, 0.002, half)
-    }
-    const geo = new THREE.BufferGeometry()
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3))
-    return geo
-  }, [half, step])
+  const outerGrass = useMemo(() => {
+    const map = getGrassTexture().clone()
+    map.needsUpdate = true
+    map.repeat.set(60, 60)
+    return map
+  }, [])
 
   return (
     <group>
-      {/* Deep opaque base slab — solid map delimiter */}
-      <mesh position={[0, -0.08, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[ARENA.size + 1, ARENA.size + 1]} />
-        <meshBasicMaterial color={COLORS.floor} toneMapped={false} />
+      {/* Ground that continues past the walls so the horizon isn't empty */}
+      <mesh position={[0, -0.06, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[320, 320]} />
+        <meshStandardMaterial map={outerGrass} roughness={1} metalness={0} />
       </mesh>
 
-      {tiles}
-
-      {/* Subtle neon grid overlay (arcade accent only; floor faces stay opaque) */}
-      <lineSegments geometry={grid} position={[0, 0, 0]}>
-        <lineBasicMaterial color={COLORS.floorGrid} transparent opacity={0.22} toneMapped={false} />
-      </lineSegments>
+      <mesh position={[0, 0, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[size, size]} />
+        <meshStandardMaterial map={grass} roughness={1} metalness={0} />
+      </mesh>
     </group>
   )
 }
@@ -93,29 +77,13 @@ export function Arena() {
 
   return (
     <group>
-      <SolidFloor />
+      <GrassFloor />
 
-      {/* Opaque perimeter walls — solid map bounds */}
-      <SolidWall
-        position={[0, h / 2, -half]}
-        args={[ARENA.size + t * 2, h, t]}
-        color={COLORS.wall}
-      />
-      <SolidWall
-        position={[0, h / 2, half]}
-        args={[ARENA.size + t * 2, h, t]}
-        color={COLORS.wallAlt}
-      />
-      <SolidWall
-        position={[-half, h / 2, 0]}
-        args={[t, h, ARENA.size]}
-        color={COLORS.wall}
-      />
-      <SolidWall
-        position={[half, h / 2, 0]}
-        args={[t, h, ARENA.size]}
-        color={COLORS.wallAlt}
-      />
+      {/* Brick perimeter — solid map bounds */}
+      <BrickWall position={[0, h / 2, -half]} args={[ARENA.size + t * 2, h, t]} />
+      <BrickWall position={[0, h / 2, half]} args={[ARENA.size + t * 2, h, t]} />
+      <BrickWall position={[-half, h / 2, 0]} args={[t, h, ARENA.size]} />
+      <BrickWall position={[half, h / 2, 0]} args={[t, h, ARENA.size]} />
 
       {OBSTACLES.map((o, i) => (
         <WoodCrate

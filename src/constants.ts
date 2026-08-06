@@ -3,14 +3,12 @@ export const COLORS = {
   neonGreen: '#00FF00',
   white: '#FFFFFF',
   tracer: '#00BFFF',
-  /** Opaque arena floor (dark, contrasts with warm crates). */
-  floor: '#0B1410',
-  floorAlt: '#101C16',
-  floorGrid: '#1AFF66',
-  /** Opaque perimeter wall faces + arcade edge accent. */
-  wall: '#121A16',
-  wallAlt: '#18241E',
-  wallEdge: '#1AFF66',
+  /** Daylight environment. */
+  sky: '#8FC3EC',
+  skyHaze: '#CFE3F2',
+  grass: '#3E7A30',
+  /** Concrete coping on top of the brick perimeter. */
+  wallCap: '#B9B3A6',
   /** Styrofoam / plumavit crate faces + trim (soft, pierceable). */
   wood: '#E8E2D4',
   woodLight: '#F5F1E6',

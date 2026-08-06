@@ -181,7 +181,7 @@ export function PlayerController() {
   return (
     <group ref={rig} position={[PLAYER.spawn.x, PLAYER.eyeHeight, PLAYER.spawn.z]}>
       <group ref={pitchObj}>
-        <PerspectiveCamera makeDefault fov={75} near={0.05} far={80} />
+        <PerspectiveCamera makeDefault fov={75} near={0.05} far={600} />
         <Weapon />
       </group>
     </group>
