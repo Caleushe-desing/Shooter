@@ -87,12 +87,22 @@ function Joystick({ setMove }: { setMove: (x: number, z: number) => void }) {
       }}
       onPointerUp={reset}
       onPointerCancel={reset}
+      onLostPointerCapture={reset}
     >
       <div className="absolute inset-0 rounded-full border border-[#00FF00]/50 bg-[#00FF00]/5" />
       <div className="absolute inset-3 rounded-full border border-[#00FF00]/25" />
+      {/*
+        Position with left/top only — do NOT mix Tailwind translate-* utilities with
+        inline transform. Tailwind v4 uses the separate `translate` CSS property, so
+        both would apply and park the knob up-left at rest.
+      */}
       <div
-        className="absolute left-1/2 top-1/2 h-12 w-12 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#00FF00] bg-[#00FF00]/20"
-        style={{ transform: `translate(calc(-50% + ${knob.x}px), calc(-50% + ${knob.y}px))` }}
+        className="absolute h-12 w-12 rounded-full border border-[#00FF00] bg-[#00FF00]/20"
+        style={{
+          left: `calc(50% + ${knob.x}px)`,
+          top: `calc(50% + ${knob.y}px)`,
+          transform: 'translate(-50%, -50%)',
+        }}
       />
     </div>
   )
