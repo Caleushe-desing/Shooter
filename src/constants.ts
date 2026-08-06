@@ -47,7 +47,7 @@ export const COLORS = {
 
 export const PLAYER = {
   eyeHeight: 1.65,
-  /** Body height scale for the Sim-like third-person avatar. */
+  /** Body height scale for the bipedal pup avatar. */
   height: 1.0,
   radius: 0.45,
   speed: 7.5,
@@ -57,34 +57,37 @@ export const PLAYER = {
   pitchMax: 0.85,
   spawn: { x: 0, y: 0, z: 8 },
   maxHealth: 100,
-  /** Distinct wardrobe so the player reads apart from hostiles. */
-  skin: '#F0C5A0',
-  shirt: '#6FE04A',
-  pants: '#3D5A80',
+  /** Soft toy-dog fur palette + plumbob collar. */
+  fur: '#D4A574',
+  furLight: '#E8C9A0',
+  furDark: '#B8895A',
+  belly: '#F5E6D3',
+  nose: '#2B2B2B',
+  collar: '#6FE04A',
 } as const
 
 /**
  * No Man's Sky-style chase cam: over the right shoulder so the back stays
- * visible on the left, with a hip-fire reticle shifted off true center.
+ * visible on the left, with a hip-fire reticle close beside the pup.
  */
 export const CAMERA = {
   /** Positive = over the right shoulder (character sits left of frame). */
-  shoulder: 0.95,
-  height: 1.58,
-  distance: 3.75,
-  scopedDistance: 1.85,
-  /** Soft look-down bias so the back of the Sim stays readable. */
-  pitchBias: 0.1,
+  shoulder: 0.72,
+  height: 1.45,
+  distance: 3.35,
+  scopedDistance: 1.7,
+  /** Soft look-down bias so the pup's back stays readable. */
+  pitchBias: 0.12,
   /** Smooth follow when zooming the boom in/out. */
   boomSpeed: 10,
   near: 0.12,
   far: 600,
   /**
-   * Hip-fire reticle position as % of the viewport (top-left origin).
-   * Kept off-center like No Man's Sky so the body owns the left side.
+   * Hip-fire reticle as % of the viewport (top-left origin).
+   * Kept just beside the pup — close, not stranded mid-screen.
    */
-  aimLeftPct: 62,
-  aimTopPct: 43,
+  aimLeftPct: 54,
+  aimTopPct: 48,
 } as const
 
 /** NDC coords matching `CAMERA.aimLeftPct` / `aimTopPct` for hitscan. */
