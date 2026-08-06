@@ -14,6 +14,32 @@ import {
   type EnemyRuntime,
 } from '../../store/enemyRuntime'
 
+/**
+ * Rotates a ring spawn point around the arena until it is far enough from the
+ * player, so hostiles never materialise in their face.
+ */
+function spawnPointAwayFromPlayer(
+  x: number,
+  z: number,
+  player: { x: number; z: number },
+) {
+  const radius = Math.hypot(x, z) || ENEMY.spawnRingMin
+  let angle = Math.atan2(z, x)
+
+  for (let i = 0; i < 8; i++) {
+    const px = Math.cos(angle) * radius
+    const pz = Math.sin(angle) * radius
+    if (Math.hypot(px - player.x, pz - player.z) >= ENEMY.spawnMinPlayerDistance) {
+      return { x: px, z: pz }
+    }
+    angle += Math.PI / 4
+  }
+
+  // Fallback: directly opposite the player.
+  const away = Math.atan2(-player.z, -player.x)
+  return { x: Math.cos(away) * radius, z: Math.sin(away) * radius }
+}
+
 /** Hostile crowd: spawns, chases the player and grabs them on contact. */
 export function Enemies() {
   const enemies = useGameStore((s) => s.enemies)
@@ -32,9 +58,10 @@ export function Enemies() {
 
       if (!rt) {
         if (!enemy.alive || now < enemy.spawnAt) continue
+        const spawn = spawnPointAwayFromPlayer(enemy.startX, enemy.startZ, player)
         rt = {
-          x: enemy.startX,
-          z: enemy.startZ,
+          x: spawn.x,
+          z: spawn.z,
           yaw: 0,
           phase: Math.random() * Math.PI * 2,
           speed: enemy.speed,
