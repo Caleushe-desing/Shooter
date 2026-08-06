@@ -115,6 +115,10 @@ export function PlayerController() {
         const p = getPlayerPosition()
         useWorldStore.getState().tryInteract(p.x, p.z)
       }
+      if (e.code === 'KeyI') {
+        e.preventDefault()
+        useWorldStore.getState().toggleInventory()
+      }
     }
 
     const onContextMenu = (e: MouseEvent) => {

@@ -1,102 +1,95 @@
-import { useEffect, useState } from 'react'
+import { useMemo } from 'react'
 import { RESOURCE_LABELS, type ResourceId } from '../../world/catalog'
+import { getResourceIconUrl } from '../../world/resourceIcons'
 import { useWorldStore } from '../../store/worldStore'
-import { getPlayerPosition } from '../../store/enemyRuntime'
 
-const ORDER: ResourceId[] = [
-  'maqui',
-  'pinon',
-  'copihue',
-  'fruta_quillay',
-  'hoja_boldo',
-  'madera',
-  'carne',
-  'lana',
-  'cuero',
-  'cobre',
-  'litio',
-  'oro',
-  'salitre',
-  'piedra',
-]
-
-/** Inventory + toast + interact prompt for the open Chilean world. */
 export function InventoryHUD() {
   const inventory = useWorldStore((s) => s.inventory)
-  const toast = useWorldStore((s) => s.toast)
+  const open = useWorldStore((s) => s.inventoryOpen)
+  const toggle = useWorldStore((s) => s.toggleInventory)
   const hint = useWorldStore((s) => s.interactHint)
-  const [open, setOpen] = useState(false)
-  const [toastText, setToastText] = useState<string | null>(null)
+  const toast = useWorldStore((s) => s.toast)
 
-  useEffect(() => {
-    if (!toast) return
-    setToastText(toast.text)
-    const id = window.setTimeout(() => setToastText(null), 1600)
-    return () => window.clearTimeout(id)
-  }, [toast])
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.code === 'KeyI') {
-        e.preventDefault()
-        setOpen((v) => !v)
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [])
-
-  const entries = ORDER.map((id) => ({ id, amount: inventory[id] ?? 0 })).filter((e) => e.amount > 0)
+  const rows = useMemo(() => {
+    return (Object.keys(RESOURCE_LABELS) as ResourceId[])
+      .map((id) => ({
+        id,
+        count: inventory[id] ?? 0,
+        label: RESOURCE_LABELS[id],
+        icon: getResourceIconUrl(id),
+      }))
+      .filter((row) => row.count > 0)
+      .sort((a, b) => b.count - a.count)
+  }, [inventory])
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="absolute right-4 top-14 z-40 rounded-full border border-white/20 bg-[#1A2430]/75 px-3 py-1.5 text-[9px] font-bold tracking-[0.22em] text-[#6FE04A] backdrop-blur-md sm:top-16"
-      >
-        MOCHILA · I
-      </button>
+      {toast && (
+        <div
+          key={toast.id}
+          className="pointer-events-none absolute top-24 left-1/2 z-30 -translate-x-1/2 rounded-full border border-emerald-300/30 bg-black/60 px-4 py-2 text-sm font-semibold text-emerald-100 shadow-lg backdrop-blur-md"
+        >
+          {toast.text}
+        </div>
+      )}
 
-      {hint && (
-        <div className="pointer-events-none absolute bottom-24 left-1/2 z-40 -translate-x-1/2 rounded-full bg-[#1A2430]/8 px-4 py-2 text-[11px] font-bold tracking-[0.18em] text-[#6FE04A] sm:bottom-20">
+      {hint && !open && (
+        <div className="pointer-events-none absolute bottom-36 left-1/2 z-20 -translate-x-1/2 rounded-full border border-amber-200/30 bg-black/55 px-4 py-2 text-[11px] font-semibold tracking-[0.12em] text-amber-50 shadow-lg backdrop-blur-md sm:bottom-20">
           {hint}
         </div>
       )}
 
-      {toastText && (
-        <div className="pointer-events-none absolute left-1/2 top-24 z-40 -translate-x-1/2 rounded-full bg-[#6FE04A] px-4 py-2 text-sm font-extrabold tracking-wide text-[#1A2430]">
-          {toastText}
-        </div>
-      )}
-
-      <button
-        type="button"
-        aria-label="Recolectar"
-        onPointerDown={(e) => {
-          e.preventDefault()
-          e.stopPropagation()
-          const p = getPlayerPosition()
-          useWorldStore.getState().tryInteract(p.x, p.z)
-        }}
-        className="absolute bottom-28 left-4 z-40 rounded-full border border-white/20 bg-[#1A2430]/8 px-4 py-3 text-[10px] font-bold tracking-[0.28em] text-[#6FE04A] backdrop-blur-md sm:hidden"
-      >
-        RECOGER
-      </button>
-
-      {open && (
-        <div className="absolute bottom-20 left-4 z-40 w-56 rounded-2xl border border-white/20 bg-[#1A2430]/88 p-3 backdrop-blur-md sm:bottom-16 sm:w-64">
-          <div className="mb-2 text-[10px] font-bold tracking-[0.25em] text-white/60">
-            INVENTARIO CHILE
+      {!open ? (
+        <button
+          type="button"
+          onClick={toggle}
+          className="pointer-events-auto absolute bottom-24 left-3 z-20 rounded-full border border-amber-200/35 bg-black/55 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-50 shadow-lg backdrop-blur-md sm:bottom-6"
+        >
+          Mochila · I
+        </button>
+      ) : (
+        <div className="pointer-events-auto absolute inset-x-3 bottom-24 z-30 mx-auto max-w-md rounded-2xl border border-amber-200/30 bg-[#1a120c]/92 p-4 shadow-2xl backdrop-blur-md sm:bottom-6 sm:inset-x-auto sm:left-3">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-amber-200/70">
+                Inventario
+              </p>
+              <h2 className="font-display text-xl text-amber-50">Mochila chilena</h2>
+            </div>
+            <button
+              type="button"
+              onClick={toggle}
+              className="rounded-full border border-white/15 px-3 py-1 text-xs uppercase tracking-wider text-white/80"
+            >
+              Cerrar
+            </button>
           </div>
-          {entries.length === 0 ? (
-            <p className="text-xs text-white/50">Vacío — recolecta con E / dispara fauna</p>
+
+          {rows.length === 0 ? (
+            <p className="text-sm text-white/65">
+              Vacía. Tala, minera o caza en el valle para llenarla.
+            </p>
           ) : (
-            <ul className="max-h-48 space-y-1 overflow-y-auto text-sm">
-              {entries.map((e) => (
-                <li key={e.id} className="flex justify-between gap-2 text-white/90">
-                  <span>{RESOURCE_LABELS[e.id]}</span>
-                  <span className="font-extrabold text-[#6FE04A]">{e.amount}</span>
+            <ul className="grid max-h-64 grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3">
+              {rows.map((row) => (
+                <li
+                  key={row.id}
+                  className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/35 px-2 py-2"
+                >
+                  <img
+                    src={row.icon}
+                    alt={row.label}
+                    width={40}
+                    height={40}
+                    className="h-10 w-10 shrink-0 rounded-lg border border-white/10 bg-black/40 object-contain"
+                    draggable={false}
+                  />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-amber-50">{row.label}</p>
+                    <p className="text-[10px] uppercase tracking-wider text-white/45">
+                      ×{row.count}
+                    </p>
+                  </div>
                 </li>
               ))}
             </ul>

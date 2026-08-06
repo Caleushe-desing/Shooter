@@ -77,6 +77,8 @@ type GameState = {
   /** Telescopic sight engaged. */
   scoped: boolean
   round: number
+  /** performance.now() when the survival run started. */
+  startedAt: number
   input: InputState
   recoilNonce: number
   /** Bumped when the player takes damage so the HUD can flash. */
@@ -121,7 +123,7 @@ function createEnemies(round: number): EnemyData[] {
   const now = performance.now()
 
   for (let i = 0; i < count; i++) {
-    // Spread spawns around the arena edge so they close in from all sides.
+    // Spread spawns around the open country so they close in from all sides.
     const angle = (i / count) * Math.PI * 2 + Math.random() * 0.6 + round * 0.4
     const radius = ENEMY.spawnRingMin + Math.random() * (ENEMY.spawnRingMax - ENEMY.spawnRingMin)
     const speedBoost = (round - 1) * ENEMY.speedPerRound
@@ -142,6 +144,25 @@ function createEnemies(round: number): EnemyData[] {
   }
 
   return enemies
+}
+
+/** One more hostile for endless survival pressure. */
+function spawnSurvivalHostile(spawnAt: number): EnemyData {
+  const angle = Math.random() * Math.PI * 2
+  const radius = ENEMY.spawnRingMin + Math.random() * (ENEMY.spawnRingMax - ENEMY.spawnRingMin)
+  return {
+    id: uid('enemy'),
+    spawnAt,
+    startX: Math.cos(angle) * radius,
+    startZ: Math.sin(angle) * radius,
+    speed: ENEMY.speedMin + Math.random() * (ENEMY.speedMax - ENEMY.speedMin),
+    height: 0.94 + Math.random() * 0.12,
+    skin: pick(COLORS.enemySkins),
+    shirt: pick(COLORS.enemyShirts),
+    pants: pick(COLORS.enemyPants),
+    alive: true,
+    diedAt: 0,
+  }
 }
 
 function createBloodBurst(pos: THREE.Vector3, head: boolean): ExplosionData {
@@ -236,6 +257,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   sectorCleared: false,
   scoped: false,
   round: 1,
+  startedAt: performance.now(),
   input: { ...initialInput },
   recoilNonce: 0,
   damageNonce: 0,
@@ -381,23 +403,26 @@ export const useGameStore = create<GameState>((set, get) => ({
       e.id === enemyId ? { ...e, alive: false, diedAt: now } : e,
     )
     const points = ENEMY.pointsPerKill + (head ? ENEMY.headshotBonus : 0)
-    const cleared = nextEnemies.every((e) => !e.alive)
 
     audio.enemyDown(head)
-    if (cleared) audio.waveCleared()
 
+    // Survival: killing hostiles never clears a "wave" — they keep coming.
+    const aliveCount = nextEnemies.filter((e) => e.alive).length
+    const withReinforcement =
+      aliveCount < ENEMY.maxCount
+        ? [...nextEnemies, spawnSurvivalHostile(now + ENEMY.spawnIntervalMs)]
+        : nextEnemies
     set({
-      enemies: nextEnemies,
+      enemies: withReinforcement,
       explosions: [...get().explosions, createBloodBurst(hitPos, head)],
       score: get().score + points,
-      sectorCleared: cleared && !get().caught,
-      scoped: cleared ? false : get().scoped,
+      sectorCleared: false,
     })
   },
 
   damagePlayer: (amount) => {
     const state = get()
-    if (state.caught || state.sectorCleared) return
+    if (state.caught) return
 
     const health = Math.max(0, state.health - amount)
     if (health <= 0) audio.caught()
@@ -454,20 +479,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   resetRound: () => {
-    clearAllEnemyRuntimes()
-    const round = get().round + 1
-    set({
-      enemies: createEnemies(round),
-      tracers: [],
-      explosions: [],
-      pierceHoles: [],
-      health: PLAYER.maxHealth,
-      caught: false,
-      sectorCleared: false,
-      scoped: false,
-      round,
-      input: { ...initialInput },
-    })
+    // Survival has no waves — treat as a soft continue after a scare.
+    get().restartGame()
   },
 
   restartGame: () => {
@@ -483,6 +496,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       sectorCleared: false,
       scoped: false,
       round: 1,
+      startedAt: performance.now(),
       input: { ...initialInput },
     })
   },

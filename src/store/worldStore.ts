@@ -36,6 +36,7 @@ type WorldStore = {
   minerals: MineralState[]
   fauna: FaunaState[]
   inventory: Inventory
+  inventoryOpen: boolean
   toast: Toast | null
   interactHint: string | null
   initWorld: () => void
@@ -46,6 +47,8 @@ type WorldStore = {
   damageMineral: (id: string, amount?: number) => void
   damageFauna: (id: string, amount?: number) => void
   setInteractHint: (hint: string | null) => void
+  toggleInventory: () => void
+  setInventoryOpen: (open: boolean) => void
   tickRegen: (now: number) => void
 }
 
@@ -62,6 +65,7 @@ export const useWorldStore = create<WorldStore>((set, get) => ({
   minerals: [],
   fauna: [],
   inventory: emptyInventory(),
+  inventoryOpen: false,
   toast: null,
   interactHint: null,
 
@@ -142,6 +146,14 @@ export const useWorldStore = create<WorldStore>((set, get) => ({
   setInteractHint: (hint) => {
     if (get().interactHint === hint) return
     set({ interactHint: hint })
+  },
+
+  toggleInventory: () => {
+    set((s) => ({ inventoryOpen: !s.inventoryOpen }))
+  },
+
+  setInventoryOpen: (open) => {
+    set({ inventoryOpen: open })
   },
 
   tryInteract: (px, pz) => {

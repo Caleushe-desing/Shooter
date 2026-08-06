@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import { getGrassTexture } from '../../scene/textures'
 import { WORLD, FLORA, MINERALS } from '../../world/catalog'
 import { useWorldStore, type FloraState, type MineralState } from '../../store/worldStore'
+import { ResourceMarker } from './ResourceMarker'
 
 function ChileanTree({ flora }: { flora: FloraState }) {
   const def = FLORA[flora.kind]
@@ -27,6 +28,7 @@ function ChileanTree({ flora }: { flora: FloraState }) {
 
   return (
     <group ref={group} position={[flora.x, 0, flora.z]} rotation={[0, flora.yaw, 0]}>
+      {!harvested && <ResourceMarker resourceId={def.harvest} y={h + 0.55} />}
       <mesh position={[0, h * 0.35, 0]} castShadow>
         <cylinderGeometry args={[def.radius * 0.35 * flora.scale, def.radius * 0.5 * flora.scale, h * 0.7, 8]} />
         <meshStandardMaterial color={def.colorTrunk} roughness={0.85} metalness={0} />
@@ -100,6 +102,7 @@ function MineralNode({ mineral }: { mineral: MineralState }) {
   const s = mineral.scale
   return (
     <group position={[mineral.x, 0, mineral.z]} rotation={[0, mineral.yaw, 0]}>
+      <ResourceMarker resourceId={def.yield} y={def.height * s + 0.75} />
       <mesh position={[0, def.height * 0.45 * s, 0]} castShadow>
         <dodecahedronGeometry args={[def.radius * s, 0]} />
         <meshStandardMaterial color={def.color} roughness={0.9} metalness={0.15} />

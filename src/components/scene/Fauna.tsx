@@ -9,10 +9,12 @@ import {
   getFaunaRuntime,
   stepFauna,
 } from '../../store/faunaRuntime'
+import { ResourceMarker } from './ResourceMarker'
 
 function AnimalBody({ animal }: { animal: FaunaState }) {
   const root = useRef<THREE.Group>(null)
   const def = FAUNA[animal.kind]
+  const primaryLoot = def.loot[0]?.id
   const materials = useMemo(() => {
     return {
       body: new THREE.MeshStandardMaterial({
@@ -66,10 +68,15 @@ function AnimalBody({ animal }: { animal: FaunaState }) {
   })
 
   const h = def.height
+  const marker =
+    animal.alive && primaryLoot ? (
+      <ResourceMarker resourceId={primaryLoot} y={h + 0.55} />
+    ) : null
 
   if (animal.kind === 'caballo' || animal.kind === 'guanaco') {
     return (
       <group ref={root}>
+        {marker}
         <mesh material={materials.body} position={[0, h * 0.45, 0]} castShadow scale={[0.7, 0.55, 1.1]}>
           <sphereGeometry args={[0.45, 10, 10]} />
         </mesh>
@@ -99,6 +106,7 @@ function AnimalBody({ animal }: { animal: FaunaState }) {
   if (animal.kind === 'oveja') {
     return (
       <group ref={root}>
+        {marker}
         <mesh material={materials.body} position={[0, 0.55, 0]} castShadow scale={[1, 0.85, 1.2]}>
           <sphereGeometry args={[0.38, 12, 12]} />
         </mesh>
@@ -128,6 +136,7 @@ function AnimalBody({ animal }: { animal: FaunaState }) {
   // Perro
   return (
     <group ref={root}>
+      {marker}
       <mesh material={materials.body} position={[0, 0.4, 0]} castShadow scale={[0.7, 0.55, 1.15]}>
         <sphereGeometry args={[0.28, 10, 10]} />
       </mesh>
