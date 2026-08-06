@@ -5,6 +5,7 @@ import { PlayerController } from './scene/PlayerController'
 import { Tracers } from './scene/Tracers'
 import { Plates } from './scene/Plates'
 import { Explosions } from './scene/Explosions'
+import { PierceHoles } from './scene/PierceHoles'
 import { CRTOverlay } from './ui/CRTOverlay'
 import { HUD } from './ui/HUD'
 import { Crosshair } from './ui/Crosshair'
@@ -24,6 +25,7 @@ function Scene() {
       <Plates />
       <Tracers />
       <Explosions />
+      <PierceHoles />
     </>
   )
 }

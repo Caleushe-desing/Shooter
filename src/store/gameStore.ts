@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import * as THREE from 'three'
 import { COLORS, COMBAT } from '../constants'
 import { clearAllLivePlates, clearLivePlatePosition } from './platePositions'
-import { findClosestPlateHit, tracerSegmentHit } from './combat'
+import { findClosestPlateHit, findCratePierces, tracerSegmentHit } from './combat'
 
 export type PlateData = {
   id: string
@@ -39,6 +39,14 @@ export type ExplosionData = {
   fragments: Fragment[]
 }
 
+/** Bullet hole punched through a styrofoam crate. */
+export type PierceHole = {
+  id: string
+  position: [number, number, number]
+  normal: [number, number, number]
+  born: number
+}
+
 type InputState = {
   moveX: number
   moveZ: number
@@ -52,6 +60,7 @@ type GameState = {
   plates: PlateData[]
   tracers: TracerData[]
   explosions: ExplosionData[]
+  pierceHoles: PierceHole[]
   sectorCleared: boolean
   round: number
   input: InputState
@@ -64,6 +73,7 @@ type GameState = {
   /**
    * Hitscan from aimOrigin/aimDir (screen-center / crosshair).
    * Visual tracer starts at visualOrigin (muzzle) and flies to the aim point.
+   * Styrofoam crates are pierceable — never stop the shot.
    */
   spawnTracer: (
     aimOrigin: THREE.Vector3,
@@ -73,6 +83,7 @@ type GameState = {
   updateTracers: (dt: number, now: number) => void
   hitPlate: (plateId: string, hitPos: THREE.Vector3) => void
   updateExplosions: (dt: number, now: number) => void
+  prunePierceHoles: (now: number) => void
   revealPlates: (now: number) => void
   resetRound: () => void
 }
@@ -132,6 +143,54 @@ function createExplosion(pos: THREE.Vector3, color: string): ExplosionData {
   return { id: uid('boom'), fragments }
 }
 
+/** Light foam chip burst when a round punches through plumavit. */
+function createFoamBurst(
+  pos: THREE.Vector3,
+  outward: THREE.Vector3,
+  shotDir: THREE.Vector3,
+): ExplosionData {
+  const fragments: Fragment[] = []
+  const base = outward.clone().normalize()
+  for (let i = 0; i < COMBAT.pierceChips; i++) {
+    const dir = new THREE.Vector3(
+      base.x + (Math.random() - 0.5) * 1.4 + shotDir.x * 0.35,
+      base.y + (Math.random() - 0.5) * 1.4 + shotDir.y * 0.35,
+      base.z + (Math.random() - 0.5) * 1.4 + shotDir.z * 0.35,
+    ).normalize()
+    const speed = 1.2 + Math.random() * 3.5
+    fragments.push({
+      id: uid('foam'),
+      position: [pos.x, pos.y, pos.z],
+      velocity: [dir.x * speed, dir.y * speed + 0.6, dir.z * speed],
+      color: Math.random() > 0.35 ? COLORS.foamChip : COLORS.woodDark,
+      born: performance.now(),
+      size: 0.04 + Math.random() * 0.09,
+      spin: [
+        (Math.random() - 0.5) * 14,
+        (Math.random() - 0.5) * 14,
+        (Math.random() - 0.5) * 14,
+      ],
+    })
+  }
+  return { id: uid('pierce'), fragments }
+}
+
+function holeFrom(
+  pos: THREE.Vector3,
+  normal: THREE.Vector3,
+  now: number,
+): PierceHole {
+  const n = normal.lengthSq() > 0 ? normal.clone().normalize() : new THREE.Vector3(0, 0, 1)
+  // Nudge off the surface so the decal doesn't z-fight.
+  const p = pos.clone().addScaledVector(n, 0.015)
+  return {
+    id: uid('hole'),
+    position: [p.x, p.y, p.z],
+    normal: [n.x, n.y, n.z],
+    born: now,
+  }
+}
+
 const initialInput: InputState = {
   moveX: 0,
   moveZ: 0,
@@ -145,6 +204,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   plates: createPlates(1),
   tracers: [],
   explosions: [],
+  pierceHoles: [],
   sectorCleared: false,
   round: 1,
   input: { ...initialInput },
@@ -189,21 +249,32 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   spawnTracer: (aimOrigin, aimDir, visualOrigin) => {
     const dir = aimDir.clone().normalize()
+    const now = performance.now()
 
-    // Precise hitscan exactly through the crosshair (camera center ray)
+    // Precise hitscan exactly through the crosshair (camera center ray).
+    // Crates are styrofoam — they never occlude this ray.
     const hit = findClosestPlateHit(aimOrigin, dir, get().plates)
+    const shotRange = hit?.distance ?? COMBAT.tracerMaxDistance
 
     // Aim point always lies on the crosshair ray (hit or max range).
-    const aimPoint = hit
-      ? aimOrigin.clone().addScaledVector(dir, hit.distance)
-      : aimOrigin.clone().addScaledVector(dir, COMBAT.tracerMaxDistance)
+    const aimPoint = aimOrigin.clone().addScaledVector(dir, shotRange)
 
     if (hit) {
       get().hitPlate(hit.plateId, hit.point)
     }
 
-    // Visual streak starts at the muzzle but always flies toward the
-    // crosshair aim point so the shot reads as going through the retícula.
+    // Punch through any plumavit crates along the shot (entry + exit).
+    const pierces = findCratePierces(aimOrigin, dir, shotRange)
+    const foamBursts: ExplosionData[] = []
+    const newHoles: PierceHole[] = []
+    for (const p of pierces) {
+      foamBursts.push(createFoamBurst(p.enter, p.enterNormal, dir))
+      foamBursts.push(createFoamBurst(p.exit, p.exitNormal, dir.clone().negate()))
+      newHoles.push(holeFrom(p.enter, p.enterNormal, now))
+      newHoles.push(holeFrom(p.exit, p.exitNormal, now))
+    }
+
+    // Visual streak: muzzle → aim point (flies straight through foam crates).
     const start = visualOrigin?.clone() ?? aimOrigin.clone()
     const visualDir = aimPoint.clone().sub(start)
     const maxDistance = Math.max(visualDir.length(), 0.5)
@@ -213,20 +284,28 @@ export const useGameStore = create<GameState>((set, get) => ({
       visualDir.normalize()
     }
 
-    set((s) => ({
-      tracers: [
-        ...s.tracers,
-        {
-          id: uid('tracer'),
-          origin: [start.x, start.y, start.z],
-          direction: [visualDir.x, visualDir.y, visualDir.z],
-          born: performance.now(),
-          distance: 0,
-          lethal: false, // damage already resolved by crosshair hitscan
-          maxDistance,
-        },
-      ],
-    }))
+    set((s) => {
+      const pierceHoles = [...s.pierceHoles, ...newHoles]
+      const overflow = pierceHoles.length - COMBAT.pierceHoleMax
+      if (overflow > 0) pierceHoles.splice(0, overflow)
+
+      return {
+        tracers: [
+          ...s.tracers,
+          {
+            id: uid('tracer'),
+            origin: [start.x, start.y, start.z],
+            direction: [visualDir.x, visualDir.y, visualDir.z],
+            born: now,
+            distance: 0,
+            lethal: false, // damage already resolved by crosshair hitscan
+            maxDistance,
+          },
+        ],
+        explosions: foamBursts.length ? [...s.explosions, ...foamBursts] : s.explosions,
+        pierceHoles,
+      }
+    })
   },
 
   updateTracers: (dt, now) => {
@@ -309,6 +388,13 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({ explosions: next })
   },
 
+  prunePierceHoles: (now) => {
+    const holes = get().pierceHoles
+    if (holes.length === 0) return
+    const next = holes.filter((h) => now - h.born < COMBAT.pierceHoleLifetimeMs)
+    if (next.length !== holes.length) set({ pierceHoles: next })
+  },
+
   revealPlates: (now) => {
     const plates = get().plates
     let changed = false
@@ -329,6 +415,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       plates: createPlates(round),
       tracers: [],
       explosions: [],
+      pierceHoles: [],
       sectorCleared: false,
       round,
       input: { ...initialInput },

@@ -33,10 +33,17 @@ function FragmentMesh({ fragment }: { fragment: Fragment }) {
     mat.opacity = Math.max(0, 1 - age / 0.85)
   })
 
+  const isFoam = fragment.id.startsWith('foam')
+
   return (
     <mesh ref={ref} position={fragment.position}>
       <boxGeometry args={[fragment.size, fragment.size, fragment.size]} />
-      <meshBasicMaterial color={fragment.color} wireframe transparent opacity={1} />
+      <meshBasicMaterial
+        color={fragment.color}
+        wireframe={!isFoam}
+        transparent
+        opacity={1}
+      />
     </mesh>
   )
 }

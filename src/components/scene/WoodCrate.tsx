@@ -40,7 +40,8 @@ function Brace({
 }
 
 /**
- * Solid-faced wooden crate with warm fill + wireframe edges and cross braces.
+ * Soft styrofoam / plumavit crate — solid look, pierceable by bullets.
+ * Still blocks player movement (collision), but shots punch straight through.
  */
 export function WoodCrate({ position, args }: WoodCrateProps) {
   const [w, h, d] = args
@@ -75,32 +76,31 @@ export function WoodCrate({ position, args }: WoodCrateProps) {
 
   return (
     <group position={position}>
-      {/* Solid warm body — strong contrast vs dark floor */}
+      {/* Soft foam body */}
       <mesh>
         <boxGeometry args={[w - inset, h - inset, d - inset]} />
         <meshBasicMaterial color={COLORS.wood} />
       </mesh>
 
-      {/* Slightly lighter top lid */}
+      {/* Slightly brighter top */}
       <mesh position={[0, hh - inset * 0.5, 0]}>
         <boxGeometry args={[w - inset * 2, inset, d - inset * 2]} />
         <meshBasicMaterial color={COLORS.woodLight} />
       </mesh>
 
-      {/* Defined wireframe silhouette */}
+      {/* Thin edge outline */}
       <mesh>
         <boxGeometry args={args} />
-        <meshBasicMaterial color={COLORS.woodEdge} wireframe />
+        <meshBasicMaterial color={COLORS.woodEdge} wireframe transparent opacity={0.55} />
       </mesh>
 
-      {/* Solid cross braces */}
+      {/* Foam seam braces */}
       {faces.map(([from, to], i) => (
-        <Brace key={`x-${i}`} from={from} to={to} color={COLORS.woodDark} thickness={0.055} />
+        <Brace key={`x-${i}`} from={from} to={to} color={COLORS.woodDark} thickness={0.045} />
       ))}
 
-      {/* Solid banding */}
       {bands.map(([from, to], i) => (
-        <Brace key={`b-${i}`} from={from} to={to} color={COLORS.woodDark} thickness={0.05} />
+        <Brace key={`b-${i}`} from={from} to={to} color={COLORS.woodDark} thickness={0.04} />
       ))}
     </group>
   )

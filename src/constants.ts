@@ -11,11 +11,13 @@ export const COLORS = {
   wall: '#121A16',
   wallAlt: '#18241E',
   wallEdge: '#1AFF66',
-  /** Solid wood crate faces + trim. */
-  wood: '#C47A3A',
-  woodLight: '#E0A060',
-  woodDark: '#6B3B18',
-  woodEdge: '#F0C48A',
+  /** Styrofoam / plumavit crate faces + trim (soft, pierceable). */
+  wood: '#E8E2D4',
+  woodLight: '#F5F1E6',
+  woodDark: '#C9C2B0',
+  woodEdge: '#9AA3A0',
+  foamChip: '#F7F3E8',
+  foamHole: '#5A554C',
   /** Solid FPS viewmodel: human skin + gun metal. */
   skin: '#C68642',
   skinLight: '#E0AC69',
@@ -70,6 +72,10 @@ export const COMBAT = {
   plateCount: 10,
   explosionFragments: 14,
   pointsPerPlate: 100,
+  /** Foam crate pierce VFX */
+  pierceChips: 7,
+  pierceHoleMax: 48,
+  pierceHoleLifetimeMs: 12000,
 } as const
 
 export type Collider = {
