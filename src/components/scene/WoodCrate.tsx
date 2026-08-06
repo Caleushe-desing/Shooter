@@ -11,7 +11,7 @@ function Brace({
   from,
   to,
   color,
-  thickness = 0.045,
+  thickness = 0.06,
 }: {
   from: [number, number, number]
   to: [number, number, number]
@@ -34,47 +34,39 @@ function Brace({
   return (
     <mesh position={position} quaternion={quaternion}>
       <boxGeometry args={[thickness, length, thickness]} />
-      <meshBasicMaterial color={color} wireframe />
+      <meshBasicMaterial color={color} />
     </mesh>
   )
 }
 
 /**
- * Wireframe wooden shipping crate with crossed face braces and banding.
+ * Solid-faced wooden crate with warm fill + wireframe edges and cross braces.
  */
 export function WoodCrate({ position, args }: WoodCrateProps) {
   const [w, h, d] = args
   const hw = w / 2
   const hh = h / 2
   const hd = d / 2
-  const wood = COLORS.wood
-  const dark = COLORS.woodDark
+  const inset = 0.02
 
-  const faces: [ [number, number, number], [number, number, number] ][] = [
-    // Front (+Z) X
+  const faces: [[number, number, number], [number, number, number]][] = [
     [[-hw, -hh, hd], [hw, hh, hd]],
     [[-hw, hh, hd], [hw, -hh, hd]],
-    // Back (-Z) X
     [[-hw, -hh, -hd], [hw, hh, -hd]],
     [[-hw, hh, -hd], [hw, -hh, -hd]],
-    // Left (-X) X
     [[-hw, -hh, -hd], [-hw, hh, hd]],
     [[-hw, hh, -hd], [-hw, -hh, hd]],
-    // Right (+X) X
     [[hw, -hh, -hd], [hw, hh, hd]],
     [[hw, hh, -hd], [hw, -hh, hd]],
-    // Top X
     [[-hw, hh, -hd], [hw, hh, hd]],
     [[-hw, hh, hd], [hw, hh, -hd]],
   ]
 
-  const bands: [ [number, number, number], [number, number, number] ][] = [
-    // Horizontal mid bands
+  const bands: [[number, number, number], [number, number, number]][] = [
     [[-hw, 0, -hd], [hw, 0, -hd]],
     [[-hw, 0, hd], [hw, 0, hd]],
     [[-hw, 0, -hd], [-hw, 0, hd]],
     [[hw, 0, -hd], [hw, 0, hd]],
-    // Vertical mid bands
     [[0, -hh, -hd], [0, hh, -hd]],
     [[0, -hh, hd], [0, hh, hd]],
     [[-hw, -hh, 0], [-hw, hh, 0]],
@@ -83,22 +75,32 @@ export function WoodCrate({ position, args }: WoodCrateProps) {
 
   return (
     <group position={position}>
+      {/* Solid warm body — strong contrast vs dark floor */}
       <mesh>
-        <boxGeometry args={[w * 0.97, h * 0.97, d * 0.97]} />
-        <meshBasicMaterial color={wood} transparent opacity={0.1} />
+        <boxGeometry args={[w - inset, h - inset, d - inset]} />
+        <meshBasicMaterial color={COLORS.wood} />
       </mesh>
 
+      {/* Slightly lighter top lid */}
+      <mesh position={[0, hh - inset * 0.5, 0]}>
+        <boxGeometry args={[w - inset * 2, inset, d - inset * 2]} />
+        <meshBasicMaterial color={COLORS.woodLight} />
+      </mesh>
+
+      {/* Defined wireframe silhouette */}
       <mesh>
         <boxGeometry args={args} />
-        <meshBasicMaterial color={dark} wireframe />
+        <meshBasicMaterial color={COLORS.woodEdge} wireframe />
       </mesh>
 
+      {/* Solid cross braces */}
       {faces.map(([from, to], i) => (
-        <Brace key={`x-${i}`} from={from} to={to} color={wood} thickness={0.05} />
+        <Brace key={`x-${i}`} from={from} to={to} color={COLORS.woodDark} thickness={0.055} />
       ))}
 
+      {/* Solid banding */}
       {bands.map(([from, to], i) => (
-        <Brace key={`b-${i}`} from={from} to={to} color={dark} thickness={0.04} />
+        <Brace key={`b-${i}`} from={from} to={to} color={COLORS.woodDark} thickness={0.05} />
       ))}
     </group>
   )

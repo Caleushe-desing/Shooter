@@ -17,8 +17,8 @@ function Scene() {
   return (
     <>
       <color attach="background" args={[COLORS.black]} />
-      <fog attach="fog" args={[COLORS.black, 8, 32]} />
-      <ambientLight intensity={0.4} />
+      <fog attach="fog" args={[COLORS.black, 12, 36]} />
+      <ambientLight intensity={0.55} />
       <Arena />
       <PlayerController />
       <Plates />

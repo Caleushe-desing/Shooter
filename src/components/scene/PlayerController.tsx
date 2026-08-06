@@ -4,6 +4,7 @@ import { PerspectiveCamera } from '@react-three/drei'
 import * as THREE from 'three'
 import { PLAYER, resolveCircleBoxCollision, COMBAT } from '../../constants'
 import { useGameStore } from '../../store/gameStore'
+import { getMuzzleWorldPosition } from '../../store/muzzle'
 import { Weapon } from './Weapon'
 
 export function PlayerController() {
@@ -16,8 +17,9 @@ export function PlayerController() {
   const forward = useRef(new THREE.Vector3())
   const right = useRef(new THREE.Vector3())
   const wish = useRef(new THREE.Vector3())
-  const origin = useRef(new THREE.Vector3())
-  const dir = useRef(new THREE.Vector3())
+  const aimOrigin = useRef(new THREE.Vector3())
+  const aimDir = useRef(new THREE.Vector3())
+  const muzzlePos = useRef(new THREE.Vector3())
   const { gl, camera } = useThree()
 
   const isTouch =
@@ -145,10 +147,15 @@ export function PlayerController() {
     const now = performance.now()
     if (store.consumeFire() && now - lastFire.current >= COMBAT.fireCooldownMs) {
       lastFire.current = now
-      camera.getWorldDirection(dir.current)
-      origin.current.copy(camera.position).addScaledVector(dir.current, 0.2)
-      // spawnTracer performs hitscan + visual streak
-      store.spawnTracer(origin.current, dir.current)
+      // Aim ray = exact screen center / crosshair
+      camera.getWorldDirection(aimDir.current)
+      aimOrigin.current.copy(camera.position)
+      const hasMuzzle = getMuzzleWorldPosition(muzzlePos.current)
+      store.spawnTracer(
+        aimOrigin.current,
+        aimDir.current,
+        hasMuzzle ? muzzlePos.current : undefined,
+      )
     }
   })
 

@@ -3,8 +3,15 @@ export const COLORS = {
   neonGreen: '#00FF00',
   white: '#FFFFFF',
   tracer: '#00BFFF',
-  wood: '#D2A679',
-  woodDark: '#8B5E34',
+  /** Opaque arena floor (dark, contrasts with warm crates). */
+  floor: '#0B1410',
+  floorAlt: '#101C16',
+  floorGrid: '#1AFF66',
+  /** Solid wood crate faces + trim. */
+  wood: '#C47A3A',
+  woodLight: '#E0A060',
+  woodDark: '#6B3B18',
+  woodEdge: '#F0C48A',
   plates: ['#FF0033', '#FFD700', '#FF00AA', '#FF6600'] as const,
 } as const
 
@@ -26,9 +33,9 @@ export const ARENA = {
 } as const
 
 export const COMBAT = {
-  tracerSpeed: 95,
-  tracerLength: 1.35,
-  tracerRadius: 0.05,
+  tracerSpeed: 120,
+  tracerLength: 1.1,
+  tracerRadius: 0.045,
   tracerMaxDistance: 55,
   fireCooldownMs: 180,
   plateRadius: 0.55,

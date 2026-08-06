@@ -61,7 +61,15 @@ type GameState = {
   consumeLook: () => { dx: number; dy: number }
   queueFire: () => void
   consumeFire: () => boolean
-  spawnTracer: (origin: THREE.Vector3, direction: THREE.Vector3) => void
+  /**
+   * Hitscan from aimOrigin/aimDir (screen-center / crosshair).
+   * Visual tracer starts at visualOrigin (muzzle) and flies to the aim point.
+   */
+  spawnTracer: (
+    aimOrigin: THREE.Vector3,
+    aimDir: THREE.Vector3,
+    visualOrigin?: THREE.Vector3,
+  ) => void
   updateTracers: (dt: number, now: number) => void
   hitPlate: (plateId: string, hitPos: THREE.Vector3) => void
   updateExplosions: (dt: number, now: number) => void
@@ -179,28 +187,36 @@ export const useGameStore = create<GameState>((set, get) => ({
     return true
   },
 
-  spawnTracer: (origin, direction) => {
-    const dir = direction.clone().normalize()
-    const hit = findClosestPlateHit(origin, dir, get().plates)
-    let lethal = true
-    let maxDistance: number = COMBAT.tracerMaxDistance
+  spawnTracer: (aimOrigin, aimDir, visualOrigin) => {
+    const dir = aimDir.clone().normalize()
+
+    // Precise hitscan exactly through the crosshair (camera center ray)
+    const hit = findClosestPlateHit(aimOrigin, dir, get().plates)
+
+    const aimPoint = hit
+      ? hit.point.clone()
+      : aimOrigin.clone().addScaledVector(dir, COMBAT.tracerMaxDistance)
 
     if (hit) {
       get().hitPlate(hit.plateId, hit.point)
-      lethal = false
-      maxDistance = Math.max(hit.distance, 1.5)
     }
+
+    // Visual streak: muzzle → aim point (converges on retícula)
+    const start = visualOrigin?.clone() ?? aimOrigin.clone()
+    const visualDir = aimPoint.clone().sub(start)
+    const maxDistance = Math.max(visualDir.length(), 0.5)
+    visualDir.normalize()
 
     set((s) => ({
       tracers: [
         ...s.tracers,
         {
           id: uid('tracer'),
-          origin: [origin.x, origin.y, origin.z],
-          direction: [dir.x, dir.y, dir.z],
+          origin: [start.x, start.y, start.z],
+          direction: [visualDir.x, visualDir.y, visualDir.z],
           born: performance.now(),
           distance: 0,
-          lethal,
+          lethal: false, // damage already resolved by crosshair hitscan
           maxDistance,
         },
       ],
