@@ -23,19 +23,31 @@ const _pivotWorld = new THREE.Vector3()
 const _idealLocal = new THREE.Vector3()
 const _idealWorld = new THREE.Vector3()
 const _camDir = new THREE.Vector3()
+const _focusWorld = new THREE.Vector3()
+const _focusLocal = new THREE.Vector3()
+
+function dampAngle(current: number, target: number, speed: number, dt: number) {
+  let diff = target - current
+  while (diff > Math.PI) diff -= Math.PI * 2
+  while (diff < -Math.PI) diff += Math.PI * 2
+  return current + diff * (1 - Math.exp(-speed * dt))
+}
 
 /**
- * No Man's Sky-style third person:
- * - Over-right-shoulder camera so the back sits on the left of the frame
- * - Hip-fire reticle shifted off-center; hitscan goes through that point
- * - Body still faces look yaw and the gun tips with pitch
+ * Classic third-person chase cam (GTA / San Andreas feel):
+ * - Camera-relative move, soft orbit lag
+ * - Rear-right boom so the pup reads in ¾ (espalda + costado)
+ * - Hip-fire mira in the open space; hitscan through that point
  */
 export function PlayerController() {
   const rig = useRef<THREE.Group>(null)
   const yawPivot = useRef<THREE.Group>(null)
   const pitchObj = useRef<THREE.Group>(null)
-  const yaw = useRef(0)
-  const pitch = useRef(0)
+  const lookYaw = useRef(0)
+  const lookPitch = useRef(0)
+  const camYaw = useRef(0)
+  const camPitch = useRef(0)
+  const bodyYaw = useRef(0)
   /** 0–1 of the ideal shoulder boom; pulled in when walls block the view. */
   const camScale = useRef(1)
   const pos = useRef(new THREE.Vector3(PLAYER.spawn.x, 0, PLAYER.spawn.z))
@@ -178,18 +190,25 @@ export function PlayerController() {
       : 1
 
     const { dx, dy } = store.consumeLook()
-    yaw.current -= dx * zoomFactor
-    pitch.current = THREE.MathUtils.clamp(
-      pitch.current - dy * zoomFactor,
+    lookYaw.current -= dx * zoomFactor
+    lookPitch.current = THREE.MathUtils.clamp(
+      lookPitch.current - dy * zoomFactor,
       PLAYER.pitchMin,
       PLAYER.pitchMax,
     )
 
-    yawPivot.current.rotation.y = yaw.current
-    pitchObj.current.rotation.x = pitch.current + CAMERA.pitchBias
+    // Soft orbit lag — while turning you briefly see the pup de costado.
+    const yawFollow = store.scoped ? CAMERA.followYaw * 2.2 : CAMERA.followYaw
+    const pitchFollow = store.scoped ? CAMERA.followPitch * 2.2 : CAMERA.followPitch
+    camYaw.current = dampAngle(camYaw.current, lookYaw.current, yawFollow, dt)
+    camPitch.current = dampAngle(camPitch.current, lookPitch.current, pitchFollow, dt)
 
-    forward.current.set(-Math.sin(yaw.current), 0, -Math.cos(yaw.current))
-    right.current.set(Math.cos(yaw.current), 0, -Math.sin(yaw.current))
+    yawPivot.current.rotation.y = camYaw.current
+    pitchObj.current.rotation.x = camPitch.current + CAMERA.pitchBias
+
+    // Camera-relative movement (classic third-person).
+    forward.current.set(-Math.sin(camYaw.current), 0, -Math.cos(camYaw.current))
+    right.current.set(Math.cos(camYaw.current), 0, -Math.sin(camYaw.current))
 
     const { moveX, moveZ } = store.input
     wish.current
@@ -208,26 +227,31 @@ export function PlayerController() {
       const resolved = resolveCircleBoxCollision(nextX, nextZ, PLAYER.radius)
       pos.current.x = resolved.x
       pos.current.z = resolved.z
+
+      // Face the direction of travel so strafing shows the side profile.
+      const moveYaw = Math.atan2(-wish.current.x, -wish.current.z)
+      bodyYaw.current = dampAngle(bodyYaw.current, moveYaw, CAMERA.bodyTurn, dt)
+    } else {
+      bodyYaw.current = dampAngle(bodyYaw.current, lookYaw.current, CAMERA.bodyTurn, dt)
     }
 
     pos.current.y = 0
     rig.current.position.set(pos.current.x, 0, pos.current.z)
     setPlayerPosition(pos.current.x, PLAYER.eyeHeight, pos.current.z)
 
-    // --- Chase boom with wall/crate collision so the pup never vanishes ---
+    // --- Rear-right boom + wall collision ---
     const desiredZ = store.scoped ? CAMERA.scopedDistance : CAMERA.distance
-    const shoulder = store.scoped ? CAMERA.shoulder * 0.35 : CAMERA.shoulder
+    const shoulder = store.scoped ? CAMERA.shoulder * 0.4 : CAMERA.shoulder
+    const lift = store.scoped ? CAMERA.lift * 0.4 : CAMERA.lift
 
-    // Orient pivots first, then probe the ideal lens point in world space.
     rig.current.updateWorldMatrix(true, true)
     yawPivot.current.getWorldPosition(_pivotWorld)
-    _idealLocal.set(shoulder, 0, desiredZ)
+    _idealLocal.set(shoulder, lift, desiredZ)
     _idealWorld.copy(_idealLocal).applyMatrix4(pitchObj.current.matrixWorld)
     _camDir.copy(_idealWorld).sub(_pivotWorld)
     const idealLen = Math.max(_camDir.length(), 1e-6)
     const allowed = maxCameraBoomDistance(_pivotWorld, _camDir, idealLen)
     let targetScale = THREE.MathUtils.clamp(allowed / idealLen, CAMERA.minDistance / idealLen, 1)
-    // Extra fit pass — corners/grazing hits the primary ray can miss.
     targetScale = fitCameraScaleOutsideSolids(
       _pivotWorld,
       _idealLocal,
@@ -235,7 +259,6 @@ export function PlayerController() {
       targetScale,
     )
 
-    // Snap in against walls; ease back out when the path clears.
     if (targetScale < camScale.current) {
       camScale.current = targetScale
     } else {
@@ -249,12 +272,16 @@ export function PlayerController() {
 
     camera.position.copy(_idealLocal).multiplyScalar(camScale.current)
 
+    // Look toward a point ahead of the pup — locks ¾ framing (back + side).
+    _focusLocal.set(-shoulder * 0.25, -lift * 0.5, -CAMERA.lookAhead)
+    _focusWorld.copy(_focusLocal).applyMatrix4(pitchObj.current.matrixWorld)
+    camera.lookAt(_focusWorld)
+
     const now = performance.now()
     if (store.consumeFire() && now - lastFire.current >= COMBAT.fireCooldownMs) {
       lastFire.current = now
-      rig.current.updateWorldMatrix(true, true)
+      camera.updateMatrixWorld(true)
 
-      // Hip fire: ray through the off-center reticle. Scoped: eyepiece center.
       const aimPoint = store.scoped ? SCOPE_AIM : hipAim
       aimRaycaster.setFromCamera(aimPoint, camera)
       aimOrigin.current.copy(aimRaycaster.ray.origin)
@@ -271,7 +298,7 @@ export function PlayerController() {
 
   return (
     <group ref={rig} position={[PLAYER.spawn.x, 0, PLAYER.spawn.z]}>
-      <PlayerAvatar yawRef={yaw} pitchRef={pitch} movingRef={moving} />
+      <PlayerAvatar yawRef={bodyYaw} pitchRef={lookPitch} movingRef={moving} />
 
       <group ref={yawPivot} position={[0, CAMERA.height, 0]}>
         <group ref={pitchObj}>
@@ -280,7 +307,7 @@ export function PlayerController() {
             fov={SCOPE.baseFov}
             near={CAMERA.near}
             far={CAMERA.far}
-            position={[CAMERA.shoulder, 0, CAMERA.distance]}
+            position={[CAMERA.shoulder, CAMERA.lift, CAMERA.distance]}
           />
         </group>
       </group>

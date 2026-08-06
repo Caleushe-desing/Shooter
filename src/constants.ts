@@ -67,33 +67,37 @@ export const PLAYER = {
 } as const
 
 /**
- * No Man's Sky-style chase cam: over the right shoulder so the back stays
- * visible on the left, with a hip-fire reticle close beside the pup.
+ * Classic third-person chase cam (GTA / San Andreas style):
+ * camera sits rear-right so the pup reads in ¾ (back + side), with soft follow lag.
  */
 export const CAMERA = {
-  /** Positive = over the right shoulder (character sits left of frame). */
-  shoulder: 0.72,
-  height: 1.45,
-  distance: 3.35,
-  scopedDistance: 1.7,
-  /** Soft look-down bias so the pup's back stays readable. */
-  pitchBias: 0.12,
-  /** Smooth follow when zooming the boom in/out. */
-  boomSpeed: 10,
-  /** How fast the boom snaps in when a wall blocks the view. */
+  /** Rear-right boom — enough lateral offset to show the pup de costado. */
+  shoulder: 1.45,
+  height: 1.85,
+  /** Slight lift on the lens so we look down onto the pup. */
+  lift: 0.35,
+  distance: 5.1,
+  scopedDistance: 2.4,
+  /** Look-down bias on the boom (radians). */
+  pitchBias: 0.22,
+  /** How far ahead of the pivots the camera looks (¾ framing). */
+  lookAhead: 1.15,
+  /** Soft chase lag — higher = snappier, lower = more cinematic. */
+  followYaw: 6.5,
+  followPitch: 8.5,
+  /** Body turns toward move / look. */
+  bodyTurn: 10,
+  boomSpeed: 9,
   collisionPullSpeed: 28,
-  /** Never pull closer than this — keeps the pup on screen. */
-  minDistance: 0.75,
-  /** Keep the lens this far outside solid surfaces. */
+  minDistance: 1.1,
   collisionSkin: 0.55,
   near: 0.12,
   far: 600,
   /**
-   * Hip-fire reticle as % of the viewport (top-left origin).
-   * Kept just beside the pup — close, not stranded mid-screen.
+   * Hip-fire reticle (% of viewport). Open space to the right of the pup.
    */
-  aimLeftPct: 54,
-  aimTopPct: 48,
+  aimLeftPct: 58,
+  aimTopPct: 46,
 } as const
 
 /** NDC coords matching `CAMERA.aimLeftPct` / `aimTopPct` for hitscan. */
@@ -106,11 +110,9 @@ export function hipFireAimNdc(): { x: number; y: number } {
 
 /** Telescopic sight (aim down scope). */
 export const SCOPE = {
-  baseFov: 70,
-  zoomedFov: 28,
-  /** Higher is snappier when entering/leaving the scope. */
+  baseFov: 65,
+  zoomedFov: 30,
   transitionSpeed: 9,
-  /** Movement penalty while scoped, so aiming feels deliberate. */
   moveScale: 0.45,
 } as const
 
