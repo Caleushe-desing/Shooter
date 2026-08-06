@@ -44,6 +44,20 @@ export const ARENA = {
   wallThickness: 0.4,
 } as const
 
+/** Mobile look/fire zone: hard press fires; light drag only looks. */
+export const TOUCH_FIRE = {
+  /** Absolute pressure (0–1) that counts as a hard press. */
+  pressureThreshold: 0.55,
+  /** Extra pressure above the initial contact required to fire. */
+  pressureDelta: 0.14,
+  /** Ignore tiny pressure noise when detecting real force sensors. */
+  pressureVariance: 0.04,
+  /** Movement (px) that cancels the no-force tap fallback. */
+  dragCancelPx: 16,
+  /** Max contact time (ms) for the no-force tap fallback. */
+  tapMaxMs: 240,
+} as const
+
 export const COMBAT = {
   tracerSpeed: 120,
   tracerLength: 1.1,

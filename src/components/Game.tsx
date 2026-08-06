@@ -59,7 +59,7 @@ export function Game() {
         WASD MOVE · MOUSE LOOK · CLICK / F FIRE
       </div>
       <div className="pointer-events-none absolute bottom-3 left-1/2 z-30 -translate-x-1/2 text-[9px] tracking-[0.25em] text-white/35 sm:hidden">
-        JOYSTICK · TAP RIGHT TO FIRE
+        JOYSTICK · DRAG LOOK · PRESS HARD TO FIRE
       </div>
     </div>
   )

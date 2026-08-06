@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useGameStore } from '../../store/gameStore'
-import { PLAYER } from '../../constants'
+import { PLAYER, TOUCH_FIRE } from '../../constants'
 
 /**
  * Mobile controls:
  * - Left: virtual joystick for movement
- * - Right half: drag to look; tap/touch fires the weapon
+ * - Right half: drag to look; hard finger pressure fires (light drag does not)
  * Desktop: controls are handled in PlayerController (WASD + pointer lock).
  */
 export function MobileControls() {
@@ -30,7 +30,7 @@ export function MobileControls() {
       <Joystick setMove={setMove} />
       <LookAndFireZone addLook={addLook} onFire={queueFire} />
       <div className="pointer-events-none absolute bottom-3 right-4 text-[9px] tracking-[0.25em] text-[#00BFFF]/70">
-        TAP TO FIRE · DRAG TO LOOK
+        PRESS HARD TO FIRE · DRAG TO LOOK
       </div>
     </div>
   )
@@ -108,6 +108,30 @@ function Joystick({ setMove }: { setMove: (x: number, z: number) => void }) {
   )
 }
 
+function readTouchForce(e: TouchEvent, id: number | null): number | null {
+  for (let i = 0; i < e.touches.length; i++) {
+    const t = e.touches.item(i)
+    if (!t) continue
+    // Touch.identifier aligns with pointerId on most mobile browsers.
+    if (id != null && t.identifier !== id) continue
+    if (typeof t.force === 'number') return t.force
+  }
+  const t0 = e.touches.item(0)
+  if (t0 && typeof t0.force === 'number') return t0.force
+  return null
+}
+
+/** True when the sample looks like a real analog force reading (not 0 / 0.5 / 1 stubs). */
+function isAnalogPressure(pressure: number) {
+  return pressure > 0.02 && pressure < 0.98 && Math.abs(pressure - 0.5) > 0.02
+}
+
+/**
+ * Right-half look pad:
+ * - Light drag → look only
+ * - Harder press (analog PointerEvent.pressure / Touch.force) → fire
+ * - Devices without force sensors: short stationary tap still fires
+ */
 function LookAndFireZone({
   addLook,
   onFire,
@@ -115,12 +139,83 @@ function LookAndFireZone({
   addLook: (dx: number, dy: number) => void
   onFire: () => void
 }) {
+  const zoneRef = useRef<HTMLDivElement>(null)
   const active = useRef(false)
   const last = useRef({ x: 0, y: 0 })
   const pointerId = useRef<number | null>(null)
+  const baselinePressure = useRef(0)
+  const hasAnalogPressure = useRef(false)
+  const firedThisPress = useRef(false)
+  const dragDistance = useRef(0)
+  const startedAt = useRef(0)
+  const lastFireAt = useRef(0)
+
+  const tryFireFromPressure = useCallback(
+    (pressure: number) => {
+      if (!active.current) return
+      if (isAnalogPressure(pressure)) hasAnalogPressure.current = true
+      // Binary 0/1 stubs (common on Android) must not fire while looking.
+      if (!hasAnalogPressure.current) return
+
+      const hardEnough =
+        pressure >= TOUCH_FIRE.pressureThreshold &&
+        pressure >= baselinePressure.current + TOUCH_FIRE.pressureDelta
+
+      if (!hardEnough) return
+
+      const now = performance.now()
+      // Sustained hard-press can re-fire around the weapon cooldown.
+      if (firedThisPress.current && now - lastFireAt.current < 160) return
+      firedThisPress.current = true
+      lastFireAt.current = now
+      onFire()
+    },
+    [onFire],
+  )
+
+  const endGesture = useCallback(() => {
+    if (!active.current) return
+
+    // Fallback when the device has no real force sensor: short firm tap only.
+    // Dragging to look never counts as a tap.
+    if (
+      !firedThisPress.current &&
+      !hasAnalogPressure.current &&
+      dragDistance.current < TOUCH_FIRE.dragCancelPx &&
+      performance.now() - startedAt.current <= TOUCH_FIRE.tapMaxMs
+    ) {
+      onFire()
+    }
+
+    active.current = false
+    pointerId.current = null
+    firedThisPress.current = false
+    hasAnalogPressure.current = false
+    dragDistance.current = 0
+  }, [onFire])
+
+  useEffect(() => {
+    const el = zoneRef.current
+    if (!el) return
+
+    const onTouchForce = (e: TouchEvent) => {
+      if (!active.current) return
+      const force = readTouchForce(e, pointerId.current)
+      if (force != null) tryFireFromPressure(force)
+    }
+
+    // iOS reports continuous force here more reliably than pointermove.
+    el.addEventListener('touchforcechange', onTouchForce as EventListener, { passive: true })
+    el.addEventListener('touchmove', onTouchForce, { passive: true })
+    return () => {
+      el.removeEventListener('touchforcechange', onTouchForce as EventListener)
+      el.removeEventListener('touchmove', onTouchForce)
+    }
+  }, [tryFireFromPressure])
 
   return (
     <div
+      ref={zoneRef}
       className="absolute bottom-0 right-0 top-0 w-1/2 touch-none"
       onPointerDown={(e) => {
         e.preventDefault()
@@ -128,24 +223,25 @@ function LookAndFireZone({
         active.current = true
         pointerId.current = e.pointerId
         last.current = { x: e.clientX, y: e.clientY }
-        // Tap / touch on the look zone fires immediately
-        onFire()
+        startedAt.current = performance.now()
+        dragDistance.current = 0
+        firedThisPress.current = false
+        hasAnalogPressure.current = isAnalogPressure(e.pressure)
+        baselinePressure.current = e.pressure > 0 ? e.pressure : 0.08
+        // Never fire on contact — light touch is only for looking.
       }}
       onPointerMove={(e) => {
         if (!active.current || pointerId.current !== e.pointerId) return
         const dx = e.clientX - last.current.x
         const dy = e.clientY - last.current.y
         last.current = { x: e.clientX, y: e.clientY }
+        dragDistance.current += Math.hypot(dx, dy)
         addLook(dx * PLAYER.lookSensitivityMobile, dy * PLAYER.lookSensitivityMobile)
+        tryFireFromPressure(e.pressure)
       }}
-      onPointerUp={() => {
-        active.current = false
-        pointerId.current = null
-      }}
-      onPointerCancel={() => {
-        active.current = false
-        pointerId.current = null
-      }}
+      onPointerUp={endGesture}
+      onPointerCancel={endGesture}
+      onLostPointerCapture={endGesture}
     />
   )
 }
