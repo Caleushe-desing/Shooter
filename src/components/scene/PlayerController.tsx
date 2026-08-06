@@ -14,10 +14,15 @@ import { useGameStore } from '../../store/gameStore'
 import { getMuzzleWorldPosition } from '../../store/muzzle'
 import { setPlayerPosition } from '../../store/enemyRuntime'
 import { useSettingsStore } from '../../store/settings'
+import { maxCameraBoomDistance } from '../../store/cameraCollision'
 import { PlayerAvatar } from './PlayerAvatar'
 
 /** Scoped optics stay centered in the eyepiece. */
 const SCOPE_AIM = new THREE.Vector2(0, 0)
+const _pivotWorld = new THREE.Vector3()
+const _idealLocal = new THREE.Vector3()
+const _idealWorld = new THREE.Vector3()
+const _camDir = new THREE.Vector3()
 
 /**
  * No Man's Sky-style third person:
@@ -31,7 +36,8 @@ export function PlayerController() {
   const pitchObj = useRef<THREE.Group>(null)
   const yaw = useRef(0)
   const pitch = useRef(0)
-  const boomDistance = useRef<number>(CAMERA.distance)
+  /** 0–1 of the ideal shoulder boom; pulled in when walls block the view. */
+  const camScale = useRef(1)
   const pos = useRef(new THREE.Vector3(PLAYER.spawn.x, 0, PLAYER.spawn.z))
   const moving = useRef(false)
   const lastFire = useRef(0)
@@ -171,17 +177,6 @@ export function PlayerController() {
       ? perspective.fov / SCOPE.baseFov
       : 1
 
-    const targetBoom = store.scoped ? CAMERA.scopedDistance : CAMERA.distance
-    boomDistance.current = THREE.MathUtils.damp(
-      boomDistance.current,
-      targetBoom,
-      CAMERA.boomSpeed,
-      dt,
-    )
-    // Over-right-shoulder boom — character's back fills the left side.
-    const shoulder = store.scoped ? CAMERA.shoulder * 0.35 : CAMERA.shoulder
-    camera.position.set(shoulder, 0, boomDistance.current)
-
     const { dx, dy } = store.consumeLook()
     yaw.current -= dx * zoomFactor
     pitch.current = THREE.MathUtils.clamp(
@@ -218,6 +213,40 @@ export function PlayerController() {
     pos.current.y = 0
     rig.current.position.set(pos.current.x, 0, pos.current.z)
     setPlayerPosition(pos.current.x, PLAYER.eyeHeight, pos.current.z)
+
+    // --- Chase boom with wall/crate collision so the pup never vanishes ---
+    const desiredZ = store.scoped ? CAMERA.scopedDistance : CAMERA.distance
+    const shoulder = store.scoped ? CAMERA.shoulder * 0.35 : CAMERA.shoulder
+
+    // Orient pivots first, then probe the ideal lens point in world space.
+    rig.current.updateWorldMatrix(true, true)
+    yawPivot.current.getWorldPosition(_pivotWorld)
+    _idealLocal.set(shoulder, 0, desiredZ)
+    _idealWorld.copy(_idealLocal).applyMatrix4(pitchObj.current.matrixWorld)
+    _camDir.copy(_idealWorld).sub(_pivotWorld)
+    const idealLen = Math.max(_camDir.length(), 1e-6)
+    const allowed = maxCameraBoomDistance(_pivotWorld, _camDir, idealLen)
+    const targetScale = THREE.MathUtils.clamp(allowed / idealLen, CAMERA.minDistance / idealLen, 1)
+
+    // Snap in against walls; ease back out when the path clears.
+    if (targetScale < camScale.current) {
+      camScale.current = THREE.MathUtils.damp(
+        camScale.current,
+        targetScale,
+        CAMERA.collisionPullSpeed,
+        dt,
+      )
+      if (camScale.current > targetScale) camScale.current = targetScale
+    } else {
+      camScale.current = THREE.MathUtils.damp(
+        camScale.current,
+        targetScale,
+        CAMERA.boomSpeed,
+        dt,
+      )
+    }
+
+    camera.position.copy(_idealLocal).multiplyScalar(camScale.current)
 
     const now = performance.now()
     if (store.consumeFire() && now - lastFire.current >= COMBAT.fireCooldownMs) {
