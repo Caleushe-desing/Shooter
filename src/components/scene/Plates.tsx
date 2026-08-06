@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import { COMBAT } from '../../constants'
 import { useGameStore, type PlateData } from '../../store/gameStore'
 import { setLivePlatePosition, clearLivePlatePosition } from '../../store/platePositions'
+import { registerPlateTarget, unregisterPlateTarget } from '../../store/plateTargets'
 
 export function Plates() {
   const plates = useGameStore((s) => s.plates)
@@ -28,7 +29,14 @@ function PlateMesh({ plate }: { plate: PlateData }) {
   const baseY = plate.position[1]
 
   useEffect(() => {
-    return () => clearLivePlatePosition(plate.id)
+    const g = ref.current
+    if (!g) return
+    g.userData.plateId = plate.id
+    registerPlateTarget(plate.id, g)
+    return () => {
+      unregisterPlateTarget(plate.id)
+      clearLivePlatePosition(plate.id)
+    }
   }, [plate.id])
 
   useFrame(({ clock }) => {
@@ -42,8 +50,14 @@ function PlateMesh({ plate }: { plate: PlateData }) {
   })
 
   return (
-    <group ref={ref} position={plate.position}>
-      <mesh rotation={[Math.PI / 2, 0, 0]}>
+    <group ref={ref} position={plate.position} userData={{ plateId: plate.id }}>
+      {/* Solid hit volume (invisible) for reliable raycasting */}
+      <mesh userData={{ plateId: plate.id }}>
+        <sphereGeometry args={[COMBAT.plateRadius + COMBAT.plateHitPadding * 0.5, 12, 12]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
+
+      <mesh rotation={[Math.PI / 2, 0, 0]} userData={{ plateId: plate.id }}>
         <cylinderGeometry
           args={[COMBAT.plateRadius, COMBAT.plateRadius, COMBAT.plateThickness, 16]}
         />
@@ -53,12 +67,12 @@ function PlateMesh({ plate }: { plate: PlateData }) {
         <torusGeometry args={[COMBAT.plateRadius * 0.55, 0.02, 4, 16]} />
         <meshBasicMaterial color={plate.color} wireframe />
       </mesh>
-      <mesh rotation={[Math.PI / 2, 0, 0]}>
+      <mesh rotation={[Math.PI / 2, 0, 0]} userData={{ plateId: plate.id }}>
         <circleGeometry args={[COMBAT.plateRadius * 0.92, 16]} />
         <meshBasicMaterial
           color={plate.color}
           transparent
-          opacity={0.12}
+          opacity={0.18}
           side={THREE.DoubleSide}
         />
       </mesh>

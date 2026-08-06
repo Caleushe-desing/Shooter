@@ -7,68 +7,36 @@ type WoodCrateProps = {
   args: [number, number, number]
 }
 
-function makeCrateLines(w: number, h: number, d: number): Float32Array {
-  const hw = w / 2
-  const hh = h / 2
-  const hd = d / 2
-  const pts: number[] = []
+function Brace({
+  from,
+  to,
+  color,
+  thickness = 0.045,
+}: {
+  from: [number, number, number]
+  to: [number, number, number]
+  color: string
+  thickness?: number
+}) {
+  const { position, quaternion, length } = useMemo(() => {
+    const a = new THREE.Vector3(...from)
+    const b = new THREE.Vector3(...to)
+    const dir = new THREE.Vector3().subVectors(b, a)
+    const length = dir.length()
+    const position = new THREE.Vector3().addVectors(a, b).multiplyScalar(0.5)
+    const quaternion = new THREE.Quaternion().setFromUnitVectors(
+      new THREE.Vector3(0, 1, 0),
+      dir.clone().normalize(),
+    )
+    return { position, quaternion, length }
+  }, [from, to])
 
-  const push = (a: number[], b: number[]) => {
-    pts.push(a[0], a[1], a[2], b[0], b[1], b[2])
-  }
-
-  // Outer box edges
-  const c = [
-    [-hw, -hh, -hd],
-    [hw, -hh, -hd],
-    [hw, -hh, hd],
-    [-hw, -hh, hd],
-    [-hw, hh, -hd],
-    [hw, hh, -hd],
-    [hw, hh, hd],
-    [-hw, hh, hd],
-  ] as number[][]
-
-  // Bottom
-  push(c[0], c[1]); push(c[1], c[2]); push(c[2], c[3]); push(c[3], c[0])
-  // Top
-  push(c[4], c[5]); push(c[5], c[6]); push(c[6], c[7]); push(c[7], c[4])
-  // Verticals
-  push(c[0], c[4]); push(c[1], c[5]); push(c[2], c[6]); push(c[3], c[7])
-
-  // Mid reinforcement bands (horizontal)
-  push([-hw, 0, -hd], [hw, 0, -hd])
-  push([-hw, 0, hd], [hw, 0, hd])
-  push([-hw, 0, -hd], [-hw, 0, hd])
-  push([hw, 0, -hd], [hw, 0, hd])
-
-  // Vertical mid bands
-  push([0, -hh, -hd], [0, hh, -hd])
-  push([0, -hh, hd], [0, hh, hd])
-  push([-hw, -hh, 0], [-hw, hh, 0])
-  push([hw, -hh, 0], [hw, hh, 0])
-
-  // Classic X braces on each face
-  // Front (+Z)
-  push([-hw, -hh, hd], [hw, hh, hd])
-  push([-hw, hh, hd], [hw, -hh, hd])
-  // Back (-Z)
-  push([-hw, -hh, -hd], [hw, hh, -hd])
-  push([-hw, hh, -hd], [hw, -hh, -hd])
-  // Left (-X)
-  push([-hw, -hh, -hd], [-hw, hh, hd])
-  push([-hw, hh, -hd], [-hw, -hh, hd])
-  // Right (+X)
-  push([hw, -hh, -hd], [hw, hh, hd])
-  push([hw, hh, -hd], [hw, -hh, hd])
-  // Top (+Y)
-  push([-hw, hh, -hd], [hw, hh, hd])
-  push([-hw, hh, hd], [hw, hh, -hd])
-  // Bottom (-Y)
-  push([-hw, -hh, -hd], [hw, -hh, hd])
-  push([-hw, -hh, hd], [hw, -hh, -hd])
-
-  return new Float32Array(pts)
+  return (
+    <mesh position={position} quaternion={quaternion}>
+      <boxGeometry args={[thickness, length, thickness]} />
+      <meshBasicMaterial color={color} wireframe />
+    </mesh>
+  )
 }
 
 /**
@@ -76,28 +44,62 @@ function makeCrateLines(w: number, h: number, d: number): Float32Array {
  */
 export function WoodCrate({ position, args }: WoodCrateProps) {
   const [w, h, d] = args
+  const hw = w / 2
+  const hh = h / 2
+  const hd = d / 2
+  const wood = COLORS.wood
+  const dark = COLORS.woodDark
 
-  const geometry = useMemo(() => {
-    const geo = new THREE.BufferGeometry()
-    geo.setAttribute('position', new THREE.BufferAttribute(makeCrateLines(w, h, d), 3))
-    return geo
-  }, [w, h, d])
+  const faces: [ [number, number, number], [number, number, number] ][] = [
+    // Front (+Z) X
+    [[-hw, -hh, hd], [hw, hh, hd]],
+    [[-hw, hh, hd], [hw, -hh, hd]],
+    // Back (-Z) X
+    [[-hw, -hh, -hd], [hw, hh, -hd]],
+    [[-hw, hh, -hd], [hw, -hh, -hd]],
+    // Left (-X) X
+    [[-hw, -hh, -hd], [-hw, hh, hd]],
+    [[-hw, hh, -hd], [-hw, -hh, hd]],
+    // Right (+X) X
+    [[hw, -hh, -hd], [hw, hh, hd]],
+    [[hw, hh, -hd], [hw, -hh, hd]],
+    // Top X
+    [[-hw, hh, -hd], [hw, hh, hd]],
+    [[-hw, hh, hd], [hw, hh, -hd]],
+  ]
+
+  const bands: [ [number, number, number], [number, number, number] ][] = [
+    // Horizontal mid bands
+    [[-hw, 0, -hd], [hw, 0, -hd]],
+    [[-hw, 0, hd], [hw, 0, hd]],
+    [[-hw, 0, -hd], [-hw, 0, hd]],
+    [[hw, 0, -hd], [hw, 0, hd]],
+    // Vertical mid bands
+    [[0, -hh, -hd], [0, hh, -hd]],
+    [[0, -hh, hd], [0, hh, hd]],
+    [[-hw, -hh, 0], [-hw, hh, 0]],
+    [[hw, -hh, 0], [hw, hh, 0]],
+  ]
 
   return (
     <group position={position}>
-      {/* Soft fill so crates read as solid volumes */}
       <mesh>
-        <boxGeometry args={[w * 0.98, h * 0.98, d * 0.98]} />
-        <meshBasicMaterial color={COLORS.wood} transparent opacity={0.08} />
+        <boxGeometry args={[w * 0.97, h * 0.97, d * 0.97]} />
+        <meshBasicMaterial color={wood} transparent opacity={0.1} />
       </mesh>
-      <lineSegments geometry={geometry}>
-        <lineBasicMaterial color={COLORS.wood} />
-      </lineSegments>
-      {/* Slightly darker outline box for depth */}
+
       <mesh>
         <boxGeometry args={args} />
-        <meshBasicMaterial color={COLORS.woodDark} wireframe transparent opacity={0.55} />
+        <meshBasicMaterial color={dark} wireframe />
       </mesh>
+
+      {faces.map(([from, to], i) => (
+        <Brace key={`x-${i}`} from={from} to={to} color={wood} thickness={0.05} />
+      ))}
+
+      {bands.map(([from, to], i) => (
+        <Brace key={`b-${i}`} from={from} to={to} color={dark} thickness={0.04} />
+      ))}
     </group>
   )
 }

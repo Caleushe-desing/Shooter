@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { COMBAT } from '../constants'
 import { getLivePlatePosition } from './platePositions'
+import { getPlateIdFromObject, getPlateTargets } from './plateTargets'
 
 type PlateLike = {
   id: string
@@ -12,8 +13,15 @@ const _origin = new THREE.Vector3()
 const _dir = new THREE.Vector3()
 const _center = new THREE.Vector3()
 const _oc = new THREE.Vector3()
+const _raycaster = new THREE.Raycaster()
 
-/** Ray vs sphere. Returns distance along ray or null. */
+export type PlateHit = {
+  plateId: string
+  distance: number
+  point: THREE.Vector3
+}
+
+/** Ray vs sphere. */
 export function raySphereDistance(
   origin: THREE.Vector3,
   dir: THREE.Vector3,
@@ -35,40 +43,7 @@ export function raySphereDistance(
   return null
 }
 
-/**
- * Ray vs floating plate: disc plane test + sphere fallback for edge-on shots.
- */
-export function rayPlateDistance(
-  origin: THREE.Vector3,
-  dir: THREE.Vector3,
-  plateCenter: THREE.Vector3,
-  plateRadius: number,
-  tMin = 0,
-  tMax = Infinity,
-): number | null {
-  const radius = plateRadius + COMBAT.plateHitPadding
-
-  // Prefer upright disc plane (plates float mostly flat)
-  if (Math.abs(dir.y) > 1e-4) {
-    const tPlane = (plateCenter.y - origin.y) / dir.y
-    if (tPlane >= tMin && tPlane <= tMax) {
-      const hx = origin.x + dir.x * tPlane
-      const hz = origin.z + dir.z * tPlane
-      const radial = Math.hypot(hx - plateCenter.x, hz - plateCenter.z)
-      if (radial <= radius) return tPlane
-    }
-  }
-
-  // Sphere catch for steep / edge-on trajectories
-  return raySphereDistance(origin, dir, plateCenter, radius, tMin, tMax)
-}
-
-export type PlateHit = {
-  plateId: string
-  distance: number
-  point: THREE.Vector3
-}
-
+/** Primary: mesh Raycaster. Fallback: generous sphere math. */
 export function findClosestPlateHit(
   origin: THREE.Vector3,
   direction: THREE.Vector3,
@@ -78,24 +53,37 @@ export function findClosestPlateHit(
   _origin.copy(origin)
   _dir.copy(direction).normalize()
 
+  // 1) Precise mesh raycast against registered plate groups
+  const targets = getPlateTargets()
+  if (targets.length > 0) {
+    _raycaster.set(_origin, _dir)
+    _raycaster.far = maxDistance
+    _raycaster.near = 0.05
+    const hits = _raycaster.intersectObjects(targets, true)
+    for (const h of hits) {
+      const plateId = getPlateIdFromObject(h.object)
+      if (!plateId) continue
+      const plate = plates.find((p) => p.id === plateId && p.visible)
+      if (!plate) continue
+      return {
+        plateId,
+        distance: h.distance,
+        point: h.point.clone(),
+      }
+    }
+  }
+
+  // 2) Sphere fallback using live positions
   let best: PlateHit | null = null
+  const radius = COMBAT.plateRadius + COMBAT.plateHitPadding
 
   for (const plate of plates) {
     if (!plate.visible) continue
     const live = getLivePlatePosition(plate.id) ?? plate.position
     _center.set(live[0], live[1], live[2])
-
-    const t = rayPlateDistance(
-      _origin,
-      _dir,
-      _center,
-      COMBAT.plateRadius,
-      0.05,
-      maxDistance,
-    )
+    const t = raySphereDistance(_origin, _dir, _center, radius, 0.05, maxDistance)
     if (t == null) continue
     if (best && t >= best.distance) continue
-
     best = {
       plateId: plate.id,
       distance: t,
@@ -110,7 +98,6 @@ export function findClosestPlateHit(
   return best
 }
 
-/** Segment test for a tracer travelling from prevDist → nextDist. */
 export function tracerSegmentHit(
   origin: [number, number, number],
   direction: [number, number, number],
@@ -121,18 +108,42 @@ export function tracerSegmentHit(
   _origin.set(origin[0], origin[1], origin[2])
   _dir.set(direction[0], direction[1], direction[2]).normalize()
 
+  // Advance origin to segment start for mesh raycast window
+  const segOrigin = _origin.clone().addScaledVector(_dir, prevDist)
+  const segLen = Math.max(nextDist - prevDist, 0.01)
+
+  const targets = getPlateTargets()
+  if (targets.length > 0) {
+    _raycaster.set(segOrigin, _dir)
+    _raycaster.near = 0
+    _raycaster.far = segLen + 0.05
+    const hits = _raycaster.intersectObjects(targets, true)
+    for (const h of hits) {
+      const plateId = getPlateIdFromObject(h.object)
+      if (!plateId) continue
+      const plate = plates.find((p) => p.id === plateId && p.visible)
+      if (!plate) continue
+      return {
+        plateId,
+        distance: prevDist + h.distance,
+        point: h.point.clone(),
+      }
+    }
+  }
+
   let best: PlateHit | null = null
+  const radius = COMBAT.plateRadius + COMBAT.plateHitPadding
   for (const plate of plates) {
     if (!plate.visible) continue
     const live = getLivePlatePosition(plate.id) ?? plate.position
     _center.set(live[0], live[1], live[2])
-    const t = rayPlateDistance(
+    const t = raySphereDistance(
       _origin,
       _dir,
       _center,
-      COMBAT.plateRadius,
-      Math.max(0, prevDist - 0.02),
-      nextDist + 0.02,
+      radius,
+      Math.max(0, prevDist - 0.05),
+      nextDist + 0.05,
     )
     if (t == null) continue
     if (best && t >= best.distance) continue

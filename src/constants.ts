@@ -32,7 +32,7 @@ export const COMBAT = {
   tracerMaxDistance: 55,
   fireCooldownMs: 180,
   plateRadius: 0.55,
-  plateHitPadding: 0.28,
+  plateHitPadding: 0.4,
   plateThickness: 0.08,
   plateCount: 10,
   explosionFragments: 14,

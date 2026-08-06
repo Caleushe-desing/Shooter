@@ -27,12 +27,17 @@ export function PlayerController() {
   useEffect(() => {
     const el = gl.domElement
 
+    const onMouseDown = (e: MouseEvent) => {
+      if (isTouch) return
+      if (document.pointerLockElement === el && e.button === 0) {
+        useGameStore.getState().queueFire()
+      }
+    }
+
     const onClick = () => {
       if (isTouch) return
       if (document.pointerLockElement !== el) {
         el.requestPointerLock()
-      } else {
-        useGameStore.getState().queueFire()
       }
     }
 
@@ -52,11 +57,13 @@ export function PlayerController() {
     }
 
     el.addEventListener('click', onClick)
+    el.addEventListener('mousedown', onMouseDown)
     document.addEventListener('mousemove', onMouseMove)
     window.addEventListener('keydown', onKeyDown)
 
     return () => {
       el.removeEventListener('click', onClick)
+      el.removeEventListener('mousedown', onMouseDown)
       document.removeEventListener('mousemove', onMouseMove)
       window.removeEventListener('keydown', onKeyDown)
     }
