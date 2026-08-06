@@ -7,6 +7,10 @@ export const COLORS = {
   floor: '#0B1410',
   floorAlt: '#101C16',
   floorGrid: '#1AFF66',
+  /** Opaque perimeter wall faces + arcade edge accent. */
+  wall: '#121A16',
+  wallAlt: '#18241E',
+  wallEdge: '#1AFF66',
   /** Solid wood crate faces + trim. */
   wood: '#C47A3A',
   woodLight: '#E0A060',

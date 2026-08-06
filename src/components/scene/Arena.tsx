@@ -4,20 +4,39 @@ import * as THREE from 'three'
 import { COLORS, ARENA, OBSTACLES } from '../../constants'
 import { WoodCrate } from './WoodCrate'
 
-function WireBox({
+/**
+ * Opaque solid wall box — fully opaque faces, optional neon edge silhouette.
+ * No wireframe / transparency on the solid volume.
+ */
+function SolidWall({
   position,
   args,
-  color = COLORS.neonGreen,
+  color = COLORS.wall,
+  edgeColor = COLORS.wallEdge,
 }: {
   position: [number, number, number]
   args: [number, number, number]
   color?: string
+  edgeColor?: string
 }) {
+  const [w, h, d] = args
+  const edges = useMemo(() => {
+    const geo = new THREE.BoxGeometry(w, h, d)
+    const edgeGeo = new THREE.EdgesGeometry(geo, 15)
+    geo.dispose()
+    return edgeGeo
+  }, [w, h, d])
+
   return (
-    <mesh position={position}>
-      <boxGeometry args={args} />
-      <meshBasicMaterial color={color} wireframe />
-    </mesh>
+    <group position={position}>
+      <mesh>
+        <boxGeometry args={[w, h, d]} />
+        <meshBasicMaterial color={color} toneMapped={false} />
+      </mesh>
+      <lineSegments geometry={edges}>
+        <lineBasicMaterial color={edgeColor} toneMapped={false} />
+      </lineSegments>
+    </group>
   )
 }
 
@@ -32,7 +51,7 @@ function SolidFloor() {
       tiles.push(
         <mesh key={`tile-${x}-${z}`} position={[x, -0.04, z]} rotation={[-Math.PI / 2, 0, 0]}>
           <planeGeometry args={[step * 0.98, step * 0.98]} />
-          <meshBasicMaterial color={alt ? COLORS.floor : COLORS.floorAlt} />
+          <meshBasicMaterial color={alt ? COLORS.floor : COLORS.floorAlt} toneMapped={false} />
         </mesh>,
       )
     }
@@ -51,17 +70,17 @@ function SolidFloor() {
 
   return (
     <group>
-      {/* Deep opaque base slab */}
+      {/* Deep opaque base slab — solid map delimiter */}
       <mesh position={[0, -0.08, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[ARENA.size + 1, ARENA.size + 1]} />
-        <meshBasicMaterial color={COLORS.floor} />
+        <meshBasicMaterial color={COLORS.floor} toneMapped={false} />
       </mesh>
 
       {tiles}
 
-      {/* Subtle neon grid overlay */}
+      {/* Subtle neon grid overlay (arcade accent only; floor faces stay opaque) */}
       <lineSegments geometry={grid} position={[0, 0, 0]}>
-        <lineBasicMaterial color={COLORS.floorGrid} transparent opacity={0.22} />
+        <lineBasicMaterial color={COLORS.floorGrid} transparent opacity={0.22} toneMapped={false} />
       </lineSegments>
     </group>
   )
@@ -76,10 +95,27 @@ export function Arena() {
     <group>
       <SolidFloor />
 
-      <WireBox position={[0, h / 2, -half]} args={[ARENA.size + t * 2, h, t]} color={COLORS.white} />
-      <WireBox position={[0, h / 2, half]} args={[ARENA.size + t * 2, h, t]} color={COLORS.white} />
-      <WireBox position={[-half, h / 2, 0]} args={[t, h, ARENA.size]} color={COLORS.white} />
-      <WireBox position={[half, h / 2, 0]} args={[t, h, ARENA.size]} color={COLORS.white} />
+      {/* Opaque perimeter walls — solid map bounds */}
+      <SolidWall
+        position={[0, h / 2, -half]}
+        args={[ARENA.size + t * 2, h, t]}
+        color={COLORS.wall}
+      />
+      <SolidWall
+        position={[0, h / 2, half]}
+        args={[ARENA.size + t * 2, h, t]}
+        color={COLORS.wallAlt}
+      />
+      <SolidWall
+        position={[-half, h / 2, 0]}
+        args={[t, h, ARENA.size]}
+        color={COLORS.wall}
+      />
+      <SolidWall
+        position={[half, h / 2, 0]}
+        args={[t, h, ARENA.size]}
+        color={COLORS.wallAlt}
+      />
 
       {OBSTACLES.map((o, i) => (
         <WoodCrate
