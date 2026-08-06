@@ -87,9 +87,7 @@ export function Birds() {
         now +
         BIRD.flockIntervalMinMs +
         Math.random() * (BIRD.flockIntervalMaxMs - BIRD.flockIntervalMinMs)
-      const flock = spawnFlock()
-      console.log("🐦 SPAWNING FLOCK:", flock.length, "birds at", now)
-      store.addBirds(flock)
+      store.addBirds(spawnFlock())
     }
 
     const expired: string[] = []
