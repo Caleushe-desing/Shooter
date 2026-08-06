@@ -8,15 +8,17 @@ import { setMuzzleObject } from '../../store/muzzle'
 type PlayerAvatarProps = {
   /** Horizontal look yaw — body faces this direction. */
   yawRef: MutableRefObject<number>
+  /** Vertical aim — tips the gun arm so shots match the look. */
+  pitchRef: MutableRefObject<number>
   /** True while the player is moving on the ground plane. */
   movingRef: MutableRefObject<boolean>
 }
 
 /**
  * Sim-like third-person body for the player — bright plumbob shirt so they
- * read clearly against the hostile crowd.
+ * read clearly against the hostile crowd. Always faces and fires forward.
  */
-export function PlayerAvatar({ yawRef, movingRef }: PlayerAvatarProps) {
+export function PlayerAvatar({ yawRef, pitchRef, movingRef }: PlayerAvatarProps) {
   const root = useRef<THREE.Group>(null)
   const legL = useRef<THREE.Group>(null)
   const legR = useRef<THREE.Group>(null)
@@ -88,15 +90,16 @@ export function PlayerAvatar({ yawRef, movingRef }: PlayerAvatarProps) {
     if (legL.current) legL.current.rotation.x = swing
     if (legR.current) legR.current.rotation.x = -swing
 
-    // Left arm idle / slight walk sway; right arm holds the revolver forward.
+    // Left arm idle / slight walk sway; right arm aims the revolver forward.
     if (armL.current) {
       armL.current.rotation.x = walking ? -0.35 + swing * 0.35 : -0.2
       armL.current.rotation.z = 0.12
     }
     if (armR.current) {
-      armR.current.rotation.x = -1.05 - recoil.current * 0.35
-      armR.current.rotation.y = -0.15
-      armR.current.rotation.z = -0.2
+      // Pitch tips the gun up/down while keeping fire aimed out the front.
+      armR.current.rotation.x = -1.05 + pitchRef.current - recoil.current * 0.35
+      armR.current.rotation.y = 0
+      armR.current.rotation.z = -0.05
     }
   })
 

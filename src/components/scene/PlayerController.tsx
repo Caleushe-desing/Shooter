@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo } from 'react'
+import { useRef, useEffect } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { PerspectiveCamera } from '@react-three/drei'
 import * as THREE from 'three'
@@ -9,12 +9,9 @@ import { setPlayerPosition } from '../../store/enemyRuntime'
 import { useSettingsStore } from '../../store/settings'
 import { PlayerAvatar } from './PlayerAvatar'
 
-/** NDC center — matches HUD crosshair at 50%/50%. */
-const SCREEN_CENTER = new THREE.Vector2(0, 0)
-
 /**
- * Third-person player: Sim body on the ground, over-the-shoulder camera that
- * orbits with look input. Hitscan still goes through screen center.
+ * Third-person chase cam locked on the player's back.
+ * Shots always fire along the body's forward aim (never camera-side rays).
  */
 export function PlayerController() {
   const rig = useRef<THREE.Group>(null)
@@ -32,7 +29,6 @@ export function PlayerController() {
   const aimOrigin = useRef(new THREE.Vector3())
   const aimDir = useRef(new THREE.Vector3())
   const muzzlePos = useRef(new THREE.Vector3())
-  const aimRaycaster = useMemo(() => new THREE.Raycaster(), [])
   const { gl, camera } = useThree()
 
   const isTouch =
@@ -166,7 +162,7 @@ export function PlayerController() {
       CAMERA.boomSpeed,
       dt,
     )
-    // Camera sits behind the shoulder on +Z and looks toward -Z.
+    // Dead-center behind the spine; camera looks toward -Z (the character's front).
     camera.position.set(CAMERA.shoulder, 0, boomDistance.current)
 
     const { dx, dy } = store.consumeLook()
@@ -178,7 +174,8 @@ export function PlayerController() {
     )
 
     yawPivot.current.rotation.y = yaw.current
-    pitchObj.current.rotation.x = pitch.current
+    // Bias pitch slightly so the chase cam always frames the back.
+    pitchObj.current.rotation.x = pitch.current + CAMERA.pitchBias
 
     forward.current.set(-Math.sin(yaw.current), 0, -Math.cos(yaw.current))
     right.current.set(Math.cos(yaw.current), 0, -Math.sin(yaw.current))
@@ -209,13 +206,32 @@ export function PlayerController() {
     const now = performance.now()
     if (store.consumeFire() && now - lastFire.current >= COMBAT.fireCooldownMs) {
       lastFire.current = now
-      // World matrices must include this frame's yaw/pitch/position before aiming.
+      // Sync gun pose before reading the muzzle tip.
       rig.current.updateWorldMatrix(true, true)
-      // Hitscan exactly through screen center (same as the CSS crosshair).
-      aimRaycaster.setFromCamera(SCREEN_CENTER, camera)
-      aimOrigin.current.copy(aimRaycaster.ray.origin)
-      aimDir.current.copy(aimRaycaster.ray.direction)
+
+      // Fire straight out the character's front (yaw + pitch), not a camera ray.
+      const cp = Math.cos(pitch.current)
+      const sp = Math.sin(pitch.current)
+      aimDir.current
+        .set(
+          -Math.sin(yaw.current) * cp,
+          sp,
+          -Math.cos(yaw.current) * cp,
+        )
+        .normalize()
+
       const hasMuzzle = getMuzzleWorldPosition(muzzlePos.current)
+      if (hasMuzzle) {
+        aimOrigin.current.copy(muzzlePos.current)
+      } else {
+        aimOrigin.current.set(
+          pos.current.x,
+          PLAYER.eyeHeight * 0.9,
+          pos.current.z,
+        )
+        aimOrigin.current.addScaledVector(forward.current, 0.45)
+      }
+
       store.spawnTracer(
         aimOrigin.current,
         aimDir.current,
@@ -226,9 +242,9 @@ export function PlayerController() {
 
   return (
     <group ref={rig} position={[PLAYER.spawn.x, 0, PLAYER.spawn.z]}>
-      <PlayerAvatar yawRef={yaw} movingRef={moving} />
+      <PlayerAvatar yawRef={yaw} pitchRef={pitch} movingRef={moving} />
 
-      {/* Look pivots sit at shoulder height; boom distance is applied on the camera. */}
+      {/* Chase pivots on the upper back; boom stays centered on the spine. */}
       <group ref={yawPivot} position={[0, CAMERA.height, 0]}>
         <group ref={pitchObj}>
           <PerspectiveCamera

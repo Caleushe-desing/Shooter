@@ -87,7 +87,7 @@ type GameState = {
   toggleScope: () => void
   setScoped: (scoped: boolean) => void
   /**
-   * Hitscan from aimOrigin/aimDir (screen-center / crosshair).
+   * Hitscan along the player's forward aim (body facing).
    * Visual tracer starts at visualOrigin (muzzle) and flies to the aim point.
    * Styrofoam crates are pierceable — never stop the shot.
    */
@@ -291,7 +291,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const dir = aimDir.clone().normalize()
     const now = performance.now()
 
-    // Precise hitscan exactly through the crosshair (camera center ray).
+    // Hitscan along the character's forward aim (back-cam chase style).
     // Crates are styrofoam — they never occlude this ray.
     const enemyHit = findClosestEnemyHit(aimOrigin, dir, get().enemies)
     const shotRange = enemyHit?.distance ?? COMBAT.tracerMaxDistance
