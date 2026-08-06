@@ -5,8 +5,7 @@ import { PLAYER } from '../../constants'
 /**
  * Mobile controls:
  * - Left: virtual joystick for movement
- * - Right half: look/drag zone for camera
- * - Bottom-right: FIRE button
+ * - Right half: drag to look; tap/touch fires the weapon
  * Desktop: controls are handled in PlayerController (WASD + pointer lock).
  */
 export function MobileControls() {
@@ -29,8 +28,10 @@ export function MobileControls() {
   return (
     <div className="absolute inset-0 z-30">
       <Joystick setMove={setMove} />
-      <LookZone addLook={addLook} />
-      <FireButton onFire={queueFire} />
+      <LookAndFireZone addLook={addLook} onFire={queueFire} />
+      <div className="pointer-events-none absolute bottom-3 right-4 text-[9px] tracking-[0.25em] text-[#00BFFF]/70">
+        TAP TO FIRE · DRAG TO LOOK
+      </div>
     </div>
   )
 }
@@ -57,9 +58,7 @@ function Joystick({ setMove }: { setMove: (x: number, z: number) => void }) {
         dy = (dy / len) * radius
       }
       setKnob({ x: dx, y: dy })
-      const nx = dx / radius
-      const nz = dy / radius
-      setMove(nx, nz)
+      setMove(dx / radius, dy / radius)
     },
     [setMove],
   )
@@ -99,7 +98,13 @@ function Joystick({ setMove }: { setMove: (x: number, z: number) => void }) {
   )
 }
 
-function LookZone({ addLook }: { addLook: (dx: number, dy: number) => void }) {
+function LookAndFireZone({
+  addLook,
+  onFire,
+}: {
+  addLook: (dx: number, dy: number) => void
+  onFire: () => void
+}) {
   const active = useRef(false)
   const last = useRef({ x: 0, y: 0 })
   const pointerId = useRef<number | null>(null)
@@ -108,12 +113,13 @@ function LookZone({ addLook }: { addLook: (dx: number, dy: number) => void }) {
     <div
       className="absolute bottom-0 right-0 top-0 w-1/2 touch-none"
       onPointerDown={(e) => {
-        // Ignore if pressing FIRE button area — fire button stops propagation
         e.preventDefault()
         e.currentTarget.setPointerCapture(e.pointerId)
         active.current = true
         pointerId.current = e.pointerId
         last.current = { x: e.clientX, y: e.clientY }
+        // Tap / touch on the look zone fires immediately
+        onFire()
       }}
       onPointerMove={(e) => {
         if (!active.current || pointerId.current !== e.pointerId) return
@@ -131,21 +137,5 @@ function LookZone({ addLook }: { addLook: (dx: number, dy: number) => void }) {
         pointerId.current = null
       }}
     />
-  )
-}
-
-function FireButton({ onFire }: { onFire: () => void }) {
-  return (
-    <button
-      type="button"
-      className="absolute bottom-6 right-6 flex h-20 w-20 touch-none items-center justify-center rounded-full border-2 border-[#00BFFF] bg-[#00BFFF]/15 text-sm tracking-[0.25em] text-[#00BFFF] shadow-[0_0_24px_rgba(0,191,255,0.35)] active:scale-95 active:bg-[#00BFFF]/30 sm:bottom-8 sm:right-8 sm:h-24 sm:w-24"
-      onPointerDown={(e) => {
-        e.preventDefault()
-        e.stopPropagation()
-        onFire()
-      }}
-    >
-      FIRE
-    </button>
   )
 }

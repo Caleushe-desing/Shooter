@@ -3,6 +3,8 @@ export const COLORS = {
   neonGreen: '#00FF00',
   white: '#FFFFFF',
   tracer: '#00BFFF',
+  wood: '#D2A679',
+  woodDark: '#8B5E34',
   plates: ['#FF0033', '#FFD700', '#FF00AA', '#FF6600'] as const,
 } as const
 
@@ -24,12 +26,13 @@ export const ARENA = {
 } as const
 
 export const COMBAT = {
-  tracerSpeed: 85,
+  tracerSpeed: 95,
   tracerLength: 1.35,
   tracerRadius: 0.05,
   tracerMaxDistance: 55,
-  fireCooldownMs: 220,
+  fireCooldownMs: 180,
   plateRadius: 0.55,
+  plateHitPadding: 0.28,
   plateThickness: 0.08,
   plateCount: 10,
   explosionFragments: 14,

@@ -139,7 +139,8 @@ export function PlayerController() {
     if (store.consumeFire() && now - lastFire.current >= COMBAT.fireCooldownMs) {
       lastFire.current = now
       camera.getWorldDirection(dir.current)
-      origin.current.copy(camera.position).addScaledVector(dir.current, 0.35)
+      origin.current.copy(camera.position).addScaledVector(dir.current, 0.2)
+      // spawnTracer performs hitscan + visual streak
       store.spawnTracer(origin.current, dir.current)
     }
   })

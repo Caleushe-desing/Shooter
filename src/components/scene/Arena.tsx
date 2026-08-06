@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react'
 import { COLORS, ARENA, OBSTACLES } from '../../constants'
+import { WoodCrate } from './WoodCrate'
 
 function WireBox({
   position,
@@ -48,11 +49,10 @@ export function Arena() {
       <WireBox position={[half, h / 2, 0]} args={[t, h, ARENA.size]} color={COLORS.white} />
 
       {OBSTACLES.map((o, i) => (
-        <WireBox
-          key={`obs-${i}`}
+        <WoodCrate
+          key={`crate-${i}`}
           position={[o.x, o.h / 2, o.z]}
           args={[o.w, o.h, o.d]}
-          color={i % 2 === 0 ? COLORS.neonGreen : COLORS.white}
         />
       ))}
     </group>

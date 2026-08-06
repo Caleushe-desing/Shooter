@@ -1,7 +1,8 @@
 import { create } from 'zustand'
 import * as THREE from 'three'
 import { COLORS, COMBAT } from '../constants'
-import { getLivePlatePosition, clearAllLivePlates, clearLivePlatePosition } from './platePositions'
+import { clearAllLivePlates, clearLivePlatePosition } from './platePositions'
+import { findClosestPlateHit, tracerSegmentHit } from './combat'
 
 export type PlateData = {
   id: string
@@ -18,6 +19,9 @@ export type TracerData = {
   direction: [number, number, number]
   born: number
   distance: number
+  /** If false, tracer is visual-only (hitscan already resolved the shot). */
+  lethal: boolean
+  maxDistance: number
 }
 
 export type Fragment = {
@@ -177,6 +181,16 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   spawnTracer: (origin, direction) => {
     const dir = direction.clone().normalize()
+    const hit = findClosestPlateHit(origin, dir, get().plates)
+    let lethal = true
+    let maxDistance: number = COMBAT.tracerMaxDistance
+
+    if (hit) {
+      get().hitPlate(hit.plateId, hit.point)
+      lethal = false
+      maxDistance = Math.max(hit.distance, 1.5)
+    }
+
     set((s) => ({
       tracers: [
         ...s.tracers,
@@ -186,6 +200,8 @@ export const useGameStore = create<GameState>((set, get) => ({
           direction: [dir.x, dir.y, dir.z],
           born: performance.now(),
           distance: 0,
+          lethal,
+          maxDistance,
         },
       ],
     }))
@@ -196,54 +212,29 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (state.tracers.length === 0) return
 
     const remaining: TracerData[] = []
-    const hitRadius = COMBAT.plateRadius + 0.15
 
     for (const tracer of state.tracers) {
       const nextDist = tracer.distance + COMBAT.tracerSpeed * dt
-      if (nextDist > COMBAT.tracerMaxDistance) continue
+      if (nextDist > tracer.maxDistance) continue
 
-      const ox = tracer.origin[0]
-      const oy = tracer.origin[1]
-      const oz = tracer.origin[2]
-      const dx = tracer.direction[0]
-      const dy = tracer.direction[1]
-      const dz = tracer.direction[2]
-
-      // Sample along the segment this frame for more reliable hits.
-      const steps = 4
-      let hit = false
-      for (let s = 1; s <= steps; s++) {
-        const t = tracer.distance + ((nextDist - tracer.distance) * s) / steps
-        const px = ox + dx * t
-        const py = oy + dy * t
-        const pz = oz + dz * t
-
-        for (const plate of get().plates) {
-          if (!plate.visible) continue
-          const live = getLivePlatePosition(plate.id) ?? plate.position
-          const [qx, qy, qz] = live
-          const dist = Math.hypot(px - qx, py - qy, pz - qz)
-          if (dist <= hitRadius) {
-            get().hitPlate(plate.id, new THREE.Vector3(qx, qy, qz))
-            hit = true
-            break
-          }
+      if (tracer.lethal) {
+        const hit = tracerSegmentHit(
+          tracer.origin,
+          tracer.direction,
+          tracer.distance,
+          nextDist,
+          get().plates,
+        )
+        if (hit) {
+          get().hitPlate(hit.plateId, hit.point)
+          continue
         }
-        if (hit) break
       }
 
-      if (!hit) {
-        remaining.push({ ...tracer, distance: nextDist })
-      }
+      remaining.push({ ...tracer, distance: nextDist })
     }
 
-    // Cull very old tracers just in case
-    const filtered = remaining.filter((t) => now - t.born < 2000)
-    if (filtered.length !== state.tracers.length) {
-      set({ tracers: filtered })
-    } else {
-      set({ tracers: filtered })
-    }
+    set({ tracers: remaining.filter((t) => now - t.born < 2000) })
   },
 
   hitPlate: (plateId, hitPos) => {
