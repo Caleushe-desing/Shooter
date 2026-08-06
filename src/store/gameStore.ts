@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import { COLORS, COMBAT, ENEMY, PLAYER } from '../constants'
 import { clearAllEnemyRuntimes, clearEnemyRuntime } from './enemyRuntime'
 import { findClosestEnemyHit, findCratePierces } from './combat'
+import { audio } from '../audio/audio'
 
 /** A hostile human hunting the player. Motion lives in `enemyRuntime`. */
 export type EnemyData = {
@@ -286,9 +287,12 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
 
     // Punch through any plumavit crates along the shot (entry + exit).
+    audio.gunshot()
+
     const pierces = findCratePierces(aimOrigin, dir, shotRange)
     const bursts: ExplosionData[] = []
     const newHoles: PierceHole[] = []
+    if (pierces.length > 0) audio.foamPierce()
     for (const p of pierces) {
       bursts.push(createFoamBurst(p.enter, p.enterNormal, dir))
       bursts.push(createFoamBurst(p.exit, p.exitNormal, dir.clone().negate()))
@@ -354,6 +358,9 @@ export const useGameStore = create<GameState>((set, get) => ({
     const points = ENEMY.pointsPerKill + (head ? ENEMY.headshotBonus : 0)
     const cleared = nextEnemies.every((e) => !e.alive)
 
+    audio.enemyDown(head)
+    if (cleared) audio.waveCleared()
+
     set({
       enemies: nextEnemies,
       explosions: [...get().explosions, createBloodBurst(hitPos, head)],
@@ -367,6 +374,9 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (state.caught || state.sectorCleared) return
 
     const health = Math.max(0, state.health - amount)
+    if (health <= 0) audio.caught()
+    else audio.playerHurt()
+
     set({
       health,
       caught: health <= 0,

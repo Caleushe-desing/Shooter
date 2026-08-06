@@ -14,16 +14,26 @@ export type ControlSettings = {
   moveSpeed: number
   /** Scales look sensitivity (look stick / mouse). */
   lookSpeed: number
+  /** 0–1 mix levels for the procedural soundtrack and effects. */
+  musicVolume: number
+  sfxVolume: number
 }
 
 const defaults: ControlSettings = {
   moveSpeed: 1,
   lookSpeed: 1,
+  musicVolume: 0.5,
+  sfxVolume: 0.75,
 }
 
 function clamp(value: number) {
   if (!Number.isFinite(value)) return 1
   return Math.min(SETTINGS_RANGE.max, Math.max(SETTINGS_RANGE.min, value))
+}
+
+function clampVolume(value: number) {
+  if (!Number.isFinite(value)) return 0.5
+  return Math.min(1, Math.max(0, value))
 }
 
 function load(): ControlSettings {
@@ -35,6 +45,8 @@ function load(): ControlSettings {
     return {
       moveSpeed: clamp(parsed.moveSpeed ?? defaults.moveSpeed),
       lookSpeed: clamp(parsed.lookSpeed ?? defaults.lookSpeed),
+      musicVolume: clampVolume(parsed.musicVolume ?? defaults.musicVolume),
+      sfxVolume: clampVolume(parsed.sfxVolume ?? defaults.sfxVolume),
     }
   } catch {
     return defaults
@@ -55,7 +67,18 @@ type SettingsState = ControlSettings & {
   setOpen: (open: boolean) => void
   setMoveSpeed: (value: number) => void
   setLookSpeed: (value: number) => void
+  setMusicVolume: (value: number) => void
+  setSfxVolume: (value: number) => void
   reset: () => void
+}
+
+function snapshot(state: SettingsState): ControlSettings {
+  return {
+    moveSpeed: state.moveSpeed,
+    lookSpeed: state.lookSpeed,
+    musicVolume: state.musicVolume,
+    sfxVolume: state.sfxVolume,
+  }
 }
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
@@ -65,15 +88,23 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   setOpen: (open) => set({ open }),
 
   setMoveSpeed: (value) => {
-    const moveSpeed = clamp(value)
-    set({ moveSpeed })
-    persist({ moveSpeed, lookSpeed: get().lookSpeed })
+    set({ moveSpeed: clamp(value) })
+    persist(snapshot(get()))
   },
 
   setLookSpeed: (value) => {
-    const lookSpeed = clamp(value)
-    set({ lookSpeed })
-    persist({ moveSpeed: get().moveSpeed, lookSpeed })
+    set({ lookSpeed: clamp(value) })
+    persist(snapshot(get()))
+  },
+
+  setMusicVolume: (value) => {
+    set({ musicVolume: clampVolume(value) })
+    persist(snapshot(get()))
+  },
+
+  setSfxVolume: (value) => {
+    set({ sfxVolume: clampVolume(value) })
+    persist(snapshot(get()))
   },
 
   reset: () => {

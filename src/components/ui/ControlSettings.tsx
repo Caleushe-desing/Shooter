@@ -7,8 +7,12 @@ export function ControlSettings() {
   const setOpen = useSettingsStore((s) => s.setOpen)
   const moveSpeed = useSettingsStore((s) => s.moveSpeed)
   const lookSpeed = useSettingsStore((s) => s.lookSpeed)
+  const musicVolume = useSettingsStore((s) => s.musicVolume)
+  const sfxVolume = useSettingsStore((s) => s.sfxVolume)
   const setMoveSpeed = useSettingsStore((s) => s.setMoveSpeed)
   const setLookSpeed = useSettingsStore((s) => s.setLookSpeed)
+  const setMusicVolume = useSettingsStore((s) => s.setMusicVolume)
+  const setSfxVolume = useSettingsStore((s) => s.setSfxVolume)
   const reset = useSettingsStore((s) => s.reset)
 
   useEffect(() => {
@@ -36,10 +40,10 @@ export function ControlSettings() {
       </button>
 
       {open && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/75 px-4">
+        <div className="absolute inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/75 px-4 py-6">
           <div className="sector-panel w-full max-w-sm border border-[#00FF00]/60 bg-black/90 px-6 py-6 shadow-[0_0_40px_rgba(0,255,0,0.2)]">
             <div className="text-center text-lg tracking-[0.25em] text-[#00FF00]">
-              STICK SPEED
+              CONTROLS
             </div>
 
             <SpeedSlider
@@ -53,6 +57,26 @@ export function ControlSettings() {
               hint="Drag zone / mouse"
               value={lookSpeed}
               onChange={setLookSpeed}
+            />
+            <SpeedSlider
+              label="MUSIC"
+              hint="Ambient soundtrack"
+              value={musicVolume}
+              onChange={setMusicVolume}
+              min={0}
+              max={1}
+              step={0.05}
+              format="percent"
+            />
+            <SpeedSlider
+              label="SFX"
+              hint="Gunshots and impacts"
+              value={sfxVolume}
+              onChange={setSfxVolume}
+              min={0}
+              max={1}
+              step={0.05}
+              format="percent"
             />
 
             <div className="mt-7 flex gap-3">
@@ -83,23 +107,34 @@ function SpeedSlider({
   hint,
   value,
   onChange,
+  min = SETTINGS_RANGE.min,
+  max = SETTINGS_RANGE.max,
+  step = SETTINGS_RANGE.step,
+  format = 'multiplier',
 }: {
   label: string
   hint: string
   value: number
   onChange: (value: number) => void
+  min?: number
+  max?: number
+  step?: number
+  format?: 'multiplier' | 'percent'
 }) {
+  const display =
+    format === 'percent' ? `${Math.round(value * 100)}%` : `${value.toFixed(2)}x`
+
   return (
-    <div className="mt-6">
+    <div className="mt-5">
       <div className="flex items-baseline justify-between">
         <span className="text-[11px] tracking-[0.3em] text-white/85">{label}</span>
-        <span className="text-sm tracking-widest text-[#00FF00]">{value.toFixed(2)}x</span>
+        <span className="text-sm tracking-widest text-[#00FF00]">{display}</span>
       </div>
       <input
         type="range"
-        min={SETTINGS_RANGE.min}
-        max={SETTINGS_RANGE.max}
-        step={SETTINGS_RANGE.step}
+        min={min}
+        max={max}
+        step={step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
         className="stick-slider mt-2 w-full"
