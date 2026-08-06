@@ -16,6 +16,14 @@ export const COLORS = {
   woodLight: '#E0A060',
   woodDark: '#6B3B18',
   woodEdge: '#F0C48A',
+  /** Solid FPS viewmodel: human skin + gun metal. */
+  skin: '#C68642',
+  skinLight: '#E0AC69',
+  skinShadow: '#8D5524',
+  gunMetal: '#2A2E33',
+  gunMetalLight: '#4A515A',
+  gunSteel: '#6B737C',
+  gunGrip: '#1A1410',
   plates: ['#FF0033', '#FFD700', '#FF00AA', '#FF6600'] as const,
 } as const
 
