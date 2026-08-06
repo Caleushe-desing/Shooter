@@ -81,11 +81,11 @@ export const CAMERA = {
   /** Smooth follow when zooming the boom in/out. */
   boomSpeed: 10,
   /** How fast the boom snaps in when a wall blocks the view. */
-  collisionPullSpeed: 22,
+  collisionPullSpeed: 28,
   /** Never pull closer than this — keeps the pup on screen. */
-  minDistance: 0.9,
+  minDistance: 0.75,
   /** Keep the lens this far outside solid surfaces. */
-  collisionSkin: 0.38,
+  collisionSkin: 0.55,
   near: 0.12,
   far: 600,
   /**

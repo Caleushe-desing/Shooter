@@ -14,7 +14,7 @@ import { useGameStore } from '../../store/gameStore'
 import { getMuzzleWorldPosition } from '../../store/muzzle'
 import { setPlayerPosition } from '../../store/enemyRuntime'
 import { useSettingsStore } from '../../store/settings'
-import { maxCameraBoomDistance } from '../../store/cameraCollision'
+import { maxCameraBoomDistance, fitCameraScaleOutsideSolids } from '../../store/cameraCollision'
 import { PlayerAvatar } from './PlayerAvatar'
 
 /** Scoped optics stay centered in the eyepiece. */
@@ -226,17 +226,18 @@ export function PlayerController() {
     _camDir.copy(_idealWorld).sub(_pivotWorld)
     const idealLen = Math.max(_camDir.length(), 1e-6)
     const allowed = maxCameraBoomDistance(_pivotWorld, _camDir, idealLen)
-    const targetScale = THREE.MathUtils.clamp(allowed / idealLen, CAMERA.minDistance / idealLen, 1)
+    let targetScale = THREE.MathUtils.clamp(allowed / idealLen, CAMERA.minDistance / idealLen, 1)
+    // Extra fit pass — corners/grazing hits the primary ray can miss.
+    targetScale = fitCameraScaleOutsideSolids(
+      _pivotWorld,
+      _idealLocal,
+      pitchObj.current.matrixWorld,
+      targetScale,
+    )
 
     // Snap in against walls; ease back out when the path clears.
     if (targetScale < camScale.current) {
-      camScale.current = THREE.MathUtils.damp(
-        camScale.current,
-        targetScale,
-        CAMERA.collisionPullSpeed,
-        dt,
-      )
-      if (camScale.current > targetScale) camScale.current = targetScale
+      camScale.current = targetScale
     } else {
       camScale.current = THREE.MathUtils.damp(
         camScale.current,
