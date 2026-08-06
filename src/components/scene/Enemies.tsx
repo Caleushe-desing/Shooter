@@ -161,20 +161,26 @@ function EnemyBody({ enemy }: { enemy: EnemyData }) {
   const armR = useRef<THREE.Group>(null)
 
   const materials = useMemo(() => {
-    const make = (color: string, emissive: number) =>
+    const make = (color: string) =>
       new THREE.MeshStandardMaterial({
         color,
-        emissive: new THREE.Color(color).multiplyScalar(emissive),
-        roughness: 0.85,
-        metalness: 0.05,
+        emissive: new THREE.Color(color).multiplyScalar(0.08),
+        roughness: 0.48,
+        metalness: 0,
         transparent: true,
         opacity: 1,
       })
     return {
-      skin: make(enemy.skin, 0.35),
-      shirt: make(enemy.shirt, 0.3),
-      pants: make(enemy.pants, 0.3),
+      skin: make(enemy.skin),
+      shirt: make(enemy.shirt),
+      pants: make(enemy.pants),
       eye: new THREE.MeshBasicMaterial({ color: COLORS.enemyEye, transparent: true }),
+      eyeWhite: new THREE.MeshBasicMaterial({ color: '#FFFFFF', transparent: true }),
+      blush: new THREE.MeshBasicMaterial({
+        color: '#FF8FAB',
+        transparent: true,
+        opacity: 0.45,
+      }),
     }
   }, [enemy.skin, enemy.shirt, enemy.pants])
 
@@ -184,6 +190,8 @@ function EnemyBody({ enemy }: { enemy: EnemyData }) {
       materials.shirt.dispose()
       materials.pants.dispose()
       materials.eye.dispose()
+      materials.eyeWhite.dispose()
+      materials.blush.dispose()
     }
   }, [materials])
 
@@ -228,6 +236,8 @@ function EnemyBody({ enemy }: { enemy: EnemyData }) {
       materials.shirt.opacity = fade
       materials.pants.opacity = fade
       materials.eye.opacity = fade * 0.4
+      materials.eyeWhite.opacity = fade
+      materials.blush.opacity = fade * 0.45
       return
     }
 
@@ -257,57 +267,70 @@ function EnemyBody({ enemy }: { enemy: EnemyData }) {
   return (
     <group ref={root} userData={{ enemyId: enemy.id }}>
       <group ref={body}>
-        {/* Legs */}
-        <group ref={legL} position={[-0.13, 0.82 * h, 0]}>
-          <mesh material={materials.pants} position={[0, -0.41 * h, 0]}>
-            <capsuleGeometry args={[0.1, 0.52 * h, 4, 8]} />
+        {/* Legs — slightly stubby Sim proportions */}
+        <group ref={legL} position={[-0.14, 0.78 * h, 0]}>
+          <mesh material={materials.pants} position={[0, -0.38 * h, 0]}>
+            <capsuleGeometry args={[0.11, 0.46 * h, 4, 8]} />
           </mesh>
         </group>
-        <group ref={legR} position={[0.13, 0.82 * h, 0]}>
-          <mesh material={materials.pants} position={[0, -0.41 * h, 0]}>
-            <capsuleGeometry args={[0.1, 0.52 * h, 4, 8]} />
+        <group ref={legR} position={[0.14, 0.78 * h, 0]}>
+          <mesh material={materials.pants} position={[0, -0.38 * h, 0]}>
+            <capsuleGeometry args={[0.11, 0.46 * h, 4, 8]} />
           </mesh>
         </group>
 
         {/* Hips + torso */}
-        <mesh material={materials.pants} position={[0, 0.86 * h, 0]}>
-          <boxGeometry args={[0.38, 0.2, 0.24]} />
+        <mesh material={materials.pants} position={[0, 0.84 * h, 0]}>
+          <boxGeometry args={[0.42, 0.22, 0.26]} />
         </mesh>
-        <mesh material={materials.shirt} position={[0, 1.16 * h, 0]}>
-          <capsuleGeometry args={[0.21, 0.36 * h, 4, 10]} />
+        <mesh material={materials.shirt} position={[0, 1.12 * h, 0]}>
+          <capsuleGeometry args={[0.24, 0.34 * h, 4, 10]} />
         </mesh>
 
-        {/* Arms reaching for the player */}
-        <group ref={armL} position={[-0.3, 1.34 * h, 0]}>
-          <mesh material={materials.shirt} position={[0, -0.2 * h, 0]}>
-            <capsuleGeometry args={[0.075, 0.3 * h, 4, 8]} />
+        {/* Arms */}
+        <group ref={armL} position={[-0.32, 1.3 * h, 0]}>
+          <mesh material={materials.shirt} position={[0, -0.18 * h, 0]}>
+            <capsuleGeometry args={[0.08, 0.28 * h, 4, 8]} />
           </mesh>
-          <mesh material={materials.skin} position={[0, -0.42 * h, 0]}>
-            <sphereGeometry args={[0.085, 8, 8]} />
+          <mesh material={materials.skin} position={[0, -0.4 * h, 0]}>
+            <sphereGeometry args={[0.09, 8, 8]} />
           </mesh>
         </group>
-        <group ref={armR} position={[0.3, 1.34 * h, 0]}>
-          <mesh material={materials.shirt} position={[0, -0.2 * h, 0]}>
-            <capsuleGeometry args={[0.075, 0.3 * h, 4, 8]} />
+        <group ref={armR} position={[0.32, 1.3 * h, 0]}>
+          <mesh material={materials.shirt} position={[0, -0.18 * h, 0]}>
+            <capsuleGeometry args={[0.08, 0.28 * h, 4, 8]} />
           </mesh>
-          <mesh material={materials.skin} position={[0, -0.42 * h, 0]}>
-            <sphereGeometry args={[0.085, 8, 8]} />
+          <mesh material={materials.skin} position={[0, -0.4 * h, 0]}>
+            <sphereGeometry args={[0.09, 8, 8]} />
           </mesh>
         </group>
 
-        {/* Neck + head */}
-        <mesh material={materials.skin} position={[0, 1.42 * h, 0]}>
-          <cylinderGeometry args={[0.07, 0.08, 0.1, 8]} />
+        {/* Neck + oversized Sim head */}
+        <mesh material={materials.skin} position={[0, 1.38 * h, 0]}>
+          <cylinderGeometry args={[0.08, 0.09, 0.09, 8]} />
         </mesh>
-        <group position={[0, 1.6 * h, 0]} userData={{ part: 'head', enemyId: enemy.id }}>
-          <mesh material={materials.skin} userData={{ part: 'head' }}>
-            <sphereGeometry args={[0.17, 12, 12]} />
+        <group position={[0, 1.62 * h, 0]} userData={{ part: 'head', enemyId: enemy.id }}>
+          <mesh material={materials.skin} userData={{ part: 'head' }} scale={[1.08, 1.15, 1.02]}>
+            <sphereGeometry args={[0.22, 14, 14]} />
           </mesh>
-          <mesh material={materials.eye} position={[-0.06, 0.03, 0.15]} userData={{ part: 'head' }}>
-            <sphereGeometry args={[0.026, 6, 6]} />
+          {/* Soft cheek blush */}
+          <mesh material={materials.blush} position={[-0.12, -0.02, 0.16]} userData={{ part: 'head' }}>
+            <sphereGeometry args={[0.035, 6, 6]} />
           </mesh>
-          <mesh material={materials.eye} position={[0.06, 0.03, 0.15]} userData={{ part: 'head' }}>
-            <sphereGeometry args={[0.026, 6, 6]} />
+          <mesh material={materials.blush} position={[0.12, -0.02, 0.16]} userData={{ part: 'head' }}>
+            <sphereGeometry args={[0.035, 6, 6]} />
+          </mesh>
+          <mesh material={materials.eyeWhite} position={[-0.08, 0.04, 0.18]} userData={{ part: 'head' }}>
+            <sphereGeometry args={[0.048, 8, 8]} />
+          </mesh>
+          <mesh material={materials.eyeWhite} position={[0.08, 0.04, 0.18]} userData={{ part: 'head' }}>
+            <sphereGeometry args={[0.048, 8, 8]} />
+          </mesh>
+          <mesh material={materials.eye} position={[-0.08, 0.04, 0.218]} userData={{ part: 'head' }}>
+            <sphereGeometry args={[0.022, 6, 6]} />
+          </mesh>
+          <mesh material={materials.eye} position={[0.08, 0.04, 0.218]} userData={{ part: 'head' }}>
+            <sphereGeometry args={[0.022, 6, 6]} />
           </mesh>
         </group>
       </group>

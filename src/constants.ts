@@ -1,36 +1,48 @@
 export const COLORS = {
   black: '#000000',
-  neonGreen: '#00FF00',
+  neonGreen: '#6FE04A',
   white: '#FFFFFF',
-  tracer: '#00BFFF',
-  /** Daylight environment. */
-  sky: '#8FC3EC',
-  skyHaze: '#CFE3F2',
-  grass: '#3E7A30',
-  /** Concrete coping on top of the brick perimeter. */
-  wallCap: '#B9B3A6',
-  /** Styrofoam / plumavit crate faces + trim (soft, pierceable). */
-  wood: '#E8E2D4',
-  woodLight: '#F5F1E6',
-  woodDark: '#C9C2B0',
-  woodEdge: '#9AA3A0',
-  foamChip: '#F7F3E8',
-  foamHole: '#5A554C',
-  /** Solid FPS viewmodel: human skin + gun metal. */
-  skin: '#C68642',
-  skinLight: '#E0AC69',
-  skinShadow: '#8D5524',
-  gunMetal: '#2A2E33',
-  gunMetalLight: '#4A515A',
-  gunSteel: '#6B737C',
-  gunGrip: '#1A1410',
-  /** Hostile humans that chase the player. */
-  enemySkins: ['#C68642', '#8D5524', '#E0AC69', '#5C3A21'] as const,
-  enemyShirts: ['#B3202E', '#1E4FA3', '#2E7D32', '#7B1FA2', '#C25E00'] as const,
-  enemyPants: ['#1C2430', '#2B2B2B', '#243447', '#3A2C1E'] as const,
-  enemyEye: '#FF3B30',
-  blood: '#8E0F1A',
-  bloodDark: '#4A0710',
+  tracer: '#5CC8FF',
+  /** Sims-like daylight: bright, saturated, suburban. */
+  sky: '#7EC8F5',
+  skyZenith: '#4BA3E3',
+  skyHorizon: '#E8F4FC',
+  skyHaze: '#D6ECF8',
+  grass: '#5CB85A',
+  grassLight: '#7ED957',
+  grassDark: '#3F9A45',
+  /** Warm suburban brick + cream coping. */
+  wallCap: '#F2E8D5',
+  brick: '#C96A4A',
+  brickAlt: '#D47A58',
+  mortar: '#E8DFD2',
+  /** Soft cardboard / foam crates. */
+  wood: '#F3E8D0',
+  woodLight: '#FFF6E4',
+  woodDark: '#D4C2A0',
+  woodEdge: '#B8A88A',
+  foamChip: '#FFF8EC',
+  foamHole: '#8A7A62',
+  /** Soft, even Sim-like skin. */
+  skin: '#F0C5A0',
+  skinLight: '#F8D9BC',
+  skinShadow: '#D4A07A',
+  gunMetal: '#5A6570',
+  gunMetalLight: '#7A8794',
+  gunSteel: '#9AA6B2',
+  gunGrip: '#6B4E3A',
+  /** Bright Sim wardrobe palette. */
+  enemySkins: ['#F0C5A0', '#E8B888', '#D4A070', '#C9946A'] as const,
+  enemyShirts: ['#FF6B6B', '#4D96FF', '#6BCB77', '#FFD93D', '#C77DFF', '#FF8C42'] as const,
+  enemyPants: ['#4A6FA5', '#6B7280', '#3D5A80', '#5B6B4A'] as const,
+  enemyEye: '#2B2B2B',
+  blood: '#E85A5A',
+  bloodDark: '#C43D3D',
+  /** UI — plumbob-adjacent greens and soft panels. */
+  uiAccent: '#6FE04A',
+  uiAccentHot: '#FF7A59',
+  uiPanel: '#1A2430',
+  uiPanelSoft: 'rgba(26, 36, 48, 0.72)',
 } as const
 
 export const PLAYER = {

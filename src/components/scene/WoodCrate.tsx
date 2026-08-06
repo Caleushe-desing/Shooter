@@ -34,13 +34,13 @@ function Brace({
   return (
     <mesh position={position} quaternion={quaternion}>
       <boxGeometry args={[thickness, length, thickness]} />
-      <meshBasicMaterial color={color} />
+      <meshStandardMaterial color={color} roughness={0.8} metalness={0} />
     </mesh>
   )
 }
 
 /**
- * Soft styrofoam / plumavit crate — solid look, pierceable by bullets.
+ * Soft styrofoam / plumavit crate — cream cardboard Sims look, pierceable.
  * Still blocks player movement (collision), but shots punch straight through.
  */
 export function WoodCrate({ position, args }: WoodCrateProps) {
@@ -76,22 +76,29 @@ export function WoodCrate({ position, args }: WoodCrateProps) {
 
   return (
     <group position={position}>
-      {/* Soft foam body */}
-      <mesh>
+      {/* Soft foam body — lit plastic cardboard */}
+      <mesh castShadow receiveShadow>
         <boxGeometry args={[w - inset, h - inset, d - inset]} />
-        <meshBasicMaterial color={COLORS.wood} />
+        <meshStandardMaterial color={COLORS.wood} roughness={0.72} metalness={0} />
       </mesh>
 
       {/* Slightly brighter top */}
       <mesh position={[0, hh - inset * 0.5, 0]}>
         <boxGeometry args={[w - inset * 2, inset, d - inset * 2]} />
-        <meshBasicMaterial color={COLORS.woodLight} />
+        <meshStandardMaterial color={COLORS.woodLight} roughness={0.68} metalness={0} />
       </mesh>
 
-      {/* Thin edge outline */}
+      {/* Soft edge outline */}
       <mesh>
         <boxGeometry args={args} />
-        <meshBasicMaterial color={COLORS.woodEdge} wireframe transparent opacity={0.55} />
+        <meshStandardMaterial
+          color={COLORS.woodEdge}
+          roughness={0.85}
+          metalness={0}
+          wireframe
+          transparent
+          opacity={0.35}
+        />
       </mesh>
 
       {/* Foam seam braces */}

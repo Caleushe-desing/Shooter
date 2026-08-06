@@ -24,13 +24,13 @@ function BrickWall({
     <group position={position}>
       <mesh castShadow receiveShadow>
         <boxGeometry args={[w, h, d]} />
-        <meshStandardMaterial map={brick} roughness={0.95} metalness={0} />
+        <meshStandardMaterial map={brick} roughness={0.78} metalness={0} />
       </mesh>
 
-      {/* Concrete coping caps the wall so the top edge reads cleanly */}
+      {/* Cream coping — soft suburban trim */}
       <mesh position={[0, h / 2 + 0.09, 0]}>
         <boxGeometry args={[w + 0.16, 0.18, d + 0.16]} />
-        <meshStandardMaterial color={COLORS.wallCap} roughness={0.9} metalness={0} />
+        <meshStandardMaterial color={COLORS.wallCap} roughness={0.72} metalness={0} />
       </mesh>
     </group>
   )
@@ -59,12 +59,12 @@ function GrassFloor() {
       {/* Ground that continues past the walls so the horizon isn't empty */}
       <mesh position={[0, -0.06, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[320, 320]} />
-        <meshStandardMaterial map={outerGrass} roughness={1} metalness={0} />
+        <meshStandardMaterial map={outerGrass} roughness={0.88} metalness={0} />
       </mesh>
 
       <mesh position={[0, 0, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[size, size]} />
-        <meshStandardMaterial map={grass} roughness={1} metalness={0} />
+        <meshStandardMaterial map={grass} roughness={0.85} metalness={0} />
       </mesh>
     </group>
   )

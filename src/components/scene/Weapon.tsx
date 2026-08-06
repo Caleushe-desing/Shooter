@@ -21,7 +21,7 @@ function Solid({
   return (
     <mesh position={position} rotation={rotation} scale={scale}>
       {children}
-      <meshStandardMaterial color={color} roughness={0.72} metalness={0.08} fog={false} />
+      <meshStandardMaterial color={color} roughness={0.55} metalness={0.02} fog={false} />
     </mesh>
   )
 }
@@ -42,7 +42,7 @@ function Metal({
   return (
     <mesh position={position} rotation={rotation} scale={scale}>
       {children}
-      <meshStandardMaterial color={color} roughness={0.35} metalness={0.75} fog={false} />
+      <meshStandardMaterial color={color} roughness={0.42} metalness={0.45} fog={false} />
     </mesh>
   )
 }
@@ -135,9 +135,9 @@ export function Weapon() {
 
   return (
     <group ref={group} position={[0.28, -0.28, -0.55]} scale={1.2}>
-      {/* Soft key light so solid skin/metal reads in the dark arena */}
-      <pointLight position={[0.15, 0.25, 0.1]} intensity={0.85} distance={1.8} color="#fff2e0" />
-      <pointLight position={[-0.2, 0.05, -0.3]} intensity={0.35} distance={1.4} color="#8ec8ff" />
+      {/* Soft fill so plastic skin/metal reads under bright Sims daylight */}
+      <pointLight position={[0.15, 0.25, 0.1]} intensity={0.55} distance={1.8} color="#fff6e8" />
+      <pointLight position={[-0.2, 0.05, -0.3]} intensity={0.22} distance={1.4} color="#b8e0ff" />
 
       {/* —— Human right hand —— */}
       <group position={[0.04, -0.08, 0.12]} rotation={[0.35, 0.15, 0.2]}>

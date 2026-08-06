@@ -32,7 +32,7 @@ export function MobileControls() {
     <div className="absolute inset-0 z-30">
       <Joystick setMove={setMove} />
       <LookAndFireZone addLook={addLook} onFire={queueFire} />
-      <div className="pointer-events-none absolute bottom-3 right-4 text-[9px] tracking-[0.25em] text-[#00BFFF]/70">
+      <div className="pointer-events-none absolute bottom-3 right-4 rounded-full bg-black/25 px-3 py-1 text-[9px] font-bold tracking-[0.22em] text-white/75">
         PRESS HARD TO FIRE · DRAG TO LOOK
       </div>
     </div>
@@ -92,15 +92,15 @@ function Joystick({ setMove }: { setMove: (x: number, z: number) => void }) {
       onPointerCancel={reset}
       onLostPointerCapture={reset}
     >
-      <div className="absolute inset-0 rounded-full border border-[#00FF00]/50 bg-[#00FF00]/5" />
-      <div className="absolute inset-3 rounded-full border border-[#00FF00]/25" />
+      <div className="absolute inset-0 rounded-full border border-white/30 bg-[#1A2430]/35 backdrop-blur-sm" />
+      <div className="absolute inset-3 rounded-full border border-[#6FE04A]/35" />
       {/*
         Position with left/top only — do NOT mix Tailwind translate-* utilities with
         inline transform. Tailwind v4 uses the separate `translate` CSS property, so
         both would apply and park the knob up-left at rest.
       */}
       <div
-        className="absolute h-12 w-12 rounded-full border border-[#00FF00] bg-[#00FF00]/20"
+        className="absolute h-12 w-12 rounded-full border-2 border-white/80 bg-[#6FE04A]/85 shadow-md"
         style={{
           left: `calc(50% + ${knob.x}px)`,
           top: `calc(50% + ${knob.y}px)`,

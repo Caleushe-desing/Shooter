@@ -1,8 +1,9 @@
 import * as THREE from 'three'
+import { COLORS } from '../constants'
 
 /**
- * Canvas-generated environment textures. Everything is produced locally so the
- * game keeps working offline (no CDN/asset fetches).
+ * Canvas-generated environment textures with a bright, toy-like Sims finish.
+ * Produced locally so the game stays offline-friendly.
  */
 
 function createCanvas(size: number) {
@@ -30,21 +31,21 @@ let grassTexture: THREE.Texture | null = null
 let skyTexture: THREE.Texture | null = null
 let cloudTexture: THREE.Texture | null = null
 
-/** Red brick courses with mortar joints. */
+/** Warm suburban brick — soft mortar, saturated clay. */
 export function getBrickTexture(): THREE.Texture {
   if (brickTexture) return brickTexture
 
   const size = 512
   const { canvas, ctx } = createCanvas(size)
 
-  ctx.fillStyle = '#9c948a'
+  ctx.fillStyle = COLORS.mortar
   ctx.fillRect(0, 0, size, size)
 
   const rows = 8
   const brickH = size / rows
   const brickW = size / 4
-  const mortar = 6
-  const tones = ['#8f3a2c', '#a4472f', '#7c3227', '#9b4433', '#88372b']
+  const mortar = 8
+  const tones = ['#C96A4A', '#D47A58', '#B85C40', '#E08968', '#C46A4E']
 
   for (let row = 0; row < rows; row++) {
     const offset = row % 2 === 0 ? 0 : -brickW / 2
@@ -54,20 +55,22 @@ export function getBrickTexture(): THREE.Texture {
       const w = brickW - mortar
       const h = brickH - mortar
 
+      // Rounded rect so bricks feel soft / toy-like.
+      const r = 6
       ctx.fillStyle = tones[Math.floor(Math.random() * tones.length)]
-      ctx.fillRect(x, y, w, h)
+      ctx.beginPath()
+      ctx.moveTo(x + r, y)
+      ctx.arcTo(x + w, y, x + w, y + h, r)
+      ctx.arcTo(x + w, y + h, x, y + h, r)
+      ctx.arcTo(x, y + h, x, y, r)
+      ctx.arcTo(x, y, x + w, y, r)
+      ctx.closePath()
+      ctx.fill()
 
-      // Weathering speckles so bricks don't read as flat rectangles.
-      for (let i = 0; i < 26; i++) {
-        const alpha = Math.random() * 0.16
-        ctx.fillStyle = Math.random() > 0.5 ? `rgba(0,0,0,${alpha})` : `rgba(255,255,255,${alpha})`
-        ctx.fillRect(x + Math.random() * w, y + Math.random() * h, 3, 2)
-      }
-
-      ctx.fillStyle = 'rgba(255,255,255,0.10)'
-      ctx.fillRect(x, y, w, 2)
-      ctx.fillStyle = 'rgba(0,0,0,0.18)'
-      ctx.fillRect(x, y + h - 2, w, 2)
+      ctx.fillStyle = 'rgba(255,255,255,0.16)'
+      ctx.fillRect(x + 3, y + 2, w - 6, 3)
+      ctx.fillStyle = 'rgba(0,0,0,0.08)'
+      ctx.fillRect(x + 3, y + h - 5, w - 6, 3)
     }
   }
 
@@ -75,27 +78,26 @@ export function getBrickTexture(): THREE.Texture {
   return brickTexture
 }
 
-/** Mown lawn with blade detail and patchy tone variation. */
+/** Bright suburban lawn — vivid green, soft blades. */
 export function getGrassTexture(): THREE.Texture {
   if (grassTexture) return grassTexture
 
   const size = 512
   const { canvas, ctx } = createCanvas(size)
 
-  ctx.fillStyle = '#3e7a30'
+  ctx.fillStyle = COLORS.grass
   ctx.fillRect(0, 0, size, size)
 
-  // Broad patches for large-scale variation.
-  const patches = ['#356d2a', '#478536', '#2f6526', '#4f8f3b']
-  for (let i = 0; i < 90; i++) {
+  const patches = [COLORS.grassLight, COLORS.grassDark, '#6ECF5A', '#4AAE50']
+  for (let i = 0; i < 70; i++) {
     ctx.fillStyle = patches[Math.floor(Math.random() * patches.length)]
-    ctx.globalAlpha = 0.35
+    ctx.globalAlpha = 0.28
     ctx.beginPath()
     ctx.ellipse(
       Math.random() * size,
       Math.random() * size,
-      20 + Math.random() * 60,
-      14 + Math.random() * 40,
+      24 + Math.random() * 70,
+      16 + Math.random() * 48,
       Math.random() * Math.PI,
       0,
       Math.PI * 2,
@@ -104,25 +106,33 @@ export function getGrassTexture(): THREE.Texture {
   }
   ctx.globalAlpha = 1
 
-  const blades = ['#2c5f22', '#5aa043', '#68b04c', '#3b7a2e']
-  for (let i = 0; i < 5200; i++) {
+  const blades = ['#4AAE50', '#7ED957', '#3F9A45', '#8AE06A']
+  for (let i = 0; i < 3800; i++) {
     const x = Math.random() * size
     const y = Math.random() * size
-    const len = 3 + Math.random() * 7
-    const lean = (Math.random() - 0.5) * 3
+    const len = 3 + Math.random() * 6
+    const lean = (Math.random() - 0.5) * 2.5
     ctx.strokeStyle = blades[Math.floor(Math.random() * blades.length)]
-    ctx.lineWidth = Math.random() > 0.75 ? 1.6 : 1
+    ctx.lineWidth = Math.random() > 0.8 ? 1.8 : 1.1
     ctx.beginPath()
     ctx.moveTo(x, y)
     ctx.lineTo(x + lean, y - len)
     ctx.stroke()
   }
 
+  // Occasional flower dots — classic Sims yard charm.
+  for (let i = 0; i < 40; i++) {
+    ctx.fillStyle = Math.random() > 0.5 ? '#FFE566' : '#FF8FAB'
+    ctx.beginPath()
+    ctx.arc(Math.random() * size, Math.random() * size, 1.5 + Math.random() * 2, 0, Math.PI * 2)
+    ctx.fill()
+  }
+
   grassTexture = finish(canvas, 1)
   return grassTexture
 }
 
-/** Vertical gradient for the sky dome (zenith blue → pale horizon). */
+/** Bright Sims sky gradient. */
 export function getSkyTexture(): THREE.Texture {
   if (skyTexture) return skyTexture
 
@@ -133,10 +143,10 @@ export function getSkyTexture(): THREE.Texture {
   if (!ctx) throw new Error('2D canvas context unavailable')
 
   const grad = ctx.createLinearGradient(0, 0, 0, canvas.height)
-  grad.addColorStop(0, '#1c69c9')
-  grad.addColorStop(0.42, '#5aa4e6')
-  grad.addColorStop(0.72, '#9ccbf2')
-  grad.addColorStop(1, '#dcecf8')
+  grad.addColorStop(0, COLORS.skyZenith)
+  grad.addColorStop(0.45, COLORS.sky)
+  grad.addColorStop(0.78, '#B8DFF8')
+  grad.addColorStop(1, COLORS.skyHorizon)
   ctx.fillStyle = grad
   ctx.fillRect(0, 0, canvas.width, canvas.height)
 
@@ -149,7 +159,7 @@ export function getSkyTexture(): THREE.Texture {
   return texture
 }
 
-/** Soft round puff used to build billboarded clouds. */
+/** Soft cotton-puff cloud sprite. */
 export function getCloudTexture(): THREE.Texture {
   if (cloudTexture) return cloudTexture
 
@@ -157,11 +167,11 @@ export function getCloudTexture(): THREE.Texture {
   const { canvas, ctx } = createCanvas(size)
   const half = size / 2
 
-  const grad = ctx.createRadialGradient(half, half, size * 0.05, half, half, half)
+  const grad = ctx.createRadialGradient(half, half, size * 0.04, half, half, half)
   grad.addColorStop(0, 'rgba(255,255,255,1)')
-  grad.addColorStop(0.45, 'rgba(255,255,255,0.85)')
-  grad.addColorStop(0.75, 'rgba(240,246,252,0.32)')
-  grad.addColorStop(1, 'rgba(240,246,252,0)')
+  grad.addColorStop(0.4, 'rgba(255,255,255,0.92)')
+  grad.addColorStop(0.7, 'rgba(245,250,255,0.35)')
+  grad.addColorStop(1, 'rgba(245,250,255,0)')
   ctx.fillStyle = grad
   ctx.fillRect(0, 0, size, size)
 

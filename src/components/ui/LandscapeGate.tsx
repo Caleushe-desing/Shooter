@@ -23,11 +23,13 @@ export function LandscapeGate() {
   if (!portrait) return null
 
   return (
-    <div className="absolute inset-0 z-50 flex items-center justify-center bg-black px-6 text-center">
-      <div>
-        <div className="mx-auto mb-6 h-16 w-10 border-2 border-[#00FF00] opacity-80" />
-        <p className="pulse-glow text-lg tracking-[0.25em] text-[#00FF00]">ROTATE DEVICE</p>
-        <p className="mt-3 text-xs tracking-widest text-white/70">
+    <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#7EC8F5] px-6 text-center">
+      <div className="sims-panel px-8 py-10">
+        <div className="mx-auto mb-6 h-16 w-10 rounded-lg border-2 border-[#6FE04A] opacity-90" />
+        <p className="pulse-glow text-lg font-extrabold tracking-[0.22em] text-[#6FE04A]">
+          ROTATE DEVICE
+        </p>
+        <p className="mt-3 text-xs font-bold tracking-widest text-white/75">
           LANDSCAPE MODE REQUIRED
         </p>
       </div>

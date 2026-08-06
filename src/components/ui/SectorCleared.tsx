@@ -10,32 +10,34 @@ export function SectorCleared() {
 
   if (!cleared && !caught) return null
 
-  const accent = caught ? '#FF3B30' : '#00FF00'
+  const accent = caught ? '#FF7A59' : '#6FE04A'
+  const accentInk = caught ? '#FFFFFF' : '#1A2430'
 
   return (
-    <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/70 px-4">
-      <div
-        className="sector-panel w-full max-w-md border bg-black/80 px-6 py-8 text-center"
-        style={{ borderColor: `${accent}99`, boxShadow: `0 0 40px ${accent}40` }}
-      >
+    <div className="absolute inset-0 z-40 flex items-center justify-center bg-[#4BA3E3]/40 px-4 backdrop-blur-sm">
+      <div className="sector-panel sims-panel w-full max-w-md px-6 py-8 text-center">
         <div
-          className="pulse-glow text-3xl tracking-[0.2em] sm:text-4xl"
+          className="pulse-glow text-3xl font-extrabold tracking-[0.18em] sm:text-4xl"
           style={{ color: accent }}
         >
           {caught ? 'YOU WERE CAUGHT' : 'WAVE CLEARED'}
         </div>
-        <p className="mt-3 text-sm tracking-widest text-white/80">
+        <p className="mt-3 text-sm font-bold tracking-widest text-white/80">
           {caught ? 'THE HORDE GOT YOU' : 'ALL HOSTILES DOWN'}
         </p>
-        <p className="mt-6 text-xs tracking-[0.3em] text-white/60">
+        <p className="mt-6 text-xs font-bold tracking-[0.28em] text-white/55">
           {caught ? `SURVIVED ${round} WAVE${round > 1 ? 'S' : ''}` : 'TOTAL SCORE'}
         </p>
-        <p className="mt-1 text-2xl tracking-widest text-white">{score}</p>
+        <p className="mt-1 text-2xl font-extrabold tracking-widest text-white">{score}</p>
         <button
           type="button"
           onClick={caught ? restartGame : resetRound}
-          className="mt-8 w-full border px-4 py-3 text-sm tracking-[0.35em] transition active:scale-[0.98]"
-          style={{ borderColor: accent, color: accent, backgroundColor: `${accent}1A` }}
+          className="mt-8 w-full rounded-full border px-4 py-3 text-sm font-extrabold tracking-[0.3em] shadow-md transition active:scale-[0.98]"
+          style={{
+            borderColor: accent,
+            color: accentInk,
+            backgroundColor: accent,
+          }}
         >
           {caught ? 'TRY AGAIN' : 'NEXT WAVE'}
         </button>

@@ -22,10 +22,12 @@ function Scene() {
   return (
     <>
       <color attach="background" args={[COLORS.sky]} />
-      <fog attach="fog" args={[COLORS.skyHaze, 45, 150]} />
-      <ambientLight intensity={0.65} />
-      <hemisphereLight args={[COLORS.sky, COLORS.grass, 0.85]} />
-      <directionalLight position={[18, 26, 12]} intensity={1.25} color="#FFF6E0" />
+      <fog attach="fog" args={[COLORS.skyHaze, 55, 180]} />
+      {/* Bright, even fill — the classic Sims “always sunny” look */}
+      <ambientLight intensity={0.95} color="#FFF8F0" />
+      <hemisphereLight args={['#B8E4FF', '#8BCF6E', 0.7]} />
+      <directionalLight position={[14, 22, 10]} intensity={1.35} color="#FFE7B8" castShadow={false} />
+      <directionalLight position={[-10, 8, -6]} intensity={0.35} color="#A8D4FF" />
       <Sky />
       <Arena />
       <PlayerController />
@@ -39,7 +41,7 @@ function Scene() {
 
 export function Game() {
   return (
-    <div className="relative h-full w-full overflow-hidden bg-black">
+    <div className="relative h-full w-full overflow-hidden bg-[#7EC8F5]">
       <Canvas
         className="absolute inset-0 h-full w-full touch-none"
         gl={{
@@ -50,6 +52,7 @@ export function Game() {
         dpr={[1, 1.75]}
         onCreated={({ gl }) => {
           gl.setClearColor(COLORS.sky, 1)
+          gl.toneMappingExposure = 1.18
         }}
       >
         <Suspense fallback={null}>
@@ -68,11 +71,11 @@ export function Game() {
       <SectorCleared />
       <LandscapeGate />
 
-      <div className="pointer-events-none absolute bottom-3 left-1/2 z-30 hidden -translate-x-1/2 text-[10px] tracking-[0.3em] text-white/40 sm:block">
+      <div className="pointer-events-none absolute bottom-3 left-1/2 z-30 hidden -translate-x-1/2 rounded-full bg-black/25 px-3 py-1 text-[10px] tracking-[0.22em] text-white/80 sm:block">
         WASD · LOOK · CLICK/F FIRE · RMB/Z SCOPE
       </div>
-      <div className="pointer-events-none absolute bottom-3 left-1/2 z-30 -translate-x-1/2 text-[9px] tracking-[0.25em] text-white/35 sm:hidden">
-        JOYSTICK · DRAG LOOK · PRESS FIRE · SCOPE BTN
+      <div className="pointer-events-none absolute bottom-3 left-1/2 z-30 -translate-x-1/2 rounded-full bg-black/25 px-3 py-1 text-[9px] tracking-[0.2em] text-white/75 sm:hidden">
+        JOYSTICK · DRAG LOOK · PRESS FIRE · SCOPE
       </div>
     </div>
   )

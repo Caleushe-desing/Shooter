@@ -1,19 +1,29 @@
 @import 'tailwindcss';
 
 @font-face {
-  font-family: 'Share Tech Mono';
+  font-family: 'Nunito';
   font-style: normal;
-  font-weight: 400;
+  font-weight: 700;
   font-display: swap;
-  src: url('https://fonts.gstatic.com/s/sharetechmono/v16/J7aHnp1uDWRBEqV98dVQztYldFcLowEF.woff2')
+  src: url('https://fonts.gstatic.com/s/nunito/v26/XRXI3I6Li01BKofiOc5wtlZ2di8HDFw.woff2')
+    format('woff2');
+}
+
+@font-face {
+  font-family: 'Nunito';
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url('https://fonts.gstatic.com/s/nunito/v26/XRXI3I6Li01BKofiOc5wtlZ2di8HDFw.woff2')
     format('woff2');
 }
 
 :root {
-  --neon-green: #00ff00;
-  --neon-white: #ffffff;
-  --tracer-blue: #00bfff;
-  --crt-scan: rgba(0, 255, 0, 0.035);
+  --plumbob: #6fe04a;
+  --plumbob-hot: #ff7a59;
+  --panel: rgba(26, 36, 48, 0.78);
+  --panel-border: rgba(255, 255, 255, 0.2);
+  --crt-scan: rgba(255, 255, 255, 0.012);
 }
 
 * {
@@ -27,55 +37,56 @@ body,
   height: 100%;
   margin: 0;
   overflow: hidden;
-  background: #000;
-  font-family: 'Share Tech Mono', ui-monospace, monospace;
-  color: var(--neon-green);
+  background: #7ec8f5;
+  font-family: Nunito, 'Segoe UI', system-ui, sans-serif;
+  color: #f5fff0;
 }
 
 button {
   font-family: inherit;
 }
 
+/* Barely-there film grain — keeps depth without CRT grit */
 .crt-overlay {
   pointer-events: none;
   background: repeating-linear-gradient(
     0deg,
     transparent,
-    transparent 2px,
-    var(--crt-scan) 2px,
-    var(--crt-scan) 4px
+    transparent 4px,
+    var(--crt-scan) 4px,
+    var(--crt-scan) 5px
   );
-  mix-blend-mode: overlay;
-  opacity: 0.18;
+  mix-blend-mode: soft-light;
+  opacity: 0.06;
 }
 
 .crt-vignette {
   pointer-events: none;
   background: radial-gradient(
     ellipse at center,
-    transparent 55%,
-    rgba(0, 0, 0, 0.32) 100%
+    transparent 62%,
+    rgba(50, 90, 140, 0.12) 100%
   );
 }
 
 @keyframes pulse-glow {
   0%,
   100% {
-    text-shadow: 0 0 6px #00ff00, 0 0 14px #00ff66;
+    filter: drop-shadow(0 0 4px rgba(111, 224, 74, 0.55));
   }
   50% {
-    text-shadow: 0 0 12px #00ff00, 0 0 28px #00ff66;
+    filter: drop-shadow(0 0 10px rgba(111, 224, 74, 0.95));
   }
 }
 
 .pulse-glow {
-  animation: pulse-glow 1.4s ease-in-out infinite;
+  animation: pulse-glow 1.6s ease-in-out infinite;
 }
 
 @keyframes sector-in {
   from {
     opacity: 0;
-    transform: scale(0.92) translateY(8px);
+    transform: scale(0.94) translateY(10px);
   }
   to {
     opacity: 1;
@@ -84,7 +95,16 @@ button {
 }
 
 .sector-panel {
-  animation: sector-in 0.45s ease-out both;
+  animation: sector-in 0.4s ease-out both;
+  border-radius: 22px;
+}
+
+.sims-panel {
+  border: 1px solid var(--panel-border);
+  border-radius: 18px;
+  background: var(--panel);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 28px rgba(20, 40, 70, 0.25);
 }
 
 /* Blacked-out surround for the telescopic sight; the circle is the eyepiece. */
@@ -92,8 +112,8 @@ button {
   background: radial-gradient(
     circle at center,
     transparent 0 33vmin,
-    rgba(0, 0, 0, 0.72) 33.6vmin,
-    rgba(0, 0, 0, 0.99) 36vmin
+    rgba(20, 35, 55, 0.55) 33.6vmin,
+    rgba(10, 18, 30, 0.96) 36vmin
   );
 }
 
@@ -106,34 +126,38 @@ button {
 }
 
 .stick-slider::-webkit-slider-runnable-track {
-  height: 4px;
-  background: rgba(0, 255, 0, 0.18);
-  border: 1px solid rgba(0, 255, 0, 0.35);
+  height: 6px;
+  background: rgba(111, 224, 74, 0.2);
+  border: 1px solid rgba(111, 224, 74, 0.4);
+  border-radius: 999px;
 }
 
 .stick-slider::-moz-range-track {
-  height: 4px;
-  background: rgba(0, 255, 0, 0.18);
-  border: 1px solid rgba(0, 255, 0, 0.35);
+  height: 6px;
+  background: rgba(111, 224, 74, 0.2);
+  border: 1px solid rgba(111, 224, 74, 0.4);
+  border-radius: 999px;
 }
 
 .stick-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   margin-top: -8px;
-  border: 1px solid #00ff00;
-  background: #00ff00;
-  box-shadow: 0 0 10px rgba(0, 255, 0, 0.6);
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: #6fe04a;
+  box-shadow: 0 2px 8px rgba(40, 120, 40, 0.45);
   cursor: pointer;
 }
 
 .stick-slider::-moz-range-thumb {
-  width: 18px;
-  height: 18px;
-  border: 1px solid #00ff00;
-  background: #00ff00;
-  box-shadow: 0 0 10px rgba(0, 255, 0, 0.6);
+  width: 20px;
+  height: 20px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: #6fe04a;
+  box-shadow: 0 2px 8px rgba(40, 120, 40, 0.45);
   cursor: pointer;
 }
