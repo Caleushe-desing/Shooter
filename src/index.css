@@ -86,3 +86,44 @@ button {
 .sector-panel {
   animation: sector-in 0.45s ease-out both;
 }
+
+.stick-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 22px;
+  background: transparent;
+  touch-action: none;
+}
+
+.stick-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  background: rgba(0, 255, 0, 0.18);
+  border: 1px solid rgba(0, 255, 0, 0.35);
+}
+
+.stick-slider::-moz-range-track {
+  height: 4px;
+  background: rgba(0, 255, 0, 0.18);
+  border: 1px solid rgba(0, 255, 0, 0.35);
+}
+
+.stick-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  margin-top: -8px;
+  border: 1px solid #00ff00;
+  background: #00ff00;
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.6);
+  cursor: pointer;
+}
+
+.stick-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border: 1px solid #00ff00;
+  background: #00ff00;
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.6);
+  cursor: pointer;
+}

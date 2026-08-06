@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useGameStore } from '../../store/gameStore'
+import { useSettingsStore } from '../../store/settings'
 import { PLAYER, TOUCH_FIRE } from '../../constants'
 
 /**
@@ -14,6 +15,8 @@ export function MobileControls() {
   const addLook = useGameStore((s) => s.addLook)
   const queueFire = useGameStore((s) => s.queueFire)
   const sectorCleared = useGameStore((s) => s.sectorCleared)
+  const caught = useGameStore((s) => s.caught)
+  const settingsOpen = useSettingsStore((s) => s.open)
 
   useEffect(() => {
     const touch =
@@ -23,7 +26,7 @@ export function MobileControls() {
     setIsTouch(touch)
   }, [])
 
-  if (!isTouch || sectorCleared) return null
+  if (!isTouch || sectorCleared || caught || settingsOpen) return null
 
   return (
     <div className="absolute inset-0 z-30">
@@ -236,7 +239,9 @@ function LookAndFireZone({
         const dy = e.clientY - last.current.y
         last.current = { x: e.clientX, y: e.clientY }
         dragDistance.current += Math.hypot(dx, dy)
-        addLook(dx * PLAYER.lookSensitivityMobile, dy * PLAYER.lookSensitivityMobile)
+        const sensitivity =
+          PLAYER.lookSensitivityMobile * useSettingsStore.getState().lookSpeed
+        addLook(dx * sensitivity, dy * sensitivity)
         tryFireFromPressure(e.pressure)
       }}
       onPointerUp={endGesture}

@@ -10,6 +10,7 @@ import { CRTOverlay } from './ui/CRTOverlay'
 import { HUD } from './ui/HUD'
 import { Crosshair } from './ui/Crosshair'
 import { MobileControls } from './ui/MobileControls'
+import { ControlSettings } from './ui/ControlSettings'
 import { SectorCleared } from './ui/SectorCleared'
 import { LandscapeGate } from './ui/LandscapeGate'
 import { COLORS } from '../constants'
@@ -56,6 +57,7 @@ export function Game() {
       <Crosshair />
       <HUD />
       <MobileControls />
+      <ControlSettings />
       <SectorCleared />
       <LandscapeGate />
 

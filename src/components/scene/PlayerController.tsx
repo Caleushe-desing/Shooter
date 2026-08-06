@@ -6,6 +6,7 @@ import { PLAYER, resolveCircleBoxCollision, COMBAT } from '../../constants'
 import { useGameStore } from '../../store/gameStore'
 import { getMuzzleWorldPosition } from '../../store/muzzle'
 import { setPlayerPosition } from '../../store/enemyRuntime'
+import { useSettingsStore } from '../../store/settings'
 import { Weapon } from './Weapon'
 
 /** NDC center — matches HUD crosshair at 50%/50%. */
@@ -42,7 +43,7 @@ export function PlayerController() {
     }
 
     const onClick = () => {
-      if (isTouch) return
+      if (isTouch || useSettingsStore.getState().open) return
       if (document.pointerLockElement !== el) {
         el.requestPointerLock()
       }
@@ -50,13 +51,16 @@ export function PlayerController() {
 
     const onMouseMove = (e: MouseEvent) => {
       if (document.pointerLockElement !== el) return
+      const sensitivity =
+        PLAYER.lookSensitivityDesktop * useSettingsStore.getState().lookSpeed
       useGameStore.getState().addLook(
-        e.movementX * PLAYER.lookSensitivityDesktop,
-        e.movementY * PLAYER.lookSensitivityDesktop,
+        e.movementX * sensitivity,
+        e.movementY * sensitivity,
       )
     }
 
     const onKeyDown = (e: KeyboardEvent) => {
+      if (useSettingsStore.getState().open) return
       if (e.code === 'Space' || e.code === 'KeyF') {
         e.preventDefault()
         useGameStore.getState().queueFire()
@@ -118,6 +122,7 @@ export function PlayerController() {
     // Enemies still need the player's position while the round is over.
     setPlayerPosition(pos.current.x, pos.current.y, pos.current.z)
     if (store.sectorCleared || store.caught) return
+    if (useSettingsStore.getState().open) return
 
     const { dx, dy } = store.consumeLook()
     yaw.current -= dx
@@ -140,7 +145,8 @@ export function PlayerController() {
       .addScaledVector(forward.current, -moveZ)
 
     if (wish.current.lengthSq() > 0) {
-      wish.current.normalize().multiplyScalar(PLAYER.speed * dt)
+      const speed = PLAYER.speed * useSettingsStore.getState().moveSpeed
+      wish.current.normalize().multiplyScalar(speed * dt)
       const nextX = pos.current.x + wish.current.x
       const nextZ = pos.current.z + wish.current.z
       const resolved = resolveCircleBoxCollision(nextX, nextZ, PLAYER.radius)

@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { ARENA, COLORS, ENEMY, resolveCircleBoxCollision } from '../../constants'
 import { useGameStore, type EnemyData } from '../../store/gameStore'
+import { useSettingsStore } from '../../store/settings'
 import {
   clearEnemyRuntime,
   getAllEnemyRuntimes,
@@ -50,7 +51,7 @@ export function Enemies() {
     const dt = Math.min(delta, 0.05)
     const now = performance.now()
     const store = useGameStore.getState()
-    const frozen = store.caught || store.sectorCleared
+    const frozen = store.caught || store.sectorCleared || useSettingsStore.getState().open
     const player = getPlayerPosition()
 
     for (const enemy of store.enemies) {
