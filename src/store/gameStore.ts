@@ -39,12 +39,14 @@ export type ExplosionData = {
   fragments: Fragment[]
 }
 
-/** Bullet hole punched through a styrofoam crate. */
+/** Bullet hole punched through a styrofoam crate; persists for the round. */
 export type PierceHole = {
   id: string
   position: [number, number, number]
   normal: [number, number, number]
-  born: number
+  /** Random roll so holes don't look like identical stamps. */
+  spin: number
+  scale: number
 }
 
 type InputState = {
@@ -83,7 +85,6 @@ type GameState = {
   updateTracers: (dt: number, now: number) => void
   hitPlate: (plateId: string, hitPos: THREE.Vector3) => void
   updateExplosions: (dt: number, now: number) => void
-  prunePierceHoles: (now: number) => void
   revealPlates: (now: number) => void
   resetRound: () => void
 }
@@ -175,19 +176,17 @@ function createFoamBurst(
   return { id: uid('pierce'), fragments }
 }
 
-function holeFrom(
-  pos: THREE.Vector3,
-  normal: THREE.Vector3,
-  now: number,
-): PierceHole {
+function holeFrom(pos: THREE.Vector3, normal: THREE.Vector3): PierceHole {
   const n = normal.lengthSq() > 0 ? normal.clone().normalize() : new THREE.Vector3(0, 0, 1)
-  // Nudge off the surface so the decal doesn't z-fight.
-  const p = pos.clone().addScaledVector(n, 0.015)
+  // Crate bodies are inset 0.01 from the collision box, so pull the decal
+  // slightly inward to sit just proud of the visible foam face.
+  const p = pos.clone().addScaledVector(n, -0.008)
   return {
     id: uid('hole'),
     position: [p.x, p.y, p.z],
     normal: [n.x, n.y, n.z],
-    born: now,
+    spin: Math.random() * Math.PI * 2,
+    scale: 0.82 + Math.random() * 0.5,
   }
 }
 
@@ -270,8 +269,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     for (const p of pierces) {
       foamBursts.push(createFoamBurst(p.enter, p.enterNormal, dir))
       foamBursts.push(createFoamBurst(p.exit, p.exitNormal, dir.clone().negate()))
-      newHoles.push(holeFrom(p.enter, p.enterNormal, now))
-      newHoles.push(holeFrom(p.exit, p.exitNormal, now))
+      newHoles.push(holeFrom(p.enter, p.enterNormal))
+      newHoles.push(holeFrom(p.exit, p.exitNormal))
     }
 
     // Visual streak: muzzle → aim point (flies straight through foam crates).
@@ -386,13 +385,6 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
 
     set({ explosions: next })
-  },
-
-  prunePierceHoles: (now) => {
-    const holes = get().pierceHoles
-    if (holes.length === 0) return
-    const next = holes.filter((h) => now - h.born < COMBAT.pierceHoleLifetimeMs)
-    if (next.length !== holes.length) set({ pierceHoles: next })
   },
 
   revealPlates: (now) => {

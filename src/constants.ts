@@ -72,10 +72,10 @@ export const COMBAT = {
   plateCount: 10,
   explosionFragments: 14,
   pointsPerPlate: 100,
-  /** Foam crate pierce VFX */
+  /** Foam crate pierce VFX. Holes persist for the whole round. */
   pierceChips: 7,
-  pierceHoleMax: 48,
-  pierceHoleLifetimeMs: 12000,
+  pierceHoleMax: 240,
+  pierceHoleRadius: 0.06,
 } as const
 
 export type Collider = {
