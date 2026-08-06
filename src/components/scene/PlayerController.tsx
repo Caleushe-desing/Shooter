@@ -1,0 +1,153 @@
+import { useRef, useEffect } from 'react'
+import { useFrame, useThree } from '@react-three/fiber'
+import * as THREE from 'three'
+import { PLAYER, resolveCircleBoxCollision, COMBAT } from '../../constants'
+import { useGameStore } from '../../store/gameStore'
+import { Weapon } from './Weapon'
+
+export function PlayerController() {
+  const { camera, gl } = useThree()
+  const yaw = useRef(0)
+  const pitch = useRef(0)
+  const pos = useRef(new THREE.Vector3(PLAYER.spawn.x, PLAYER.eyeHeight, PLAYER.spawn.z))
+  const lastFire = useRef(0)
+  const forward = useRef(new THREE.Vector3())
+  const right = useRef(new THREE.Vector3())
+  const wish = useRef(new THREE.Vector3())
+  const origin = useRef(new THREE.Vector3())
+  const dir = useRef(new THREE.Vector3())
+
+  const isTouch =
+    typeof window !== 'undefined' &&
+    ('ontouchstart' in window || navigator.maxTouchPoints > 0)
+
+  // Pointer lock click + mouse look (desktop)
+  useEffect(() => {
+    const el = gl.domElement
+
+    const onClick = () => {
+      if (isTouch) return
+      if (document.pointerLockElement !== el) {
+        el.requestPointerLock()
+      } else {
+        useGameStore.getState().queueFire()
+      }
+    }
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (document.pointerLockElement !== el) return
+      useGameStore.getState().addLook(
+        e.movementX * PLAYER.lookSensitivityDesktop,
+        e.movementY * PLAYER.lookSensitivityDesktop,
+      )
+    }
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' || e.code === 'KeyF') {
+        e.preventDefault()
+        useGameStore.getState().queueFire()
+      }
+    }
+
+    el.addEventListener('click', onClick)
+    document.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('keydown', onKeyDown)
+
+    return () => {
+      el.removeEventListener('click', onClick)
+      document.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [gl, isTouch])
+
+  // WASD keyboard movement
+  useEffect(() => {
+    const keys = new Set<string>()
+
+    const syncMove = () => {
+      let x = 0
+      let z = 0
+      if (keys.has('KeyW') || keys.has('ArrowUp')) z -= 1
+      if (keys.has('KeyS') || keys.has('ArrowDown')) z += 1
+      if (keys.has('KeyA') || keys.has('ArrowLeft')) x -= 1
+      if (keys.has('KeyD') || keys.has('ArrowRight')) x += 1
+      const len = Math.hypot(x, z)
+      if (len > 0) {
+        x /= len
+        z /= len
+      }
+      // Only set from keyboard when not using touch joystick (joystick overwrites each frame)
+      if (!isTouch) useGameStore.getState().setMove(x, z)
+    }
+
+    const down = (e: KeyboardEvent) => {
+      keys.add(e.code)
+      syncMove()
+    }
+    const up = (e: KeyboardEvent) => {
+      keys.delete(e.code)
+      syncMove()
+    }
+
+    window.addEventListener('keydown', down)
+    window.addEventListener('keyup', up)
+    return () => {
+      window.removeEventListener('keydown', down)
+      window.removeEventListener('keyup', up)
+    }
+  }, [isTouch])
+
+  useFrame((_, delta) => {
+    const dt = Math.min(delta, 0.05)
+    const store = useGameStore.getState()
+
+    if (store.sectorCleared) return
+
+    const { dx, dy } = store.consumeLook()
+    yaw.current -= dx
+    pitch.current = THREE.MathUtils.clamp(
+      pitch.current - dy,
+      PLAYER.pitchMin,
+      PLAYER.pitchMax,
+    )
+
+    camera.rotation.order = 'YXZ'
+    camera.rotation.y = yaw.current
+    camera.rotation.x = pitch.current
+
+    // Movement relative to yaw
+    forward.current.set(-Math.sin(yaw.current), 0, -Math.cos(yaw.current))
+    right.current.set(Math.cos(yaw.current), 0, -Math.sin(yaw.current))
+
+    const { moveX, moveZ } = store.input
+    wish.current
+      .set(0, 0, 0)
+      .addScaledVector(right.current, moveX)
+      .addScaledVector(forward.current, -moveZ)
+
+    if (wish.current.lengthSq() > 0) {
+      wish.current.normalize().multiplyScalar(PLAYER.speed * dt)
+      const nextX = pos.current.x + wish.current.x
+      const nextZ = pos.current.z + wish.current.z
+      const resolved = resolveCircleBoxCollision(nextX, nextZ, PLAYER.radius)
+      pos.current.x = resolved.x
+      pos.current.z = resolved.z
+    }
+
+    pos.current.y = PLAYER.eyeHeight
+    camera.position.copy(pos.current)
+
+    // Fire
+    const now = performance.now()
+    if (store.consumeFire() && now - lastFire.current >= COMBAT.fireCooldownMs) {
+      lastFire.current = now
+      camera.getWorldDirection(dir.current)
+      origin.current.copy(camera.position).addScaledVector(dir.current, 0.4)
+      // Slight muzzle offset toward bottom-right weapon feel
+      origin.current.y -= 0.05
+      store.spawnTracer(origin.current, dir.current)
+    }
+  })
+
+  return <Weapon />
+}
