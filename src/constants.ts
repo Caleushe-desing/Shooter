@@ -26,7 +26,13 @@ export const COLORS = {
   gunMetalLight: '#4A515A',
   gunSteel: '#6B737C',
   gunGrip: '#1A1410',
-  plates: ['#FF0033', '#FFD700', '#FF00AA', '#FF6600'] as const,
+  /** Hostile humans that chase the player. */
+  enemySkins: ['#C68642', '#8D5524', '#E0AC69', '#5C3A21'] as const,
+  enemyShirts: ['#B3202E', '#1E4FA3', '#2E7D32', '#7B1FA2', '#C25E00'] as const,
+  enemyPants: ['#1C2430', '#2B2B2B', '#243447', '#3A2C1E'] as const,
+  enemyEye: '#FF3B30',
+  blood: '#8E0F1A',
+  bloodDark: '#4A0710',
 } as const
 
 export const PLAYER = {
@@ -38,6 +44,34 @@ export const PLAYER = {
   pitchMin: -1.2,
   pitchMax: 1.2,
   spawn: { x: 0, y: 1.65, z: 8 },
+  maxHealth: 100,
+} as const
+
+/** Hostile humans that hunt the player down. */
+export const ENEMY = {
+  baseCount: 6,
+  perRound: 2,
+  maxCount: 16,
+  firstSpawnDelayMs: 900,
+  spawnIntervalMs: 1500,
+  spawnRingMin: 10,
+  spawnRingMax: 13,
+  speedMin: 1.8,
+  speedMax: 2.9,
+  speedPerRound: 0.16,
+  radius: 0.42,
+  /** Distance at which an enemy grabs the player. */
+  grabDistance: 1.25,
+  grabDamagePerSec: 30,
+  /** Torso / head hit spheres (fallback when mesh raycast misses). */
+  torsoY: 1.12,
+  torsoRadius: 0.42,
+  headY: 1.62,
+  headRadius: 0.22,
+  pointsPerKill: 150,
+  headshotBonus: 100,
+  corpseFadeMs: 2800,
+  spawnRiseMs: 420,
 } as const
 
 export const ARENA = {
@@ -66,12 +100,7 @@ export const COMBAT = {
   tracerRadius: 0.045,
   tracerMaxDistance: 55,
   fireCooldownMs: 180,
-  plateRadius: 0.55,
-  plateHitPadding: 0.4,
-  plateThickness: 0.08,
-  plateCount: 10,
   explosionFragments: 14,
-  pointsPerPlate: 100,
   /** Foam crate pierce VFX. Holes persist for the whole round. */
   pierceChips: 7,
   pierceHoleMax: 240,

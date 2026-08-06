@@ -1,16 +1,23 @@
 import { create } from 'zustand'
 import * as THREE from 'three'
-import { COLORS, COMBAT } from '../constants'
-import { clearAllLivePlates, clearLivePlatePosition } from './platePositions'
-import { findClosestPlateHit, findCratePierces, tracerSegmentHit } from './combat'
+import { COLORS, COMBAT, ENEMY, PLAYER } from '../constants'
+import { clearAllEnemyRuntimes, clearEnemyRuntime } from './enemyRuntime'
+import { findClosestEnemyHit, findCratePierces } from './combat'
 
-export type PlateData = {
+/** A hostile human hunting the player. Motion lives in `enemyRuntime`. */
+export type EnemyData = {
   id: string
-  position: [number, number, number]
-  color: string
-  phase: number
-  appearAt: number
-  visible: boolean
+  spawnAt: number
+  startX: number
+  startZ: number
+  speed: number
+  height: number
+  skin: string
+  shirt: string
+  pants: string
+  alive: boolean
+  /** performance.now() of death, used to fade the corpse out. */
+  diedAt: number
 }
 
 export type TracerData = {
@@ -19,8 +26,6 @@ export type TracerData = {
   direction: [number, number, number]
   born: number
   distance: number
-  /** If false, tracer is visual-only (hitscan already resolved the shot). */
-  lethal: boolean
   maxDistance: number
 }
 
@@ -59,14 +64,18 @@ type InputState = {
 
 type GameState = {
   score: number
-  plates: PlateData[]
+  enemies: EnemyData[]
   tracers: TracerData[]
   explosions: ExplosionData[]
   pierceHoles: PierceHole[]
+  health: number
+  caught: boolean
   sectorCleared: boolean
   round: number
   input: InputState
   recoilNonce: number
+  /** Bumped when the player takes damage so the HUD can flash. */
+  damageNonce: number
   setMove: (x: number, z: number) => void
   addLook: (dx: number, dy: number) => void
   consumeLook: () => { dx: number; dy: number }
@@ -83,57 +92,68 @@ type GameState = {
     visualOrigin?: THREE.Vector3,
   ) => void
   updateTracers: (dt: number, now: number) => void
-  hitPlate: (plateId: string, hitPos: THREE.Vector3) => void
+  killEnemy: (enemyId: string, hitPos: THREE.Vector3, head: boolean) => void
+  damagePlayer: (amount: number) => void
+  pruneCorpses: (now: number) => void
   updateExplosions: (dt: number, now: number) => void
-  revealPlates: (now: number) => void
   resetRound: () => void
+  restartGame: () => void
 }
 
 function uid(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 9)}`
 }
 
-function createPlates(round: number): PlateData[] {
-  const plates: PlateData[] = []
-  const count = COMBAT.plateCount
+function pick<T>(list: readonly T[]): T {
+  return list[Math.floor(Math.random() * list.length)]
+}
+
+function createEnemies(round: number): EnemyData[] {
+  const enemies: EnemyData[] = []
+  const count = Math.min(ENEMY.baseCount + (round - 1) * ENEMY.perRound, ENEMY.maxCount)
   const now = performance.now()
 
   for (let i = 0; i < count; i++) {
-    const angle = (i / count) * Math.PI * 2 + round * 0.35
-    const radius = 4 + (i % 4) * 2.2 + (round % 3) * 0.4
-    const x = Math.cos(angle) * radius
-    const z = Math.sin(angle) * radius - 2
-    const y = 1.2 + (i % 3) * 0.55
+    // Spread spawns around the arena edge so they close in from all sides.
+    const angle = (i / count) * Math.PI * 2 + Math.random() * 0.6 + round * 0.4
+    const radius = ENEMY.spawnRingMin + Math.random() * (ENEMY.spawnRingMax - ENEMY.spawnRingMin)
+    const speedBoost = (round - 1) * ENEMY.speedPerRound
 
-    plates.push({
-      id: uid('plate'),
-      position: [x, y, z],
-      color: COLORS.plates[i % COLORS.plates.length],
-      phase: Math.random() * Math.PI * 2,
-      appearAt: now + 400 + i * 280,
-      visible: false,
+    enemies.push({
+      id: uid('enemy'),
+      spawnAt: now + ENEMY.firstSpawnDelayMs + i * ENEMY.spawnIntervalMs,
+      startX: Math.cos(angle) * radius,
+      startZ: Math.sin(angle) * radius,
+      speed: ENEMY.speedMin + Math.random() * (ENEMY.speedMax - ENEMY.speedMin) + speedBoost,
+      height: 0.94 + Math.random() * 0.12,
+      skin: pick(COLORS.enemySkins),
+      shirt: pick(COLORS.enemyShirts),
+      pants: pick(COLORS.enemyPants),
+      alive: true,
+      diedAt: 0,
     })
   }
 
-  return plates
+  return enemies
 }
 
-function createExplosion(pos: THREE.Vector3, color: string): ExplosionData {
+function createBloodBurst(pos: THREE.Vector3, head: boolean): ExplosionData {
   const fragments: Fragment[] = []
-  for (let i = 0; i < COMBAT.explosionFragments; i++) {
+  const count = head ? COMBAT.explosionFragments + 6 : COMBAT.explosionFragments
+  for (let i = 0; i < count; i++) {
     const dir = new THREE.Vector3(
       Math.random() * 2 - 1,
       Math.random() * 2 - 0.2,
       Math.random() * 2 - 1,
     ).normalize()
-    const speed = 3 + Math.random() * 7
+    const speed = 2.5 + Math.random() * 6
     fragments.push({
-      id: uid('frag'),
+      id: uid('blood'),
       position: [pos.x, pos.y, pos.z],
       velocity: [dir.x * speed, dir.y * speed, dir.z * speed],
-      color,
+      color: Math.random() > 0.4 ? COLORS.blood : COLORS.bloodDark,
       born: performance.now(),
-      size: 0.08 + Math.random() * 0.16,
+      size: 0.05 + Math.random() * 0.11,
       spin: [
         (Math.random() - 0.5) * 10,
         (Math.random() - 0.5) * 10,
@@ -200,14 +220,17 @@ const initialInput: InputState = {
 
 export const useGameStore = create<GameState>((set, get) => ({
   score: 0,
-  plates: createPlates(1),
+  enemies: createEnemies(1),
   tracers: [],
   explosions: [],
   pierceHoles: [],
+  health: PLAYER.maxHealth,
+  caught: false,
   sectorCleared: false,
   round: 1,
   input: { ...initialInput },
   recoilNonce: 0,
+  damageNonce: 0,
 
   setMove: (x, z) =>
     set((s) => ({
@@ -252,23 +275,23 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     // Precise hitscan exactly through the crosshair (camera center ray).
     // Crates are styrofoam — they never occlude this ray.
-    const hit = findClosestPlateHit(aimOrigin, dir, get().plates)
+    const hit = findClosestEnemyHit(aimOrigin, dir, get().enemies)
     const shotRange = hit?.distance ?? COMBAT.tracerMaxDistance
 
     // Aim point always lies on the crosshair ray (hit or max range).
     const aimPoint = aimOrigin.clone().addScaledVector(dir, shotRange)
 
     if (hit) {
-      get().hitPlate(hit.plateId, hit.point)
+      get().killEnemy(hit.enemyId, hit.point, hit.head)
     }
 
     // Punch through any plumavit crates along the shot (entry + exit).
     const pierces = findCratePierces(aimOrigin, dir, shotRange)
-    const foamBursts: ExplosionData[] = []
+    const bursts: ExplosionData[] = []
     const newHoles: PierceHole[] = []
     for (const p of pierces) {
-      foamBursts.push(createFoamBurst(p.enter, p.enterNormal, dir))
-      foamBursts.push(createFoamBurst(p.exit, p.exitNormal, dir.clone().negate()))
+      bursts.push(createFoamBurst(p.enter, p.enterNormal, dir))
+      bursts.push(createFoamBurst(p.exit, p.exitNormal, dir.clone().negate()))
       newHoles.push(holeFrom(p.enter, p.enterNormal))
       newHoles.push(holeFrom(p.exit, p.exitNormal))
     }
@@ -297,11 +320,10 @@ export const useGameStore = create<GameState>((set, get) => ({
             direction: [visualDir.x, visualDir.y, visualDir.z],
             born: now,
             distance: 0,
-            lethal: false, // damage already resolved by crosshair hitscan
             maxDistance,
           },
         ],
-        explosions: foamBursts.length ? [...s.explosions, ...foamBursts] : s.explosions,
+        explosions: bursts.length ? [...s.explosions, ...bursts] : s.explosions,
         pierceHoles,
       }
     })
@@ -312,47 +334,54 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (state.tracers.length === 0) return
 
     const remaining: TracerData[] = []
-
     for (const tracer of state.tracers) {
       const nextDist = tracer.distance + COMBAT.tracerSpeed * dt
       if (nextDist > tracer.maxDistance) continue
-
-      if (tracer.lethal) {
-        const hit = tracerSegmentHit(
-          tracer.origin,
-          tracer.direction,
-          tracer.distance,
-          nextDist,
-          get().plates,
-        )
-        if (hit) {
-          get().hitPlate(hit.plateId, hit.point)
-          continue
-        }
-      }
-
       remaining.push({ ...tracer, distance: nextDist })
     }
 
     set({ tracers: remaining.filter((t) => now - t.born < 2000) })
   },
 
-  hitPlate: (plateId, hitPos) => {
-    const plate = get().plates.find((p) => p.id === plateId)
-    if (!plate) return
+  killEnemy: (enemyId, hitPos, head) => {
+    const enemy = get().enemies.find((e) => e.id === enemyId)
+    if (!enemy || !enemy.alive) return
 
-    clearLivePlatePosition(plateId)
-    const nextPlates = get().plates.filter((p) => p.id !== plateId)
-    const explosion = createExplosion(hitPos, plate.color)
-    const score = get().score + COMBAT.pointsPerPlate
-    const cleared = nextPlates.length === 0
+    const now = performance.now()
+    const nextEnemies = get().enemies.map((e) =>
+      e.id === enemyId ? { ...e, alive: false, diedAt: now } : e,
+    )
+    const points = ENEMY.pointsPerKill + (head ? ENEMY.headshotBonus : 0)
+    const cleared = nextEnemies.every((e) => !e.alive)
 
     set({
-      plates: nextPlates,
-      explosions: [...get().explosions, explosion],
-      score,
-      sectorCleared: cleared,
+      enemies: nextEnemies,
+      explosions: [...get().explosions, createBloodBurst(hitPos, head)],
+      score: get().score + points,
+      sectorCleared: cleared && !get().caught,
     })
+  },
+
+  damagePlayer: (amount) => {
+    const state = get()
+    if (state.caught || state.sectorCleared) return
+
+    const health = Math.max(0, state.health - amount)
+    set({
+      health,
+      caught: health <= 0,
+      damageNonce: state.damageNonce + 1,
+    })
+  },
+
+  pruneCorpses: (now) => {
+    const enemies = get().enemies
+    const next = enemies.filter((e) => e.alive || now - e.diedAt < ENEMY.corpseFadeMs)
+    if (next.length === enemies.length) return
+    for (const e of enemies) {
+      if (!next.includes(e)) clearEnemyRuntime(e.id)
+    }
+    set({ enemies: next })
   },
 
   updateExplosions: (dt, now) => {
@@ -387,29 +416,34 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({ explosions: next })
   },
 
-  revealPlates: (now) => {
-    const plates = get().plates
-    let changed = false
-    const next = plates.map((p) => {
-      if (!p.visible && now >= p.appearAt) {
-        changed = true
-        return { ...p, visible: true }
-      }
-      return p
-    })
-    if (changed) set({ plates: next })
-  },
-
   resetRound: () => {
-    clearAllLivePlates()
+    clearAllEnemyRuntimes()
     const round = get().round + 1
     set({
-      plates: createPlates(round),
+      enemies: createEnemies(round),
       tracers: [],
       explosions: [],
       pierceHoles: [],
+      health: PLAYER.maxHealth,
+      caught: false,
       sectorCleared: false,
       round,
+      input: { ...initialInput },
+    })
+  },
+
+  restartGame: () => {
+    clearAllEnemyRuntimes()
+    set({
+      score: 0,
+      enemies: createEnemies(1),
+      tracers: [],
+      explosions: [],
+      pierceHoles: [],
+      health: PLAYER.maxHealth,
+      caught: false,
+      sectorCleared: false,
+      round: 1,
       input: { ...initialInput },
     })
   },

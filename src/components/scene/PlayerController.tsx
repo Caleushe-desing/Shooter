@@ -5,6 +5,7 @@ import * as THREE from 'three'
 import { PLAYER, resolveCircleBoxCollision, COMBAT } from '../../constants'
 import { useGameStore } from '../../store/gameStore'
 import { getMuzzleWorldPosition } from '../../store/muzzle'
+import { setPlayerPosition } from '../../store/enemyRuntime'
 import { Weapon } from './Weapon'
 
 /** NDC center — matches HUD crosshair at 50%/50%. */
@@ -114,7 +115,9 @@ export function PlayerController() {
     const dt = Math.min(delta, 0.05)
     const store = useGameStore.getState()
     if (!rig.current || !pitchObj.current) return
-    if (store.sectorCleared) return
+    // Enemies still need the player's position while the round is over.
+    setPlayerPosition(pos.current.x, pos.current.y, pos.current.z)
+    if (store.sectorCleared || store.caught) return
 
     const { dx, dy } = store.consumeLook()
     yaw.current -= dx
@@ -147,6 +150,7 @@ export function PlayerController() {
 
     pos.current.y = PLAYER.eyeHeight
     rig.current.position.copy(pos.current)
+    setPlayerPosition(pos.current.x, pos.current.y, pos.current.z)
 
     const now = performance.now()
     if (store.consumeFire() && now - lastFire.current >= COMBAT.fireCooldownMs) {

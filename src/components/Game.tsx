@@ -3,7 +3,7 @@ import { Suspense } from 'react'
 import { Arena } from './scene/Arena'
 import { PlayerController } from './scene/PlayerController'
 import { Tracers } from './scene/Tracers'
-import { Plates } from './scene/Plates'
+import { Enemies } from './scene/Enemies'
 import { Explosions } from './scene/Explosions'
 import { PierceHoles } from './scene/PierceHoles'
 import { CRTOverlay } from './ui/CRTOverlay'
@@ -18,11 +18,13 @@ function Scene() {
   return (
     <>
       <color attach="background" args={[COLORS.black]} />
-      <fog attach="fog" args={[COLORS.black, 12, 36]} />
-      <ambientLight intensity={0.55} />
+      <fog attach="fog" args={[COLORS.black, 14, 40]} />
+      <ambientLight intensity={0.75} />
+      <hemisphereLight args={['#9fe8c0', '#0a1410', 0.7]} />
+      <directionalLight position={[6, 12, 4]} intensity={0.8} />
       <Arena />
       <PlayerController />
-      <Plates />
+      <Enemies />
       <Tracers />
       <Explosions />
       <PierceHoles />
