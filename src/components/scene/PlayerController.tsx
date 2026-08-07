@@ -53,7 +53,6 @@ export function PlayerController() {
   // WASD — always registered (laptops with touchscreens still need keyboard).
   useEffect(() => {
     const keys = new Set<string>()
-    let shiftWasDown = false
 
     const sync = () => {
       let x = 0
@@ -69,14 +68,8 @@ export function PlayerController() {
       }
       const game = useGameStore.getState()
       game.setMove(x, z)
-
-      // Shift rising edge engages sprint lock. Releasing Shift does not cancel.
-      // Direction change cancels (in setMove). Re-engage requires a new Shift press.
-      const shiftDown = keys.has('ShiftLeft') || keys.has('ShiftRight')
-      if (shiftDown && !shiftWasDown) {
-        game.setSprint(true)
-      }
-      shiftWasDown = shiftDown
+      // Shift held = run, any move direction.
+      game.setSprint(keys.has('ShiftLeft') || keys.has('ShiftRight'))
     }
 
     const down = (e: KeyboardEvent) => {

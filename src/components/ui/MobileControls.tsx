@@ -3,17 +3,11 @@ import { PLAYER } from '../../constants'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useGameStore } from '../../store/gameStore'
 
-/** Push stick this far forward (0–1) to engage sprint lock. */
-const SPRINT_ENGAGE = 0.82
-/** Stick must also be near the rim to engage run. */
-const SPRINT_RIM = 0.88
-
 /**
  * Android / tablet overlay:
- * - Left: virtual joystick (move). Push fully forward to lock run;
- *   run stays on until you move in another direction (or release stick).
- * - Right half: drag to look
- * Desktop uses WASD + mouse in PlayerController; this component stays hidden.
+ * - Left: virtual joystick (move)
+ * - Right: look drag + dedicated RUN toggle (independent of move direction)
+ * Desktop uses WASD + Shift in PlayerController; this stays hidden.
  */
 export function MobileControls() {
   const mobile = useIsMobile()
@@ -23,17 +17,13 @@ export function MobileControls() {
     <div className="absolute inset-0 z-30">
       <Joystick />
       <LookZone />
-      <div className="pointer-events-none absolute bottom-3 right-3 rounded-md bg-black/35 px-2 py-1 text-[9px] tracking-[0.14em] text-white/75">
-        ARRIBA = CORRER · CAMBIA DIRECCIÓN = CAMINAR
-      </div>
+      <RunButton />
     </div>
   )
 }
 
 function Joystick() {
   const setMove = useGameStore((s) => s.setMove)
-  const setSprint = useGameStore((s) => s.setSprint)
-  const sprint = useGameStore((s) => s.input.sprint)
   const baseRef = useRef<HTMLDivElement>(null)
   const [knob, setKnob] = useState({ x: 0, y: 0 })
   const active = useRef(false)
@@ -55,22 +45,10 @@ function Joystick() {
         dy = (dy / len) * radius
       }
       setKnob({ x: dx, y: dy })
-      const nx = dx / radius
-      const ny = dy / radius
       // Screen up → negative Y → forward (same as keyboard W = moveZ -1).
-      setMove(nx, ny)
-
-      const forward = -ny
-      const mag = Math.hypot(nx, ny)
-      const state = useGameStore.getState()
-      const isSprint = state.input.sprint
-      const sprintPending = state.sprintPending
-      // Engage once when stick is pushed fully forward; stay locked via setMove.
-      if (!isSprint && !sprintPending && mag >= SPRINT_RIM && forward >= SPRINT_ENGAGE) {
-        setSprint(true)
-      }
+      setMove(dx / radius, dy / radius)
     },
-    [setMove, setSprint],
+    [setMove],
   )
 
   const reset = useCallback(() => {
@@ -78,8 +56,7 @@ function Joystick() {
     pointerId.current = null
     setKnob({ x: 0, y: 0 })
     setMove(0, 0)
-    setSprint(false)
-  }, [setMove, setSprint])
+  }, [setMove])
 
   return (
     <div
@@ -100,37 +77,41 @@ function Joystick() {
       onPointerCancel={reset}
       onLostPointerCapture={reset}
     >
+      <div className="absolute inset-0 rounded-full border border-white/30 bg-[#1A2430]/40 backdrop-blur-sm" />
+      <div className="absolute inset-3 rounded-full border border-[#6FE04A]/35" />
       <div
-        className={`absolute inset-0 rounded-full border backdrop-blur-sm ${
-          sprint
-            ? 'border-[#6FE04A]/70 bg-[#6FE04A]/20'
-            : 'border-white/30 bg-[#1A2430]/40'
-        }`}
-      />
-      <div className="pointer-events-none absolute top-1 left-1/2 h-3 w-8 -translate-x-1/2 rounded-full bg-[#6FE04A]/35" />
-      <div
-        className={`absolute inset-3 rounded-full border ${
-          sprint ? 'border-[#6FE04A]/60' : 'border-[#6FE04A]/35'
-        }`}
-      />
-      <div
-        className={`absolute h-12 w-12 rounded-full border-2 shadow-md ${
-          sprint
-            ? 'border-white bg-[#6FE04A]'
-            : 'border-white/80 bg-[#6FE04A]/85'
-        }`}
+        className="absolute h-12 w-12 rounded-full border-2 border-white/80 bg-[#6FE04A]/85 shadow-md"
         style={{
           left: `calc(50% + ${knob.x}px)`,
           top: `calc(50% + ${knob.y}px)`,
           transform: 'translate(-50%, -50%)',
         }}
       />
-      {sprint && (
-        <div className="pointer-events-none absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-bold tracking-[0.16em] text-[#d8ffc8]">
-          CORRER
-        </div>
-      )}
     </div>
+  )
+}
+
+/** Right-hand RUN toggle — on = sprint in any move direction. */
+function RunButton() {
+  const sprint = useGameStore((s) => s.input.sprint)
+  const toggleSprint = useGameStore((s) => s.toggleSprint)
+
+  return (
+    <button
+      type="button"
+      className={`absolute bottom-6 right-6 z-40 flex h-16 w-16 touch-none select-none items-center justify-center rounded-full border-2 text-[11px] font-bold tracking-[0.14em] shadow-md sm:bottom-8 sm:right-8 ${
+        sprint
+          ? 'border-white bg-[#6FE04A] text-[#143018]'
+          : 'border-white/50 bg-[#1A2430]/55 text-white/90 backdrop-blur-sm'
+      }`}
+      onPointerDown={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        toggleSprint()
+      }}
+    >
+      CORRER
+    </button>
   )
 }
 
@@ -149,6 +130,9 @@ function LookZone() {
     <div
       className="absolute bottom-0 right-0 top-0 w-1/2 touch-none"
       onPointerDown={(e) => {
+        // Ignore presses on the run button (it stops propagation), but also
+        // skip the lower-right corner if a child already handled it.
+        if ((e.target as HTMLElement).closest('button')) return
         e.preventDefault()
         e.currentTarget.setPointerCapture(e.pointerId)
         active.current = true
