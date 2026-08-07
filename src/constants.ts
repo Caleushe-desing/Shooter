@@ -28,23 +28,23 @@ export const PLAYER = {
   lookSensitivity: 0.0022,
   /** Touch look drag — slightly snappier than mouse. */
   lookSensitivityMobile: 0.0032,
-  pitchMin: -0.72,
-  pitchMax: 0.38,
-  pitchDefault: -0.22,
+  pitchMin: -0.55,
+  pitchMax: 0.4,
+  pitchDefault: -0.28,
   /** Mid lane spawn facing north toward sites. */
   spawn: { x: 0, y: 0, z: 10 },
   skin: '#C9956E',
 } as const
 
-/** Chase cam — tight over-the-shoulder TPS (character fills frame). */
+/** Chase cam — close over-the-shoulder TPS (character fills frame). */
 export const CAMERA = {
-  shoulder: 0.42,
-  height: 1.42,
-  lift: 0.14,
-  distance: 1.72,
-  near: 0.05,
+  shoulder: 0.4,
+  height: 1.55,
+  lift: 0.18,
+  distance: 2.45,
+  near: 0.1,
   far: 220,
-  fov: 62,
+  fov: 58,
 } as const
 
 /**

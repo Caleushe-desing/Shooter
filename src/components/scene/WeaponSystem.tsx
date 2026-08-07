@@ -151,7 +151,8 @@ export function WeaponSystem({ rigRef, lookYaw, lookPitch }: Props) {
       }))
   }, [])
 
-  // After PlayerController (priority -1) so yaw/pitch + camera matrices are fresh.
+  // Runs after PlayerController (priority -1). Do NOT use priority > 0 —
+  // in R3F that opts into manual rendering and skips gl.render.
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05)
     cooldown.current = Math.max(0, cooldown.current - dt)
@@ -187,7 +188,7 @@ export function WeaponSystem({ rigRef, lookYaw, lookPitch }: Props) {
         .addScaledVector(_forward, WEAPON.muzzleForward)
 
       // Aim point: camera ray through the mirilla in WORLD space (follows look).
-      camera.updateMatrixWorld(true)
+      camera.updateWorldMatrix(true, false)
       const ndcX = (2 * WEAPON.crosshairOffsetX) / Math.max(1, size.width)
       const ndcY = (-2 * WEAPON.crosshairOffsetY) / Math.max(1, size.height)
       _ndc.set(ndcX, ndcY, 0.5)
@@ -294,7 +295,7 @@ export function WeaponSystem({ rigRef, lookYaw, lookPitch }: Props) {
       }
     }
     bullets.current = remain
-  }, 1)
+  })
 
   return <group ref={group} />
 }
