@@ -29,6 +29,7 @@ export function PlayerController() {
   const forward = useRef(new THREE.Vector3())
   const right = useRef(new THREE.Vector3())
   const wish = useRef(new THREE.Vector3())
+  const runId = useRef(useGameStore.getState().runId)
   const { gl, camera } = useThree()
 
   // Desktop mouse look + fire. On phones/tablets, look/fire come from MobileControls.
@@ -119,6 +120,18 @@ export function PlayerController() {
     if (!rig.current || !yawPivot.current || !pitchObj.current) return
 
     const game = useGameStore.getState()
+
+    // Respawn at mid after REINTENTAR.
+    if (game.runId !== runId.current) {
+      runId.current = game.runId
+      pos.current.set(PLAYER.spawn.x, 0, PLAYER.spawn.z)
+      velY.current = 0
+      grounded.current = true
+      lookYaw.current = 0
+      lookPitch.current = PLAYER.pitchDefault
+      bodyYaw.current = 0
+    }
+
     const { dx, dy } = game.consumeLook()
     lookYaw.current -= dx
     lookPitch.current = THREE.MathUtils.clamp(
@@ -139,52 +152,56 @@ export function PlayerController() {
     forward.current.set(-Math.sin(lookYaw.current), 0, -Math.cos(lookYaw.current))
     right.current.set(Math.cos(lookYaw.current), 0, -Math.sin(lookYaw.current))
 
-    const { moveX, moveZ, sprint } = game.input
-    wish.current
-      .set(0, 0, 0)
-      .addScaledVector(right.current, moveX)
-      .addScaledVector(forward.current, -moveZ)
+    if (game.alive) {
+      const { moveX, moveZ, sprint } = game.input
+      wish.current
+        .set(0, 0, 0)
+        .addScaledVector(right.current, moveX)
+        .addScaledVector(forward.current, -moveZ)
 
-    moving.current = wish.current.lengthSq() > 1e-6
-    if (moving.current) {
-      const speed = PLAYER.speed * (sprint ? PLAYER.runMul : 1)
-      wish.current.normalize().multiplyScalar(speed * dt)
-      let nx = pos.current.x + wish.current.x
-      let nz = pos.current.z + wish.current.z
-      const bounded = clampToArena(nx, nz, PLAYER.radius)
-      nx = bounded.x
-      nz = bounded.z
-      for (const box of MAP_SOLIDS) {
-        const hit = resolveCircleAabb(nx, nz, PLAYER.radius, box)
-        nx = hit.x
-        nz = hit.z
+      moving.current = wish.current.lengthSq() > 1e-6
+      if (moving.current) {
+        const speed = PLAYER.speed * (sprint ? PLAYER.runMul : 1)
+        wish.current.normalize().multiplyScalar(speed * dt)
+        let nx = pos.current.x + wish.current.x
+        let nz = pos.current.z + wish.current.z
+        const bounded = clampToArena(nx, nz, PLAYER.radius)
+        nx = bounded.x
+        nz = bounded.z
+        for (const box of MAP_SOLIDS) {
+          const hit = resolveCircleAabb(nx, nz, PLAYER.radius, box)
+          nx = hit.x
+          nz = hit.z
+        }
+        for (const box of MAP_SOLIDS) {
+          const hit = resolveCircleAabb(nx, nz, PLAYER.radius, box)
+          nx = hit.x
+          nz = hit.z
+        }
+        pos.current.x = nx
+        pos.current.z = nz
       }
-      // Second pass keeps corners from tunneling into overlaps.
-      for (const box of MAP_SOLIDS) {
-        const hit = resolveCircleAabb(nx, nz, PLAYER.radius, box)
-        nx = hit.x
-        nz = hit.z
-      }
-      pos.current.x = nx
-      pos.current.z = nz
-    }
 
-    // Jump + gravity (simple vertical only; floor at y = 0).
-    if (game.consumeJump() && grounded.current) {
-      velY.current = PLAYER.jumpSpeed
-      grounded.current = false
-    }
-    if (!grounded.current || velY.current !== 0) {
-      velY.current -= PLAYER.gravity * dt
-      pos.current.y += velY.current * dt
-      if (pos.current.y <= 0) {
-        pos.current.y = 0
-        velY.current = 0
-        grounded.current = true
+      if (game.consumeJump() && grounded.current) {
+        velY.current = PLAYER.jumpSpeed
+        grounded.current = false
       }
+      if (!grounded.current || velY.current !== 0) {
+        velY.current -= PLAYER.gravity * dt
+        pos.current.y += velY.current * dt
+        if (pos.current.y <= 0) {
+          pos.current.y = 0
+          velY.current = 0
+          grounded.current = true
+        }
+      }
+    } else {
+      moving.current = false
+      game.consumeJump()
     }
 
     rig.current.position.set(pos.current.x, pos.current.y, pos.current.z)
+    game.setPlayerPos(pos.current.x, pos.current.y, pos.current.z)
   }, -1)
 
   return (

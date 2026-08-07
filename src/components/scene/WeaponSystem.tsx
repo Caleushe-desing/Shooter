@@ -2,6 +2,7 @@ import { useMemo, useRef, type MutableRefObject } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { WEAPON } from '../../constants'
+import { enemyHitBox, getEnemies, hurtEnemy } from '../../combat/enemies'
 import { useGameStore } from '../../store/gameStore'
 import { buildHavenInspiredMap } from '../../map/havenLayout'
 import { playGunshot, playImpact, unlockAudio } from '../../audio/gunshot'
@@ -313,10 +314,25 @@ export function WeaponSystem({ rigRef, lookYaw, lookPitch }: Props) {
     for (const b of bullets.current) {
       const step = WEAPON.speed * dt
       let hitT: number | null = null
+      let hitEnemyId: number | null = null
+
       for (const box of hitBoxes) {
         const t = rayHitsAabb(b.pos.x, b.pos.y, b.pos.z, b.dir.x, b.dir.y, b.dir.z, step, box)
-        if (t !== null && (hitT === null || t < hitT)) hitT = t
+        if (t !== null && (hitT === null || t < hitT)) {
+          hitT = t
+          hitEnemyId = null
+        }
       }
+      for (const e of getEnemies()) {
+        if (!e.alive) continue
+        const box = enemyHitBox(e)
+        const t = rayHitsAabb(b.pos.x, b.pos.y, b.pos.z, b.dir.x, b.dir.y, b.dir.z, step, box)
+        if (t !== null && (hitT === null || t < hitT)) {
+          hitT = t
+          hitEnemyId = e.id
+        }
+      }
+
       const travel = hitT ?? step
       b.pos.addScaledVector(b.dir, travel)
       b.traveled += travel
@@ -326,7 +342,15 @@ export function WeaponSystem({ rigRef, lookYaw, lookPitch }: Props) {
       const hitFloor = b.pos.y <= 0.05
       const dead = hitT !== null || hitFloor || b.traveled >= WEAPON.range
       if (dead) {
-        if (hitT !== null || hitFloor) {
+        if (hitEnemyId !== null) {
+          const killed = hurtEnemy(hitEnemyId, 1)
+          if (killed) useGameStore.getState().registerKill()
+          playImpact()
+          const spark = new THREE.Mesh(sparkGeo, sparkMat.clone())
+          spark.position.copy(b.pos)
+          parent.add(spark)
+          sparks.current.push({ mesh: spark, age: 0 })
+        } else if (hitT !== null || hitFloor) {
           playImpact()
           const spark = new THREE.Mesh(sparkGeo, sparkMat.clone())
           spark.position.copy(b.pos)

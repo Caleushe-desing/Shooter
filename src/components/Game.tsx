@@ -1,8 +1,10 @@
 import { Canvas } from '@react-three/fiber'
 import { Arena } from './scene/Arena'
 import { PlayerController } from './scene/PlayerController'
+import { EnemySystem } from './scene/EnemySystem'
 import { MobileControls } from './ui/MobileControls'
 import { Crosshair } from './ui/Crosshair'
+import { CombatHud } from './ui/CombatHud'
 import { useIsMobile } from '../hooks/useIsMobile'
 import { COLORS } from '../constants'
 
@@ -16,6 +18,7 @@ function Scene() {
       <directionalLight position={[28, 40, 18]} intensity={1.2} color="#FFF2D8" castShadow={false} />
       <Arena />
       <PlayerController />
+      <EnemySystem />
     </>
   )
 }
@@ -46,6 +49,7 @@ export function Game() {
       </Canvas>
 
       <Crosshair />
+      <CombatHud />
       <MobileControls />
       <ControlsHint />
     </div>
