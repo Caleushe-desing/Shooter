@@ -1,4 +1,11 @@
-import { Suspense, useEffect, useMemo, useRef, type MutableRefObject } from 'react'
+import {
+  Suspense,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  type MutableRefObject,
+} from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useAnimations, useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
@@ -18,15 +25,38 @@ useGLTF.preload(MODEL_URL)
 
 type ClipName = 'idle' | 'walk' | 'run'
 
+type BoneMap = {
+  hips: THREE.Object3D | null
+  spine: THREE.Object3D | null
+  spine1: THREE.Object3D | null
+  leftUpLeg: THREE.Object3D | null
+  rightUpLeg: THREE.Object3D | null
+  leftLeg: THREE.Object3D | null
+  rightLeg: THREE.Object3D | null
+  leftArm: THREE.Object3D | null
+  rightArm: THREE.Object3D | null
+  leftForeArm: THREE.Object3D | null
+  rightForeArm: THREE.Object3D | null
+}
+
+function findBone(root: THREE.Object3D, names: string[]): THREE.Object3D | null {
+  let found: THREE.Object3D | null = null
+  root.traverse((obj) => {
+    if (found) return
+    if (names.includes(obj.name)) found = obj
+  })
+  return found
+}
+
 /**
- * Mixamo X-Bot nude human — idle / walk / run.
- * Restored from the working clip setup (modelRef + real clip names).
+ * Mixamo human: idle/walk/run clips + real squat crouch (knees/hips),
+ * not a whole-body tip backward.
  */
 function MixamoHuman({ yawRef, movingRef }: Props) {
   const root = useRef<THREE.Group>(null)
-  const crouchRoot = useRef<THREE.Group>(null)
-  const modelRef = useRef<THREE.Group>(null)
+  const dipRef = useRef<THREE.Group>(null)
   const currentClip = useRef<ClipName | null>(null)
+  const bonesRef = useRef<BoneMap | null>(null)
   const crouchAmt = useRef(0)
   const { scene, animations } = useGLTF(MODEL_URL)
 
@@ -65,12 +95,29 @@ function MixamoHuman({ yawRef, movingRef }: Props) {
     return { clone: c, fitScale, footOffset }
   }, [scene])
 
-  const { actions, mixer } = useAnimations(animations, modelRef)
+  useLayoutEffect(() => {
+    bonesRef.current = {
+      hips: findBone(clone, ['mixamorigHips', 'mixamorig:Hips']),
+      spine: findBone(clone, ['mixamorigSpine', 'mixamorig:Spine']),
+      spine1: findBone(clone, ['mixamorigSpine1', 'mixamorig:Spine1']),
+      leftUpLeg: findBone(clone, ['mixamorigLeftUpLeg', 'mixamorig:LeftUpLeg']),
+      rightUpLeg: findBone(clone, ['mixamorigRightUpLeg', 'mixamorig:RightUpLeg']),
+      leftLeg: findBone(clone, ['mixamorigLeftLeg', 'mixamorig:LeftLeg']),
+      rightLeg: findBone(clone, ['mixamorigRightLeg', 'mixamorig:RightLeg']),
+      leftArm: findBone(clone, ['mixamorigLeftArm', 'mixamorig:LeftArm']),
+      rightArm: findBone(clone, ['mixamorigRightArm', 'mixamorig:RightArm']),
+      leftForeArm: findBone(clone, ['mixamorigLeftForeArm', 'mixamorig:LeftForeArm']),
+      rightForeArm: findBone(clone, ['mixamorigRightForeArm', 'mixamorig:RightForeArm']),
+    }
+  }, [clone])
+
+  // Bind mixer to the cloned skeleton itself so idle/walk actually drive the limbs.
+  const { actions, mixer } = useAnimations(animations, clone)
 
   useEffect(() => {
     const idle = actions.idle
     if (!idle) return
-    idle.reset().fadeIn(0.2).play()
+    idle.reset().setEffectiveWeight(1).fadeIn(0.15).play()
     idle.setLoop(THREE.LoopRepeat, Infinity)
     currentClip.current = 'idle'
     return () => {
@@ -78,8 +125,9 @@ function MixamoHuman({ yawRef, movingRef }: Props) {
     }
   }, [actions, mixer])
 
+  // After mixer (priority 1): additive human squat — hips/knees/spine, arms in.
   useFrame((_, delta) => {
-    if (!root.current || !modelRef.current || !crouchRoot.current) return
+    if (!root.current || !dipRef.current) return
     root.current.rotation.y = yawRef.current
 
     const game = useGameStore.getState()
@@ -88,7 +136,6 @@ function MixamoHuman({ yawRef, movingRef }: Props) {
     const moving =
       movingRef.current || Math.hypot(moveX, moveZ) > 0.05
 
-    // Same clip logic as the working walk demo — no run while crouched.
     let next: ClipName = 'idle'
     if (moving && sprint && !crouched) next = 'run'
     else if (moving) next = 'walk'
@@ -97,34 +144,62 @@ function MixamoHuman({ yawRef, movingRef }: Props) {
       const prev = currentClip.current ? actions[currentClip.current] : null
       const action = actions[next]
       if (action) {
-        action.reset().setEffectiveTimeScale(1).setEffectiveWeight(1).fadeIn(0.18).play()
+        action.reset().setEffectiveTimeScale(1).setEffectiveWeight(1).fadeIn(0.15).play()
         action.setLoop(THREE.LoopRepeat, Infinity)
-        prev?.fadeOut(0.18)
+        prev?.fadeOut(0.15)
         currentClip.current = next
       }
     }
 
     const action = currentClip.current ? actions[currentClip.current] : null
     if (action) {
-      if (crouched && next === 'walk') action.setEffectiveTimeScale(0.7)
+      if (crouched && next === 'walk') action.setEffectiveTimeScale(0.68)
       else if (sprint && next === 'run') action.setEffectiveTimeScale(1.08)
       else action.setEffectiveTimeScale(1)
+      // Keep clip weight solid so we never fall back to T-pose arms.
+      if (action.getEffectiveWeight() < 0.95) action.setEffectiveWeight(1)
     }
 
-    // Crouch is a parent transform only — does not touch Mixamo bones/clips.
-    crouchAmt.current = THREE.MathUtils.damp(crouchAmt.current, crouched ? 1 : 0, 12, delta)
+    crouchAmt.current = THREE.MathUtils.damp(crouchAmt.current, crouched ? 1 : 0, 11, delta)
     const c = crouchAmt.current
-    crouchRoot.current.position.y = c * -0.42
-    crouchRoot.current.rotation.x = c * 0.35
 
-    // Mixamo faces +Z; flip so chase cam on +Z sees the back.
-    modelRef.current.rotation.y = Math.PI
-  })
+    // Small vertical settle only — NO whole-body tip (that looked like falling back).
+    dipRef.current.position.y = c * -0.18
+    dipRef.current.rotation.x = 0
+
+    const b = bonesRef.current
+    if (!b || c < 0.001) return
+
+    // Human squat: drop hips, bend thighs + shins, slight forward spine curl.
+    if (b.hips) b.hips.position.y += c * -0.14
+    if (b.spine) b.spine.rotation.x += c * 0.55
+    if (b.spine1) b.spine1.rotation.x += c * 0.35
+
+    const thigh = c * 1.25
+    const shin = c * -1.85
+    if (b.leftUpLeg) b.leftUpLeg.rotation.x += thigh
+    if (b.rightUpLeg) b.rightUpLeg.rotation.x += thigh
+    if (b.leftLeg) b.leftLeg.rotation.x += shin
+    if (b.rightLeg) b.rightLeg.rotation.x += shin
+
+    // Arms closer to the torso while crouched (not open).
+    if (b.leftArm) {
+      b.leftArm.rotation.x += c * 0.45
+      b.leftArm.rotation.z += c * 0.55
+    }
+    if (b.rightArm) {
+      b.rightArm.rotation.x += c * 0.45
+      b.rightArm.rotation.z -= c * 0.55
+    }
+    if (b.leftForeArm) b.leftForeArm.rotation.x += c * 0.4
+    if (b.rightForeArm) b.rightForeArm.rotation.x += c * 0.4
+  }, 1)
 
   return (
     <group ref={root}>
-      <group ref={crouchRoot}>
-        <group ref={modelRef} scale={fitScale} position={[0, footOffset, 0]}>
+      <group ref={dipRef}>
+        {/* Face −Z so chase cam on +Z sees the back. Scale/plant outside mixer root. */}
+        <group rotation={[0, Math.PI, 0]} scale={fitScale} position={[0, footOffset, 0]}>
           <primitive object={clone} />
         </group>
       </group>
@@ -132,55 +207,75 @@ function MixamoHuman({ yawRef, movingRef }: Props) {
   )
 }
 
-/** Simple capsule while the GLB loads — also animates so movement is obvious. */
 function FallbackHuman({ yawRef, movingRef }: Props) {
   const root = useRef<THREE.Group>(null)
-  const crouchRoot = useRef<THREE.Group>(null)
+  const torso = useRef<THREE.Group>(null)
   const legL = useRef<THREE.Group>(null)
   const legR = useRef<THREE.Group>(null)
+  const armL = useRef<THREE.Group>(null)
+  const armR = useRef<THREE.Group>(null)
   const crouchAmt = useRef(0)
 
   useFrame((_, delta) => {
-    if (!root.current || !crouchRoot.current) return
+    if (!root.current || !torso.current) return
     root.current.rotation.y = yawRef.current
     const game = useGameStore.getState()
     const { moveX, moveZ, sprint } = game.input
     const crouched = game.crouched
     const moving = movingRef.current || Math.hypot(moveX, moveZ) > 0.05
-    crouchAmt.current = THREE.MathUtils.damp(crouchAmt.current, crouched ? 1 : 0, 12, delta)
-    crouchRoot.current.position.y = crouchAmt.current * -0.35
-    crouchRoot.current.rotation.x = crouchAmt.current * 0.3
+
+    crouchAmt.current = THREE.MathUtils.damp(crouchAmt.current, crouched ? 1 : 0, 11, delta)
+    const c = crouchAmt.current
+
+    torso.current.position.y = 1.15 - c * 0.4
+    // Arms hang down by default; tuck a bit more when crouched.
+    if (armL.current) armL.current.rotation.z = 0.15 + c * 0.2
+    if (armR.current) armR.current.rotation.z = -0.15 - c * 0.2
+
     const rate = crouched ? 6 : sprint ? 13 : 8.5
-    const amp = (crouched ? 0.35 : sprint ? 0.65 : 0.45) * (moving ? 1 : 0)
+    const amp = (crouched ? 0.3 : sprint ? 0.65 : 0.45) * (moving ? 1 : 0)
     const swing = Math.sin(performance.now() * 0.001 * rate) * amp
-    if (legL.current) legL.current.rotation.x = swing
-    if (legR.current) legR.current.rotation.x = -swing
+    if (legL.current) legL.current.rotation.x = swing + c * 1.1
+    if (legR.current) legR.current.rotation.x = -swing + c * 1.1
+    if (armL.current) armL.current.rotation.x = -swing * 0.6 + 0.15
+    if (armR.current) armR.current.rotation.x = swing * 0.6 + 0.15
   })
 
-  const h = 1
   return (
     <group ref={root}>
-      <group ref={crouchRoot}>
-        <mesh position={[0, 1.15 * h, 0]} castShadow>
+      <group ref={torso}>
+        <mesh castShadow>
           <capsuleGeometry args={[0.18, 0.5, 6, 12]} />
           <meshStandardMaterial color={PLAYER.skin} roughness={0.7} />
         </mesh>
-        <mesh position={[0, 1.58 * h, 0]} castShadow>
+        <mesh position={[0, 0.43, 0]} castShadow>
           <sphereGeometry args={[0.13, 14, 12]} />
           <meshStandardMaterial color={PLAYER.skin} roughness={0.7} />
         </mesh>
-        <group ref={legL} position={[-0.1, 0.82, 0]}>
-          <mesh position={[0, -0.28, 0]} castShadow>
-            <capsuleGeometry args={[0.07, 0.38, 4, 8]} />
+        <group ref={armL} position={[-0.22, 0.22, 0]}>
+          <mesh position={[0, -0.24, 0]} castShadow>
+            <capsuleGeometry args={[0.05, 0.34, 4, 8]} />
             <meshStandardMaterial color={PLAYER.skin} roughness={0.7} />
           </mesh>
         </group>
-        <group ref={legR} position={[0.1, 0.82, 0]}>
-          <mesh position={[0, -0.28, 0]} castShadow>
-            <capsuleGeometry args={[0.07, 0.38, 4, 8]} />
+        <group ref={armR} position={[0.22, 0.22, 0]}>
+          <mesh position={[0, -0.24, 0]} castShadow>
+            <capsuleGeometry args={[0.05, 0.34, 4, 8]} />
             <meshStandardMaterial color={PLAYER.skin} roughness={0.7} />
           </mesh>
         </group>
+      </group>
+      <group ref={legL} position={[-0.1, 0.82, 0]}>
+        <mesh position={[0, -0.28, 0]} castShadow>
+          <capsuleGeometry args={[0.07, 0.38, 4, 8]} />
+          <meshStandardMaterial color={PLAYER.skin} roughness={0.7} />
+        </mesh>
+      </group>
+      <group ref={legR} position={[0.1, 0.82, 0]}>
+        <mesh position={[0, -0.28, 0]} castShadow>
+          <capsuleGeometry args={[0.07, 0.38, 4, 8]} />
+          <meshStandardMaterial color={PLAYER.skin} roughness={0.7} />
+        </mesh>
       </group>
     </group>
   )
