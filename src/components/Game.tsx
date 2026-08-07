@@ -1,66 +1,131 @@
 import { Canvas } from '@react-three/fiber'
-import { Suspense } from 'react'
+import { Cloud, Clouds, Sky } from '@react-three/drei'
+import * as THREE from 'three'
 import { Arena } from './scene/Arena'
 import { PlayerController } from './scene/PlayerController'
-import { Tracers } from './scene/Tracers'
-import { Plates } from './scene/Plates'
-import { Explosions } from './scene/Explosions'
-import { CRTOverlay } from './ui/CRTOverlay'
-import { HUD } from './ui/HUD'
-import { Crosshair } from './ui/Crosshair'
+import { PickupSystem } from './scene/PickupSystem'
+import { ZombieSystem } from './scene/ZombieSystem'
 import { MobileControls } from './ui/MobileControls'
-import { SectorCleared } from './ui/SectorCleared'
-import { LandscapeGate } from './ui/LandscapeGate'
+import { Crosshair } from './ui/Crosshair'
+import { CombatHud } from './ui/CombatHud'
+import { useIsMobile } from '../hooks/useIsMobile'
 import { COLORS } from '../constants'
 
 function Scene() {
   return (
     <>
-      <color attach="background" args={[COLORS.black]} />
-      <fog attach="fog" args={[COLORS.black, 12, 36]} />
-      <ambientLight intensity={0.55} />
+      <fog attach="fog" args={[COLORS.skyHaze, 55, 145]} />
+      <Sky
+        sunPosition={[48, 28, 18]}
+        turbidity={4.5}
+        rayleigh={1.15}
+        mieCoefficient={0.004}
+        mieDirectionalG={0.85}
+        inclination={0.48}
+        azimuth={0.22}
+      />
+      <Clouds material={THREE.MeshBasicMaterial} limit={24}>
+        <Cloud
+          seed={1}
+          position={[-18, 42, -28]}
+          speed={0.08}
+          opacity={0.55}
+          segments={18}
+          bounds={[28, 6, 12]}
+          volume={8}
+          color="#F4F7FA"
+        />
+        <Cloud
+          seed={4}
+          position={[22, 48, 8]}
+          speed={0.06}
+          opacity={0.48}
+          segments={16}
+          bounds={[24, 5, 14]}
+          volume={7}
+          color="#EEF3F8"
+        />
+        <Cloud
+          seed={9}
+          position={[0, 46, 36]}
+          speed={0.05}
+          opacity={0.42}
+          segments={14}
+          bounds={[30, 5, 10]}
+          volume={6}
+          color="#F7FAFC"
+        />
+        <Cloud
+          seed={12}
+          position={[-30, 40, 20]}
+          speed={0.07}
+          opacity={0.4}
+          segments={12}
+          bounds={[18, 4, 10]}
+          volume={5}
+          color="#F0F4F8"
+        />
+      </Clouds>
+      <ambientLight intensity={0.5} color="#E8EEF2" />
+      <hemisphereLight args={['#B8D0E0', '#6A8A50', 0.5]} />
+      <directionalLight
+        position={[28, 42, 18]}
+        intensity={1.25}
+        color="#FFF2D8"
+        castShadow
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
+        shadow-camera-near={2}
+        shadow-camera-far={120}
+        shadow-camera-left={-50}
+        shadow-camera-right={50}
+        shadow-camera-top={50}
+        shadow-camera-bottom={-50}
+        shadow-bias={-0.0002}
+      />
       <Arena />
+      <PickupSystem />
+      <ZombieSystem />
       <PlayerController />
-      <Plates />
-      <Tracers />
-      <Explosions />
     </>
+  )
+}
+
+function ControlsHint() {
+  const mobile = useIsMobile()
+  return (
+    <div
+      className={`pointer-events-none absolute left-1/2 z-20 max-w-[min(92vw,28rem)] -translate-x-1/2 rounded-md bg-black/40 px-3 py-1.5 text-center text-[10px] tracking-[0.1em] text-white/85 sm:text-[11px] sm:tracking-[0.12em] ${
+        mobile ? 'bottom-36' : 'bottom-4'
+      }`}
+    >
+      {mobile
+        ? 'IZQ MOVER · DER MIRAR/DISPARO · ARRIBA VISTA'
+        : 'CLIC+ARRASTRAR MIRAR · WASD · V VISTA · RUEDA ZOOM'}
+    </div>
   )
 }
 
 export function Game() {
   return (
-    <div className="relative h-full w-full overflow-hidden bg-black">
+    <div className="relative h-full w-full overflow-hidden bg-[#7BA8C4]">
       <Canvas
         className="absolute inset-0 h-full w-full touch-none"
-        gl={{
-          antialias: true,
-          alpha: false,
-          powerPreference: 'high-performance',
-        }}
+        shadows
+        gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
         dpr={[1, 1.75]}
         onCreated={({ gl }) => {
-          gl.setClearColor(COLORS.black, 1)
+          gl.setClearColor(COLORS.sky, 1)
         }}
       >
-        <Suspense fallback={null}>
-          <Scene />
-        </Suspense>
+        <Scene />
       </Canvas>
 
-      <CRTOverlay />
       <Crosshair />
-      <HUD />
       <MobileControls />
-      <SectorCleared />
-      <LandscapeGate />
-
-      <div className="pointer-events-none absolute bottom-3 left-1/2 z-30 hidden -translate-x-1/2 text-[10px] tracking-[0.3em] text-white/40 sm:block">
-        WASD MOVE · MOUSE LOOK · CLICK / F FIRE
-      </div>
-      <div className="pointer-events-none absolute bottom-3 left-1/2 z-30 -translate-x-1/2 text-[9px] tracking-[0.25em] text-white/35 sm:hidden">
-        JOYSTICK · TAP RIGHT TO FIRE
-      </div>
+      {/* HUD above touch fire layer so zoom / camera buttons aren't treated as shots. */}
+      <CombatHud />
+      <ControlsHint />
     </div>
   )
 }

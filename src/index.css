@@ -1,21 +1,5 @@
 @import 'tailwindcss';
 
-@font-face {
-  font-family: 'Share Tech Mono';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('https://fonts.gstatic.com/s/sharetechmono/v16/J7aHnp1uDWRBEqV98dVQztYldFcLowEF.woff2')
-    format('woff2');
-}
-
-:root {
-  --neon-green: #00ff00;
-  --neon-white: #ffffff;
-  --tracer-blue: #00bfff;
-  --crt-scan: rgba(0, 255, 0, 0.035);
-}
-
 * {
   box-sizing: border-box;
 }
@@ -25,64 +9,11 @@ body,
 #root {
   width: 100%;
   height: 100%;
+  height: 100dvh;
   margin: 0;
   overflow: hidden;
-  background: #000;
-  font-family: 'Share Tech Mono', ui-monospace, monospace;
-  color: var(--neon-green);
-}
-
-button {
-  font-family: inherit;
-}
-
-.crt-overlay {
-  pointer-events: none;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 2px,
-    var(--crt-scan) 2px,
-    var(--crt-scan) 4px
-  );
-  mix-blend-mode: screen;
-  opacity: 0.55;
-}
-
-.crt-vignette {
-  pointer-events: none;
-  background: radial-gradient(
-    ellipse at center,
-    transparent 45%,
-    rgba(0, 0, 0, 0.55) 100%
-  );
-}
-
-@keyframes pulse-glow {
-  0%,
-  100% {
-    text-shadow: 0 0 6px #00ff00, 0 0 14px #00ff66;
-  }
-  50% {
-    text-shadow: 0 0 12px #00ff00, 0 0 28px #00ff66;
-  }
-}
-
-.pulse-glow {
-  animation: pulse-glow 1.4s ease-in-out infinite;
-}
-
-@keyframes sector-in {
-  from {
-    opacity: 0;
-    transform: scale(0.92) translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-
-.sector-panel {
-  animation: sector-in 0.45s ease-out both;
+  background: #6fa8c8;
+  font-family: system-ui, sans-serif;
+  touch-action: none;
+  user-select: none;
 }

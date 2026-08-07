@@ -1,47 +1,37 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { useGameStore } from '../../store/gameStore'
+import { useCallback, useRef, useState } from 'react'
 import { PLAYER } from '../../constants'
+import { useIsMobile } from '../../hooks/useIsMobile'
+import { useGameStore } from '../../store/gameStore'
+import { unlockAudio } from '../../audio/gunshot'
+import { mobileLookStick, resetMobileLookStick } from '../../input/mobileLookStick'
 
 /**
- * Mobile controls:
- * - Left: virtual joystick for movement
- * - Right half: drag to look; tap/touch fires the weapon
- * Desktop: controls are handled in PlayerController (WASD + pointer lock).
+ * Mobile controls — zones that must not overlap:
+ * - Top strip: reserved for CombatHud (no look layer there)
+ * - Bottom-left: move
+ * - Bottom-right: jump / sprint
+ * - Rest of right half: look + fire
  */
 export function MobileControls() {
-  const [isTouch, setIsTouch] = useState(false)
-  const setMove = useGameStore((s) => s.setMove)
-  const addLook = useGameStore((s) => s.addLook)
-  const queueFire = useGameStore((s) => s.queueFire)
-  const sectorCleared = useGameStore((s) => s.sectorCleared)
-
-  useEffect(() => {
-    const touch =
-      'ontouchstart' in window ||
-      navigator.maxTouchPoints > 0 ||
-      window.matchMedia('(pointer: coarse)').matches
-    setIsTouch(touch)
-  }, [])
-
-  if (!isTouch || sectorCleared) return null
+  const mobile = useIsMobile()
+  if (!mobile) return null
 
   return (
-    <div className="absolute inset-0 z-30">
-      <Joystick setMove={setMove} />
-      <LookAndFireZone addLook={addLook} onFire={queueFire} />
-      <div className="pointer-events-none absolute bottom-3 right-4 text-[9px] tracking-[0.25em] text-[#00BFFF]/70">
-        TAP TO FIRE · DRAG TO LOOK
-      </div>
+    <div className="pointer-events-none absolute inset-0 z-30">
+      <Joystick />
+      <RightLookAndFire />
+      <RightHandButtons />
     </div>
   )
 }
 
-function Joystick({ setMove }: { setMove: (x: number, z: number) => void }) {
+function Joystick() {
+  const setMove = useGameStore((s) => s.setMove)
   const baseRef = useRef<HTMLDivElement>(null)
   const [knob, setKnob] = useState({ x: 0, y: 0 })
   const active = useRef(false)
   const pointerId = useRef<number | null>(null)
-  const radius = 48
+  const radius = 52
 
   const updateFromEvent = useCallback(
     (clientX: number, clientY: number) => {
@@ -73,9 +63,10 @@ function Joystick({ setMove }: { setMove: (x: number, z: number) => void }) {
   return (
     <div
       ref={baseRef}
-      className="absolute bottom-6 left-6 h-28 w-28 touch-none sm:bottom-8 sm:left-8"
+      className="pointer-events-auto absolute bottom-5 left-4 z-40 h-28 w-28 touch-none sm:bottom-8 sm:left-8 sm:h-32 sm:w-32"
       onPointerDown={(e) => {
         e.preventDefault()
+        e.stopPropagation()
         e.currentTarget.setPointerCapture(e.pointerId)
         active.current = true
         pointerId.current = e.pointerId
@@ -87,54 +78,126 @@ function Joystick({ setMove }: { setMove: (x: number, z: number) => void }) {
       }}
       onPointerUp={reset}
       onPointerCancel={reset}
+      onLostPointerCapture={reset}
     >
-      <div className="absolute inset-0 rounded-full border border-[#00FF00]/50 bg-[#00FF00]/5" />
-      <div className="absolute inset-3 rounded-full border border-[#00FF00]/25" />
+      <div className="absolute inset-0 rounded-full border border-white/30 bg-[#1A2430]/40 backdrop-blur-sm" />
+      <div className="absolute inset-3 rounded-full border border-[#6FE04A]/35" />
       <div
-        className="absolute left-1/2 top-1/2 h-12 w-12 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#00FF00] bg-[#00FF00]/20"
-        style={{ transform: `translate(calc(-50% + ${knob.x}px), calc(-50% + ${knob.y}px))` }}
+        className="absolute h-11 w-11 rounded-full border-2 border-white/80 bg-[#6FE04A]/85 shadow-md sm:h-12 sm:w-12"
+        style={{
+          left: `calc(50% + ${knob.x}px)`,
+          top: `calc(50% + ${knob.y}px)`,
+          transform: 'translate(-50%, -50%)',
+        }}
       />
     </div>
   )
 }
 
-function LookAndFireZone({
-  addLook,
-  onFire,
-}: {
-  addLook: (dx: number, dy: number) => void
-  onFire: () => void
-}) {
+function RightHandButtons() {
+  const sprint = useGameStore((s) => s.input.sprint)
+  const toggleSprint = useGameStore((s) => s.toggleSprint)
+  const requestJump = useGameStore((s) => s.requestJump)
+
+  return (
+    <div className="pointer-events-auto absolute bottom-5 right-4 z-40 flex touch-none flex-col items-center gap-2.5 sm:bottom-8 sm:right-8 sm:gap-3">
+      <button
+        type="button"
+        className="flex h-12 w-12 select-none items-center justify-center rounded-full border-2 border-white/50 bg-[#1A2430]/55 text-[10px] font-bold tracking-[0.12em] text-white/90 shadow-md backdrop-blur-sm active:scale-95 sm:h-14 sm:w-14"
+        onPointerDown={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          requestJump()
+        }}
+      >
+        SALTAR
+      </button>
+      <button
+        type="button"
+        className={`flex h-14 w-14 select-none items-center justify-center rounded-full border-2 text-[11px] font-bold tracking-[0.14em] shadow-md sm:h-16 sm:w-16 ${
+          sprint
+            ? 'border-white bg-[#6FE04A] text-[#143018]'
+            : 'border-white/50 bg-[#1A2430]/55 text-white/90 backdrop-blur-sm'
+        }`}
+        onPointerDown={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          toggleSprint()
+        }}
+      >
+        CORRER
+      </button>
+    </div>
+  )
+}
+
+/** Right-half look + fire. Works together with the left joystick (2 fingers). */
+function RightLookAndFire() {
+  const requestFire = useGameStore((s) => s.requestFire)
+  const addLook = useGameStore((s) => s.addLook)
   const active = useRef(false)
+  const origin = useRef({ x: 0, y: 0 })
   const last = useRef({ x: 0, y: 0 })
   const pointerId = useRef<number | null>(null)
 
+  const end = () => {
+    active.current = false
+    pointerId.current = null
+    resetMobileLookStick()
+  }
+
+  const writeStick = (clientX: number, clientY: number) => {
+    const ox = clientX - origin.current.x
+    const oy = clientY - origin.current.y
+    const dist = Math.hypot(ox, oy)
+    if (dist <= PLAYER.lookStickDeadzone) {
+      mobileLookStick.active = true
+      mobileLookStick.x = 0
+      mobileLookStick.y = 0
+      return
+    }
+    const clamped = Math.min(dist, PLAYER.lookStickMax)
+    const scale =
+      (clamped - PLAYER.lookStickDeadzone) / (PLAYER.lookStickMax - PLAYER.lookStickDeadzone)
+    mobileLookStick.active = true
+    mobileLookStick.x = (ox / dist) * scale
+    mobileLookStick.y = (oy / dist) * scale
+  }
+
   return (
     <div
-      className="absolute bottom-0 right-0 top-0 w-1/2 touch-none"
+      className="pointer-events-auto absolute bottom-0 right-0 top-24 z-30 w-1/2 touch-none"
       onPointerDown={(e) => {
+        if ((e.target as HTMLElement).closest('button')) return
+        // Already aiming with another finger on this pad (pinch) — ignore.
+        if (pointerId.current !== null) return
+        // Allow non-primary pointers so move (finger 1) + look (finger 2) work together.
         e.preventDefault()
         e.currentTarget.setPointerCapture(e.pointerId)
         active.current = true
         pointerId.current = e.pointerId
+        origin.current = { x: e.clientX, y: e.clientY }
         last.current = { x: e.clientX, y: e.clientY }
-        // Tap / touch on the look zone fires immediately
-        onFire()
+        writeStick(e.clientX, e.clientY)
+        unlockAudio()
+        requestFire()
       }}
       onPointerMove={(e) => {
         if (!active.current || pointerId.current !== e.pointerId) return
         const dx = e.clientX - last.current.x
         const dy = e.clientY - last.current.y
         last.current = { x: e.clientX, y: e.clientY }
+        writeStick(e.clientX, e.clientY)
         addLook(dx * PLAYER.lookSensitivityMobile, dy * PLAYER.lookSensitivityMobile)
       }}
-      onPointerUp={() => {
-        active.current = false
-        pointerId.current = null
+      onPointerUp={(e) => {
+        if (pointerId.current === e.pointerId) end()
       }}
-      onPointerCancel={() => {
-        active.current = false
-        pointerId.current = null
+      onPointerCancel={(e) => {
+        if (pointerId.current === e.pointerId) end()
+      }}
+      onLostPointerCapture={(e) => {
+        if (pointerId.current === e.pointerId) end()
       }}
     />
   )

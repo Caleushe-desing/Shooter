@@ -1,92 +1,131 @@
-import type { ReactElement } from 'react'
 import { useMemo } from 'react'
 import * as THREE from 'three'
-import { COLORS, ARENA, OBSTACLES } from '../../constants'
-import { WoodCrate } from './WoodCrate'
+import { ARENA } from '../../constants'
+import { buildHavenInspiredMap } from '../../map/havenLayout'
+import { surfaceMaterial, surfaceFromColor } from '../../materials/surfaces'
 
-function WireBox({
-  position,
-  args,
-  color = COLORS.neonGreen,
-}: {
-  position: [number, number, number]
-  args: [number, number, number]
-  color?: string
-}) {
-  return (
-    <mesh position={position}>
-      <boxGeometry args={args} />
-      <meshBasicMaterial color={color} wireframe />
-    </mesh>
-  )
+type StreetPad = { x: number; z: number; w: number; d: number }
+
+const STREET_PADS: StreetPad[] = [
+  { x: -28, z: 0, w: 28, d: 36 },
+  { x: 28, z: 0, w: 28, d: 36 },
+  { x: 0, z: 2, w: 18, d: 52 },
+  { x: 0, z: 30, w: 32, d: 22 },
+]
+
+/** Lightweight grass blade clumps along cobble edges. */
+function GrassTufts() {
+  const mesh = useMemo(() => {
+    const geo = new THREE.PlaneGeometry(0.22, 0.42)
+    geo.translate(0, 0.21, 0)
+    const mat = new THREE.MeshStandardMaterial({
+      color: '#6B9A48',
+      roughness: 0.95,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.92,
+      depthWrite: false,
+    })
+    const count = 220
+    const inst = new THREE.InstancedMesh(geo, mat, count)
+    const m = new THREE.Matrix4()
+    const p = new THREE.Vector3()
+    const q = new THREE.Quaternion()
+    const s = new THREE.Vector3()
+    const e = new THREE.Euler()
+    let i = 0
+    for (const pad of STREET_PADS) {
+      const perPad = Math.floor(count / STREET_PADS.length)
+      for (let n = 0; n < perPad && i < count; n++, i++) {
+        const edge = n % 4
+        let x = pad.x
+        let z = pad.z
+        if (edge === 0) {
+          x = pad.x - pad.w * 0.5 - 0.35 + (Math.random() - 0.5) * 0.5
+          z = pad.z + (Math.random() - 0.5) * pad.d
+        } else if (edge === 1) {
+          x = pad.x + pad.w * 0.5 + 0.35 + (Math.random() - 0.5) * 0.5
+          z = pad.z + (Math.random() - 0.5) * pad.d
+        } else if (edge === 2) {
+          z = pad.z - pad.d * 0.5 - 0.35 + (Math.random() - 0.5) * 0.5
+          x = pad.x + (Math.random() - 0.5) * pad.w
+        } else {
+          z = pad.z + pad.d * 0.5 + 0.35 + (Math.random() - 0.5) * 0.5
+          x = pad.x + (Math.random() - 0.5) * pad.w
+        }
+        p.set(x, 0, z)
+        e.set(0, Math.random() * Math.PI, (Math.random() - 0.5) * 0.25)
+        q.setFromEuler(e)
+        const sc = 0.7 + Math.random() * 0.7
+        s.set(sc, sc * (0.85 + Math.random() * 0.4), sc)
+        m.compose(p, q, s)
+        inst.setMatrixAt(i, m)
+      }
+    }
+    inst.instanceMatrix.needsUpdate = true
+    inst.frustumCulled = false
+    return inst
+  }, [])
+
+  return <primitive object={mesh} />
 }
 
-function SolidFloor() {
-  const half = ARENA.size / 2
-  const step = 2
-  const tiles: ReactElement[] = []
-
-  for (let x = -half + 1; x < half; x += step) {
-    for (let z = -half + 1; z < half; z += step) {
-      const alt = ((x + half) / step + (z + half) / step) % 2 === 0
-      tiles.push(
-        <mesh key={`tile-${x}-${z}`} position={[x, -0.04, z]} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[step * 0.98, step * 0.98]} />
-          <meshBasicMaterial color={alt ? COLORS.floor : COLORS.floorAlt} />
-        </mesh>,
-      )
-    }
-  }
-
-  const grid = useMemo(() => {
-    const pts: number[] = []
-    for (let i = -half; i <= half; i += step) {
-      pts.push(-half, 0.002, i, half, 0.002, i)
-      pts.push(i, 0.002, -half, i, 0.002, half)
-    }
-    const geo = new THREE.BufferGeometry()
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3))
-    return geo
-  }, [half, step])
-
-  return (
-    <group>
-      {/* Deep opaque base slab */}
-      <mesh position={[0, -0.08, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[ARENA.size + 1, ARENA.size + 1]} />
-        <meshBasicMaterial color={COLORS.floor} />
-      </mesh>
-
-      {tiles}
-
-      {/* Subtle neon grid overlay */}
-      <lineSegments geometry={grid} position={[0, 0, 0]}>
-        <lineBasicMaterial color={COLORS.floorGrid} transparent opacity={0.22} />
-      </lineSegments>
-    </group>
-  )
-}
-
+/** Large Haven-inspired arena with cobble streets, grass, and textured builds. */
 export function Arena() {
   const half = ARENA.size / 2
-  const t = ARENA.wallThickness
-  const h = ARENA.wallHeight
+
+  const { visible, propMats, grassMat, streetMats, ringMat } = useMemo(() => {
+    const { props } = buildHavenInspiredMap()
+    const visible = props.filter((p) => !p.hidden)
+    const propMats = visible.map((p) => {
+      const kind = p.surface ?? surfaceFromColor(p.color)
+      const u = Math.max(p.w, p.d)
+      const v = Math.max(p.h, Math.min(p.w, p.d))
+      return surfaceMaterial(kind, u, v)
+    })
+    return {
+      visible,
+      propMats,
+      grassMat: surfaceMaterial('grass', ARENA.size, ARENA.size),
+      streetMats: STREET_PADS.map((p) => surfaceMaterial('cobble', p.w, p.d)),
+      ringMat: surfaceMaterial('stone', ARENA.size * 0.35, 3),
+    }
+  }, [])
 
   return (
     <group>
-      <SolidFloor />
+      {/* Base grass field */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
+        <planeGeometry args={[ARENA.size, ARENA.size]} />
+        <primitive attach="material" object={grassMat} />
+      </mesh>
 
-      <WireBox position={[0, h / 2, -half]} args={[ARENA.size + t * 2, h, t]} color={COLORS.white} />
-      <WireBox position={[0, h / 2, half]} args={[ARENA.size + t * 2, h, t]} color={COLORS.white} />
-      <WireBox position={[-half, h / 2, 0]} args={[t, h, ARENA.size]} color={COLORS.white} />
-      <WireBox position={[half, h / 2, 0]} args={[t, h, ARENA.size]} color={COLORS.white} />
+      {/* Cobblestone streets / plazas */}
+      {STREET_PADS.map((p, i) => (
+        <mesh
+          key={`street-${i}`}
+          rotation={[-Math.PI / 2, 0, 0]}
+          position={[p.x, 0.02, p.z]}
+          receiveShadow
+        >
+          <planeGeometry args={[p.w, p.d]} />
+          <primitive attach="material" object={streetMats[i]} />
+        </mesh>
+      ))}
 
-      {OBSTACLES.map((o, i) => (
-        <WoodCrate
-          key={`crate-${i}`}
-          position={[o.x, o.h / 2, o.z]}
-          args={[o.w, o.h, o.d]}
-        />
+      {/* Soft stone ring at outer wall */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]} receiveShadow>
+        <ringGeometry args={[half - 3.5, half - 0.2, 64]} />
+        <primitive attach="material" object={ringMat} />
+      </mesh>
+
+      <GrassTufts />
+
+      {visible.map((p, i) => (
+        <mesh key={i} position={[p.x, p.y, p.z]} castShadow receiveShadow>
+          <boxGeometry args={[p.w, p.h, p.d]} />
+          <primitive attach="material" object={propMats[i]} />
+        </mesh>
       ))}
     </group>
   )

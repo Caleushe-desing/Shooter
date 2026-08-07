@@ -1,13 +1,51 @@
+import { WEAPON } from '../../constants'
+import { useGameStore } from '../../store/gameStore'
+
+/** Aim point — centered in FPS / top-down, off-center in TPS. */
 export function Crosshair() {
+  const shotId = useGameStore((s) => s.shotId)
+  const cameraMode = useGameStore((s) => s.cameraMode)
+  const centered = cameraMode === 'first' || cameraMode === 'top'
+  const ox = centered ? 0 : WEAPON.crosshairOffsetX
+  const oy = centered ? 0 : WEAPON.crosshairOffsetY
+
   return (
-    <div className="pointer-events-none absolute left-1/2 top-1/2 z-30 -translate-x-1/2 -translate-y-1/2">
-      <div className="relative h-6 w-6">
-        <div className="absolute left-1/2 top-0 h-2 w-px -translate-x-1/2 bg-[#00FF00]" />
-        <div className="absolute bottom-0 left-1/2 h-2 w-px -translate-x-1/2 bg-[#00FF00]" />
-        <div className="absolute left-0 top-1/2 h-px w-2 -translate-y-1/2 bg-[#00FF00]" />
-        <div className="absolute right-0 top-1/2 h-px w-2 -translate-y-1/2 bg-[#00FF00]" />
-        <div className="absolute left-1/2 top-1/2 h-1 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#00BFFF]" />
+    <>
+      <div
+        className="pointer-events-none absolute z-20"
+        style={{
+          left: `calc(50% + ${ox}px)`,
+          top: `calc(50% + ${oy}px)`,
+          transform: 'translate(-50%, -50%)',
+        }}
+        aria-hidden
+      >
+        <span
+          key={shotId}
+          className="block h-[3px] w-[3px] rounded-full bg-white"
+          style={{
+            boxShadow: '0 0 0 1px rgba(0,0,0,0.9), 0 0 3px rgba(0,0,0,0.45)',
+            animation: shotId ? 'crossKick 0.06s ease-out' : undefined,
+          }}
+        />
       </div>
-    </div>
+      {shotId > 0 && (
+        <div
+          key={`flash-${shotId}`}
+          className="pointer-events-none absolute inset-0 z-10 bg-[#FFF6C8]/10"
+          style={{ animation: 'shotVeil 0.07s ease-out forwards' }}
+        />
+      )}
+      <style>{`
+        @keyframes crossKick {
+          0% { transform: scale(2.2); opacity: 0.45; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes shotVeil {
+          0% { opacity: 1; }
+          100% { opacity: 0; }
+        }
+      `}</style>
+    </>
   )
 }
