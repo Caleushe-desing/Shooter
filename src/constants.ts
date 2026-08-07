@@ -26,8 +26,16 @@ export const PLAYER = {
   /** Gravity while airborne (m/s²). */
   gravity: 16,
   lookSensitivity: 0.0022,
-  /** Touch look drag — slightly snappier than mouse. */
-  lookSensitivityMobile: 0.0032,
+  /** Touch look — higher so a short drag turns farther. */
+  lookSensitivityMobile: 0.0058,
+  /**
+   * While holding a finger offset from the press point, keep turning
+   * (rad/s per pixel of offset). No need to lift and swipe again.
+   */
+  lookStickRate: 0.055,
+  lookStickDeadzone: 10,
+  /** Clamp finger offset (px) so max turn rate stays controllable. */
+  lookStickMax: 120,
   pitchMin: -0.55,
   pitchMax: 0.4,
   pitchDefault: -0.28,
