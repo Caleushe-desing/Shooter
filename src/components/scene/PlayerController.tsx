@@ -241,9 +241,9 @@ export function PlayerController() {
 
     const { dx, dy } = store.consumeLook()
     lookYaw.current -= dx * zoomFactor
-    // Mouse up (negative dy) → look up (more negative pitch).
+    // Mouse/touch up (negative dy) → look up (negative pitch on this boom rig).
     lookPitch.current = THREE.MathUtils.clamp(
-      lookPitch.current + dy * zoomFactor,
+      lookPitch.current - dy * zoomFactor,
       PLAYER.pitchMin,
       PLAYER.pitchMax,
     )
