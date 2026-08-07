@@ -21,11 +21,8 @@ export function MobileControls() {
   const inventoryOpen = useWorldStore((s) => s.inventoryOpen)
 
   useEffect(() => {
-    const touch =
-      'ontouchstart' in window ||
-      navigator.maxTouchPoints > 0 ||
-      window.matchMedia('(pointer: coarse)').matches
-    setIsTouch(touch)
+    // Coarse pointer = phone/tablet. Do NOT use maxTouchPoints alone (laptops lie).
+    setIsTouch(window.matchMedia('(pointer: coarse)').matches)
   }, [])
 
   if (!isTouch || caught || settingsOpen || mapOpen || inventoryOpen) return null

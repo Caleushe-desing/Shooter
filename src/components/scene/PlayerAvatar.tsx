@@ -14,6 +14,7 @@ type PlayerAvatarProps = {
 }
 
 const MODEL_URL = '/models/human.glb'
+const TARGET_HEIGHT = 1.72
 
 useGLTF.preload(MODEL_URL)
 
@@ -42,27 +43,75 @@ function findBone(root: THREE.Object3D, names: string[]): THREE.Object3D | null 
   return found
 }
 
-/** Simple nude placeholder so the back is always visible while the GLB loads. */
-function FallbackHuman({ yawRef }: { yawRef: MutableRefObject<number> }) {
+/** Animated nude stand-in (always works) while / if the Mixamo GLB is loading. */
+function FallbackHuman({
+  yawRef,
+  movingRef,
+}: {
+  yawRef: MutableRefObject<number>
+  movingRef: MutableRefObject<boolean>
+}) {
   const root = useRef<THREE.Group>(null)
-  useFrame(() => {
-    if (root.current) root.current.rotation.y = yawRef.current
-  })
+  const legL = useRef<THREE.Group>(null)
+  const legR = useRef<THREE.Group>(null)
+  const armL = useRef<THREE.Group>(null)
+  const armR = useRef<THREE.Group>(null)
   const h = PLAYER.height
+
+  useFrame(() => {
+    if (!root.current) return
+    root.current.rotation.y = yawRef.current
+    const game = useGameStore.getState()
+    const sprint = game.input.sprint
+    const inputMoving = Math.hypot(game.input.moveX, game.input.moveZ) > 0.05
+    const walk = (movingRef.current || inputMoving) && !game.airborne ? 1 : 0
+    const rate = sprint ? 13 : 8.5
+    const amp = sprint ? 0.7 : 0.5
+    const swing = Math.sin(performance.now() * 0.001 * rate) * amp * walk
+    if (legL.current) legL.current.rotation.x = swing
+    if (legR.current) legR.current.rotation.x = -swing
+    if (armL.current) armL.current.rotation.x = -swing * 0.7
+    if (armR.current) armR.current.rotation.x = swing * 0.5 - 0.4
+  })
+
   return (
     <group ref={root}>
-      <mesh position={[0, 0.95 * h, 0]} castShadow>
-        <capsuleGeometry args={[0.16 * h, 0.55 * h, 6, 10]} />
-        <meshStandardMaterial color={PLAYER.skin} roughness={0.7} />
+      <mesh position={[0, 1.15 * h, 0]} castShadow>
+        <capsuleGeometry args={[0.18 * h, 0.5 * h, 6, 12]} />
+        <meshStandardMaterial color={PLAYER.skin} roughness={0.68} />
       </mesh>
-      <mesh position={[0, 1.55 * h, 0]} castShadow>
+      <mesh position={[0, 1.58 * h, 0]} castShadow>
+        <sphereGeometry args={[0.135 * h, 14, 12]} />
+        <meshStandardMaterial color={PLAYER.skin} roughness={0.68} />
+      </mesh>
+      <mesh position={[0, 1.66 * h, 0.03]} castShadow>
         <sphereGeometry args={[0.14 * h, 12, 10]} />
-        <meshStandardMaterial color={PLAYER.skin} roughness={0.7} />
-      </mesh>
-      <mesh position={[0, 1.62 * h, 0.05]} castShadow>
-        <sphereGeometry args={[0.145 * h, 10, 8]} />
         <meshStandardMaterial color={PLAYER.hair} roughness={0.85} />
       </mesh>
+      <group ref={legL} position={[-0.1 * h, 0.82 * h, 0]}>
+        <mesh position={[0, -0.28 * h, 0]} castShadow>
+          <capsuleGeometry args={[0.07 * h, 0.38 * h, 4, 8]} />
+          <meshStandardMaterial color={PLAYER.skin} roughness={0.7} />
+        </mesh>
+      </group>
+      <group ref={legR} position={[0.1 * h, 0.82 * h, 0]}>
+        <mesh position={[0, -0.28 * h, 0]} castShadow>
+          <capsuleGeometry args={[0.07 * h, 0.38 * h, 4, 8]} />
+          <meshStandardMaterial color={PLAYER.skin} roughness={0.7} />
+        </mesh>
+      </group>
+      <group ref={armL} position={[-0.26 * h, 1.35 * h, 0]}>
+        <mesh position={[0, -0.22 * h, 0]} castShadow>
+          <capsuleGeometry args={[0.055 * h, 0.32 * h, 4, 8]} />
+          <meshStandardMaterial color={PLAYER.skin} roughness={0.7} />
+        </mesh>
+      </group>
+      <group ref={armR} position={[0.26 * h, 1.35 * h, 0]}>
+        <mesh position={[0, -0.22 * h, 0]} castShadow>
+          <capsuleGeometry args={[0.055 * h, 0.32 * h, 4, 8]} />
+          <meshStandardMaterial color={PLAYER.skin} roughness={0.7} />
+        </mesh>
+      </group>
     </group>
   )
 }
@@ -70,7 +119,6 @@ function FallbackHuman({ yawRef }: { yawRef: MutableRefObject<number> }) {
 function MixamoHuman({ yawRef, movingRef }: PlayerAvatarProps) {
   const root = useRef<THREE.Group>(null)
   const stanceRef = useRef<THREE.Group>(null)
-  const animRoot = useRef<THREE.Group>(null)
   const propRef = useRef<THREE.Group>(null)
   const muzzleRef = useRef<THREE.Group>(null)
   const currentClip = useRef<ClipName | null>(null)
@@ -78,21 +126,15 @@ function MixamoHuman({ yawRef, movingRef }: PlayerAvatarProps) {
   const crouchAmt = useRef(0)
   const jumpAmt = useRef(0)
   const proneAmt = useRef(0)
-  const modelScale = useRef(1)
   const { scene, animations } = useGLTF(MODEL_URL)
 
-  const clone = useMemo(() => {
+  const { clone, fitScale, footOffset } = useMemo(() => {
     const c = cloneSkeleton(scene) as THREE.Group
-    // Normalize height to ~1.7m so the boom always frames the back.
+    c.updateMatrixWorld(true)
     const box = new THREE.Box3().setFromObject(c)
-    const size = new THREE.Vector3()
-    box.getSize(size)
-    const targetH = 1.7
-    modelScale.current = size.y > 0.1 ? targetH / size.y : 1
-    c.scale.setScalar(modelScale.current)
-    // Plant feet on y=0
-    const box2 = new THREE.Box3().setFromObject(c)
-    c.position.y -= box2.min.y
+    const size = box.getSize(new THREE.Vector3())
+    const fitScale = size.y > 0.01 ? TARGET_HEIGHT / size.y : 1
+    const footOffset = -box.min.y * fitScale
 
     c.traverse((obj) => {
       const mesh = obj as THREE.Mesh
@@ -118,7 +160,7 @@ function MixamoHuman({ yawRef, movingRef }: PlayerAvatarProps) {
         std.roughness = 0.72
       }
     })
-    return c
+    return { clone: c, fitScale, footOffset }
   }, [scene])
 
   const hand = useMemo(
@@ -142,7 +184,8 @@ function MixamoHuman({ yawRef, movingRef }: PlayerAvatarProps) {
     }
   }, [clone])
 
-  const { actions, mixer } = useAnimations(animations, animRoot)
+  // Bind mixer to the cloned scene graph (not a wrapper ref) so tracks resolve.
+  const { actions, mixer } = useAnimations(animations, clone)
 
   useLayoutEffect(() => {
     setMuzzleObject(muzzleRef.current)
@@ -158,16 +201,29 @@ function MixamoHuman({ yawRef, movingRef }: PlayerAvatarProps) {
     }
   }, [hand])
 
+  const getAction = (name: ClipName) => actions[name] ?? null
+
   useEffect(() => {
-    const idle = actions.idle
-    if (idle) {
-      idle.reset().fadeIn(0.25).play()
-      idle.setLoop(THREE.LoopRepeat, Infinity)
-      currentClip.current = 'idle'
+    const idle = getAction('idle')
+    const walk = getAction('walk')
+    const run = getAction('run')
+    if (!idle && !walk && !run) return
+
+    // Start idle immediately so the body breathes even before first input.
+    const start = idle ?? walk ?? run
+    if (start) {
+      start.reset().setEffectiveWeight(1).fadeIn(0.12).play()
+      start.setLoop(THREE.LoopRepeat, Infinity)
+      currentClip.current = idle ? 'idle' : walk ? 'walk' : 'run'
     }
+    // Warm-up walk/run so first transition is instant.
+    walk?.setLoop(THREE.LoopRepeat, Infinity)
+    run?.setLoop(THREE.LoopRepeat, Infinity)
+
     return () => {
-      mixer?.stopAllAction()
+      mixer.stopAllAction()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [actions, mixer])
 
   useFrame((_, delta) => {
@@ -179,31 +235,33 @@ function MixamoHuman({ yawRef, movingRef }: PlayerAvatarProps) {
     const sprint = game.input.sprint && stance === 'stand'
     const slow = game.input.slow
     const airborne = game.airborne
-    const moving = movingRef.current
+    // Prefer live store input; movingRef is a backup from the controller.
+    const moving =
+      movingRef.current ||
+      Math.hypot(game.input.moveX, game.input.moveZ) > 0.05
 
     let next: ClipName = 'idle'
     if (stance === 'prone') next = 'idle'
     else if (airborne) next = 'idle'
-    else if (moving && sprint && stance === 'stand') next = 'run'
+    else if (moving && sprint) next = 'run'
     else if (moving) next = 'walk'
-    else next = 'idle'
 
     if (next !== currentClip.current) {
-      const prev = currentClip.current ? actions[currentClip.current] : null
-      const action = actions[next]
+      const prev = currentClip.current ? getAction(currentClip.current) : null
+      const action = getAction(next)
       if (action) {
-        action.reset().setEffectiveTimeScale(1).setEffectiveWeight(1).fadeIn(0.18).play()
+        action.reset().setEffectiveTimeScale(1).setEffectiveWeight(1).fadeIn(0.12).play()
         action.setLoop(THREE.LoopRepeat, Infinity)
-        prev?.fadeOut(0.18)
+        prev?.fadeOut(0.12)
         currentClip.current = next
       }
     }
 
-    const action = currentClip.current ? actions[currentClip.current] : null
+    const action = currentClip.current ? getAction(currentClip.current) : null
     if (action) {
       if (stance === 'crouch' && next === 'walk') action.setEffectiveTimeScale(0.72)
       else if (slow && next === 'walk') action.setEffectiveTimeScale(0.58)
-      else if (sprint && next === 'run') action.setEffectiveTimeScale(1.05)
+      else if (sprint && next === 'run') action.setEffectiveTimeScale(1.08)
       else if (stance === 'prone') action.setEffectiveTimeScale(0.25)
       else action.setEffectiveTimeScale(1)
     }
@@ -219,8 +277,7 @@ function MixamoHuman({ yawRef, movingRef }: PlayerAvatarProps) {
     const j = jumpAmt.current
     const p = proneAmt.current
 
-    // Prone de guata: pitch negativo (barriga al piso, espalda a la cámara).
-    const stanceY = c * -0.42 + p * 0.28 + j * 0.04
+    const stanceY = c * -0.35 + p * 0.28 + j * 0.04
     const stancePitch = p * -1.42
     stanceRef.current.position.y = THREE.MathUtils.damp(stanceRef.current.position.y, stanceY, 14, delta)
     stanceRef.current.rotation.x = THREE.MathUtils.damp(
@@ -233,7 +290,7 @@ function MixamoHuman({ yawRef, movingRef }: PlayerAvatarProps) {
     const b = bonesRef.current
     if (!b) return
 
-    if (b.hips) b.hips.position.y += c * -0.12 + j * 0.02
+    if (b.hips) b.hips.position.y += c * -0.1 + j * 0.02
     if (b.spine) b.spine.rotation.x += c * 0.35 + j * 0.1
     if (b.spine1) b.spine1.rotation.x += c * 0.2
 
@@ -245,11 +302,10 @@ function MixamoHuman({ yawRef, movingRef }: PlayerAvatarProps) {
     if (b.rightLeg) b.rightLeg.rotation.x += shin
 
     const armUp = j * -2.4 + c * -0.45
-    const shoulderLift = j * 0.55
     if (b.leftArm) b.leftArm.rotation.x += armUp
     if (b.rightArm) b.rightArm.rotation.x += armUp
-    if (b.leftShoulder) b.leftShoulder.rotation.y += shoulderLift
-    if (b.rightShoulder) b.rightShoulder.rotation.y -= shoulderLift
+    if (b.leftShoulder) b.leftShoulder.rotation.y += j * 0.55
+    if (b.rightShoulder) b.rightShoulder.rotation.y -= j * 0.55
     if (b.leftArm) b.leftArm.rotation.z += p * 0.35
     if (b.rightArm) b.rightArm.rotation.z += p * -0.35
   }, 1)
@@ -257,10 +313,9 @@ function MixamoHuman({ yawRef, movingRef }: PlayerAvatarProps) {
   return (
     <group ref={root}>
       <group ref={stanceRef}>
-        <group rotation={[0, Math.PI, 0]}>
-          <group ref={animRoot}>
-            <primitive object={clone} />
-          </group>
+        {/* Face −Z so chase cam on +Z sees the back. */}
+        <group rotation={[0, Math.PI, 0]} scale={fitScale} position={[0, footOffset, 0]}>
+          <primitive object={clone} />
         </group>
       </group>
       <group ref={propRef} position={[0, 0.03, 0.05]} rotation={[Math.PI / 2, 0, 0]}>
@@ -274,13 +329,10 @@ function MixamoHuman({ yawRef, movingRef }: PlayerAvatarProps) {
   )
 }
 
-/**
- * Nude Mixamo human with walk/crouch/jump/prone poses.
- * Fallback body shows immediately so the camera always has a back to frame.
- */
+/** Nude Mixamo human with real Idle/Walk/Run; animated fallback while loading. */
 export function PlayerAvatar(props: PlayerAvatarProps) {
   return (
-    <Suspense fallback={<FallbackHuman yawRef={props.yawRef} />}>
+    <Suspense fallback={<FallbackHuman yawRef={props.yawRef} movingRef={props.movingRef} />}>
       <MixamoHuman {...props} />
     </Suspense>
   )

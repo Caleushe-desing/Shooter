@@ -67,36 +67,44 @@ export function PlayerController() {
   const aimRaycaster = useMemo(() => new THREE.Raycaster(), [])
   const { gl, camera } = useThree()
 
-  const isTouch =
-    typeof window !== 'undefined' &&
-    ('ontouchstart' in window || navigator.maxTouchPoints > 0)
-
   useEffect(() => {
     const el = gl.domElement
+    let dragging = false
 
     const uiBlocking = () => {
       const w = useWorldStore.getState()
       return w.inventoryOpen || w.mapOpen
     }
 
+    const requestLock = () => {
+      if (document.pointerLockElement !== el) {
+        void el.requestPointerLock()
+      }
+    }
+
     const onMouseDown = (e: MouseEvent) => {
-      if (isTouch) return
-      if (uiBlocking()) return
-      if (document.pointerLockElement === el && e.button === 0) {
+      if (uiBlocking() || useSettingsStore.getState().open) return
+      if (e.button === 0) {
+        dragging = true
+        requestLock()
+        // Fire even if pointer lock is denied (some browsers / embeds).
         useGameStore.getState().queueFire()
       }
     }
 
+    const onMouseUp = (e: MouseEvent) => {
+      if (e.button === 0) dragging = false
+    }
+
     const onClick = () => {
-      if (isTouch || useSettingsStore.getState().open) return
+      if (useSettingsStore.getState().open) return
       if (uiBlocking()) return
-      if (document.pointerLockElement !== el) {
-        el.requestPointerLock()
-      }
+      requestLock()
     }
 
     const onMouseMove = (e: MouseEvent) => {
-      if (document.pointerLockElement !== el) return
+      const locked = document.pointerLockElement === el
+      if (!locked && !dragging) return
       const sensitivity =
         PLAYER.lookSensitivityDesktop * useSettingsStore.getState().lookSpeed
       useGameStore.getState().addLook(
@@ -186,12 +194,13 @@ export function PlayerController() {
 
     const onContextMenu = (e: MouseEvent) => {
       e.preventDefault()
-      if (isTouch || useSettingsStore.getState().open) return
+      if (useSettingsStore.getState().open) return
       useGameStore.getState().toggleScope()
     }
 
     el.addEventListener('click', onClick)
     el.addEventListener('mousedown', onMouseDown)
+    window.addEventListener('mouseup', onMouseUp)
     el.addEventListener('contextmenu', onContextMenu)
     document.addEventListener('mousemove', onMouseMove)
     window.addEventListener('keydown', onKeyDown)
@@ -199,11 +208,12 @@ export function PlayerController() {
     return () => {
       el.removeEventListener('click', onClick)
       el.removeEventListener('mousedown', onMouseDown)
+      window.removeEventListener('mouseup', onMouseUp)
       el.removeEventListener('contextmenu', onContextMenu)
       document.removeEventListener('mousemove', onMouseMove)
       window.removeEventListener('keydown', onKeyDown)
     }
-  }, [gl, isTouch])
+  }, [gl])
 
   // Patio sandbox: if a previous session left the colono dead, revive on mount.
   useEffect(() => {
@@ -226,12 +236,11 @@ export function PlayerController() {
         x /= len
         z /= len
       }
-      if (!isTouch) {
-        const game = useGameStore.getState()
-        game.setMove(x, z)
-        game.setSprint(keys.has('ShiftLeft') || keys.has('ShiftRight'))
-        game.setSlow(keys.has('AltLeft') || keys.has('AltRight'))
-      }
+      // Always apply WASD — never gate on touch (laptops often report touch points).
+      const game = useGameStore.getState()
+      game.setMove(x, z)
+      game.setSprint(keys.has('ShiftLeft') || keys.has('ShiftRight'))
+      game.setSlow(keys.has('AltLeft') || keys.has('AltRight'))
     }
 
     const down = (e: KeyboardEvent) => {
@@ -265,7 +274,7 @@ export function PlayerController() {
       window.removeEventListener('keydown', down)
       window.removeEventListener('keyup', up)
     }
-  }, [isTouch])
+  }, [])
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05)
