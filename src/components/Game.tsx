@@ -94,9 +94,13 @@ function Scene() {
 function ControlsHint() {
   const mobile = useIsMobile()
   return (
-    <div className="pointer-events-none absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded-md bg-black/40 px-3 py-1.5 text-[11px] tracking-[0.12em] text-white/85">
+    <div
+      className={`pointer-events-none absolute left-1/2 z-20 max-w-[min(92vw,28rem)] -translate-x-1/2 rounded-md bg-black/40 px-3 py-1.5 text-center text-[10px] tracking-[0.1em] text-white/85 sm:text-[11px] sm:tracking-[0.12em] ${
+        mobile ? 'bottom-36' : 'bottom-4'
+      }`}
+    >
       {mobile
-        ? 'IZQ MOVER · PINZA ZOOM · +/− · VISTA 2D'
+        ? 'IZQ MOVER · DER DISPARO · ARRIBA VISTA/ZOOM'
         : 'WASD · RUEDA ZOOM · +/− · V VISTA · CLIC DISPARO'}
     </div>
   )

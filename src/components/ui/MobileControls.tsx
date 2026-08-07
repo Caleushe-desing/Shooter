@@ -6,10 +6,10 @@ import { unlockAudio } from '../../audio/gunshot'
 import { mobileLookStick, resetMobileLookStick } from '../../input/mobileLookStick'
 
 /**
- * Android / tablet overlay:
- * - Left: virtual joystick (move)
- * - Right half: tap anywhere to fire + drag to look; SALTAR / CORRER buttons
- * Desktop uses WASD + Shift + Space + click in PlayerController; this stays hidden.
+ * Mobile layout (no overlap with CombatHud):
+ * - Bottom-left: move joystick
+ * - Bottom-right: jump + sprint only (camera lives in top-right HUD)
+ * - Right mid: look/fire (inset from top HUD and bottom buttons)
  */
 export function MobileControls() {
   const mobile = useIsMobile()
@@ -47,7 +47,6 @@ function Joystick() {
         dy = (dy / len) * radius
       }
       setKnob({ x: dx, y: dy })
-      // Screen up → negative Y → forward (same as keyboard W = moveZ -1).
       setMove(dx / radius, dy / radius)
     },
     [setMove],
@@ -63,7 +62,7 @@ function Joystick() {
   return (
     <div
       ref={baseRef}
-      className="pointer-events-auto absolute bottom-6 left-6 z-40 h-32 w-32 touch-none sm:bottom-8 sm:left-8"
+      className="pointer-events-auto absolute bottom-5 left-4 z-40 h-28 w-28 touch-none sm:bottom-8 sm:left-8 sm:h-32 sm:w-32"
       onPointerDown={(e) => {
         e.preventDefault()
         e.currentTarget.setPointerCapture(e.pointerId)
@@ -82,7 +81,7 @@ function Joystick() {
       <div className="absolute inset-0 rounded-full border border-white/30 bg-[#1A2430]/40 backdrop-blur-sm" />
       <div className="absolute inset-3 rounded-full border border-[#6FE04A]/35" />
       <div
-        className="absolute h-12 w-12 rounded-full border-2 border-white/80 bg-[#6FE04A]/85 shadow-md"
+        className="absolute h-11 w-11 rounded-full border-2 border-white/80 bg-[#6FE04A]/85 shadow-md sm:h-12 sm:w-12"
         style={{
           left: `calc(50% + ${knob.x}px)`,
           top: `calc(50% + ${knob.y}px)`,
@@ -93,30 +92,17 @@ function Joystick() {
   )
 }
 
-/** Jump + sprint + camera mode. */
+/** Jump + sprint only — camera toggle stays in the top-right HUD. */
 function RightHandButtons() {
   const sprint = useGameStore((s) => s.input.sprint)
-  const cameraMode = useGameStore((s) => s.cameraMode)
   const toggleSprint = useGameStore((s) => s.toggleSprint)
   const requestJump = useGameStore((s) => s.requestJump)
-  const toggleCameraMode = useGameStore((s) => s.toggleCameraMode)
 
   return (
-    <div className="pointer-events-auto absolute bottom-6 right-6 z-40 flex touch-none flex-col items-center gap-3 sm:bottom-8 sm:right-8">
+    <div className="pointer-events-auto absolute bottom-5 right-4 z-40 flex touch-none flex-col items-center gap-2.5 sm:bottom-8 sm:right-8 sm:gap-3">
       <button
         type="button"
-        className="flex h-12 w-12 select-none items-center justify-center rounded-full border-2 border-[#E8C86A]/55 bg-[#3A2A10]/65 text-[9px] font-bold tracking-[0.1em] text-[#F2E08A] shadow-md backdrop-blur-sm active:scale-95"
-        onPointerDown={(e) => {
-          e.preventDefault()
-          e.stopPropagation()
-          toggleCameraMode()
-        }}
-      >
-        {cameraMode === 'top' ? '2D' : cameraMode === 'first' ? '1ª' : '3ª'}
-      </button>
-      <button
-        type="button"
-        className="flex h-14 w-14 select-none items-center justify-center rounded-full border-2 border-white/50 bg-[#1A2430]/55 text-[10px] font-bold tracking-[0.12em] text-white/90 shadow-md backdrop-blur-sm active:scale-95 active:border-white active:bg-[#6FE04A] active:text-[#143018]"
+        className="flex h-12 w-12 select-none items-center justify-center rounded-full border-2 border-white/50 bg-[#1A2430]/55 text-[10px] font-bold tracking-[0.12em] text-white/90 shadow-md backdrop-blur-sm active:scale-95 active:border-white active:bg-[#6FE04A] active:text-[#143018] sm:h-14 sm:w-14"
         onPointerDown={(e) => {
           e.preventDefault()
           e.stopPropagation()
@@ -127,7 +113,7 @@ function RightHandButtons() {
       </button>
       <button
         type="button"
-        className={`flex h-16 w-16 select-none items-center justify-center rounded-full border-2 text-[11px] font-bold tracking-[0.14em] shadow-md ${
+        className={`flex h-14 w-14 select-none items-center justify-center rounded-full border-2 text-[11px] font-bold tracking-[0.14em] shadow-md sm:h-16 sm:w-16 ${
           sprint
             ? 'border-white bg-[#6FE04A] text-[#143018]'
             : 'border-white/50 bg-[#1A2430]/55 text-white/90 backdrop-blur-sm'
@@ -145,10 +131,8 @@ function RightHandButtons() {
 }
 
 /**
- * Right play area (below the top HUD strip):
- * - tap / press → fire
- * - hold finger offset → look stick
- * Multi-touch / non-primary pointers are ignored (pinch zoom must not shoot).
+ * Look/fire zone — inset so it never covers:
+ * top HUD, bottom-left joystick, bottom-right action buttons.
  */
 function RightLookAndFire() {
   const requestFire = useGameStore((s) => s.requestFire)
@@ -186,13 +170,12 @@ function RightLookAndFire() {
 
   return (
     <div
-      className="pointer-events-auto absolute bottom-0 right-0 top-28 z-30 w-1/2 touch-none"
+      className="pointer-events-auto absolute bottom-36 right-0 top-28 z-30 w-[46%] touch-none sm:bottom-40"
       onPointerDown={(e) => {
         if ((e.target as HTMLElement).closest('button')) return
         if (!e.isPrimary) return
         if (e.pointerType === 'touch') {
           touchCount.current += 1
-          // Second finger = pinch zoom, cancel look/fire.
           if (touchCount.current > 1) {
             end()
             return

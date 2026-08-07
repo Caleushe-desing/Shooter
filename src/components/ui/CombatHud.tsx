@@ -1,7 +1,13 @@
+import type { SyntheticEvent } from 'react'
 import { CAMERA } from '../../constants'
 import { useGameStore } from '../../store/gameStore'
 
-/** Survival HUD: orbs left, revolver ammo, camera toggle, zoom, win/lose. */
+/**
+ * Fixed HUD zones (no overlap across camera modes):
+ * - Top-left: vitals
+ * - Top-right: camera + zoom (2D only)
+ * - Center overlay: win / lose
+ */
 export function CombatHud() {
   const cameraMode = useGameStore((s) => s.cameraMode)
   const toggleCameraMode = useGameStore((s) => s.toggleCameraMode)
@@ -26,13 +32,17 @@ export function CombatHud() {
       100,
   )
 
+  const stop = (e: SyntheticEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }
+
   return (
     <>
-      <div className="pointer-events-none absolute left-3 top-3 z-50 flex flex-col gap-1.5">
+      {/* TOP-LEFT — stats only */}
+      <div className="pointer-events-none absolute left-3 top-3 z-50 flex max-w-[42vw] flex-col gap-1.5 sm:max-w-none">
         <div className="rounded bg-black/50 px-2.5 py-1.5 backdrop-blur-sm">
-          <div className="text-[10px] font-semibold tracking-[0.14em] text-white/65">
-            ORBES
-          </div>
+          <div className="text-[10px] font-semibold tracking-[0.14em] text-white/65">ORBES</div>
           <div className="text-lg font-bold tracking-wide text-[#F2E08A]">
             {orbsRemaining}
             <span className="ml-1 text-sm font-normal text-white/50">/ {orbsTotal}</span>
@@ -71,19 +81,16 @@ export function CombatHud() {
         </div>
       </div>
 
-      <div className="absolute right-3 top-3 z-50 flex flex-col items-end gap-2">
+      {/* TOP-RIGHT — single camera control (+ zoom only in 2D) */}
+      <div className="absolute right-3 top-3 z-50 flex max-w-[46vw] flex-col items-end gap-2 sm:max-w-none">
         <button
           type="button"
           className="pointer-events-auto rounded border border-white/40 bg-black/50 px-3 py-2 text-[11px] font-bold tracking-[0.14em] text-white/90 shadow-md backdrop-blur-sm hover:border-[#E8C86A]/80 hover:text-[#F2E08A] active:scale-95"
           onClick={(e) => {
-            e.preventDefault()
-            e.stopPropagation()
+            stop(e)
             toggleCameraMode()
           }}
-          onPointerDown={(e) => {
-            e.preventDefault()
-            e.stopPropagation()
-          }}
+          onPointerDown={stop}
         >
           {camLabel}
           <span className="mt-0.5 block text-[9px] font-normal tracking-[0.08em] text-white/55">
@@ -94,24 +101,17 @@ export function CombatHud() {
         {cameraMode === 'top' && (
           <div
             className="pointer-events-auto flex items-center gap-1 rounded border border-white/30 bg-black/50 p-1 backdrop-blur-sm"
-            onPointerDown={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-            }}
+            onPointerDown={stop}
           >
             <button
               type="button"
               className="flex h-9 w-9 items-center justify-center rounded text-lg font-bold text-white/90 hover:bg-white/10 active:scale-95"
               aria-label="Acercar"
               onClick={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
+                stop(e)
                 adjustTopZoom(-CAMERA.topZoomStep)
               }}
-              onPointerDown={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-              }}
+              onPointerDown={stop}
             >
               +
             </button>
@@ -124,14 +124,10 @@ export function CombatHud() {
               className="flex h-9 w-9 items-center justify-center rounded text-lg font-bold text-white/90 hover:bg-white/10 active:scale-95"
               aria-label="Alejar"
               onClick={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
+                stop(e)
                 adjustTopZoom(CAMERA.topZoomStep)
               }}
-              onPointerDown={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-              }}
+              onPointerDown={stop}
             >
               −
             </button>
@@ -140,7 +136,7 @@ export function CombatHud() {
       </div>
 
       {status !== 'playing' && (
-        <div className="absolute inset-0 z-40 flex items-center justify-center bg-[#101418]/72 backdrop-blur-[2px]">
+        <div className="absolute inset-0 z-[60] flex items-center justify-center bg-[#101418]/72 backdrop-blur-[2px]">
           <div className="flex flex-col items-center gap-4 px-6 text-center">
             <div
               className={`text-3xl font-semibold tracking-[0.16em] ${
@@ -159,7 +155,7 @@ export function CombatHud() {
             </div>
             <button
               type="button"
-              className="rounded border border-[#E8C86A]/80 bg-[#3A2A10]/90 px-5 py-2.5 text-sm font-bold tracking-[0.16em] text-[#F2E08A] shadow-md hover:bg-[#E8C86A] hover:text-[#1A1408]"
+              className="pointer-events-auto rounded border border-[#E8C86A]/80 bg-[#3A2A10]/90 px-5 py-2.5 text-sm font-bold tracking-[0.16em] text-[#F2E08A] shadow-md hover:bg-[#E8C86A] hover:text-[#1A1408]"
               onClick={() => restartRun()}
             >
               REINTENTAR
