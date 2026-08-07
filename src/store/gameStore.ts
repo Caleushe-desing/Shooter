@@ -12,6 +12,8 @@ type GameState = {
   jumpQueued: boolean
   /** One-shot fire requests (can stack briefly). */
   fireQueued: number
+  /** Monotonic shot counter for HUD kick / VFX (not consumed). */
+  shotId: number
   lookDx: number
   lookDy: number
   setMove: (x: number, z: number) => void
@@ -29,6 +31,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   input: { moveX: 0, moveZ: 0, sprint: false },
   jumpQueued: false,
   fireQueued: 0,
+  shotId: 0,
   lookDx: 0,
   lookDy: 0,
 
@@ -44,7 +47,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     return true
   },
 
-  requestFire: () => set((s) => ({ fireQueued: s.fireQueued + 1 })),
+  requestFire: () =>
+    set((s) => ({ fireQueued: s.fireQueued + 1, shotId: s.shotId + 1 })),
   consumeFire: () => {
     if (get().fireQueued <= 0) return false
     set((s) => ({ fireQueued: Math.max(0, s.fireQueued - 1) }))

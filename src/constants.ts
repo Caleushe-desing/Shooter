@@ -63,6 +63,7 @@ export const WEAPON = {
   range: 90,
   muzzleForward: 0.85,
   tracerRadius: 0.045,
+  tracerLength: 1.35,
 } as const
 
 export const ARENA = {

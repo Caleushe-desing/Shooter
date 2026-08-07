@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react'
 import { PLAYER } from '../../constants'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useGameStore } from '../../store/gameStore'
+import { unlockAudio } from '../../audio/gunshot'
 
 /**
  * Android / tablet overlay:
@@ -106,6 +107,7 @@ function RightHandButtons() {
         onPointerDown={(e) => {
           e.preventDefault()
           e.stopPropagation()
+          unlockAudio()
           requestFire()
         }}
       >

@@ -7,6 +7,7 @@ import { useGameStore } from '../../store/gameStore'
 import { PlayerAvatar } from './PlayerAvatar'
 import { WeaponSystem } from './WeaponSystem'
 import { buildHavenInspiredMap } from '../../map/havenLayout'
+import { unlockAudio } from '../../audio/gunshot'
 
 const MAP_SOLIDS = buildHavenInspiredMap().solids
 
@@ -38,6 +39,7 @@ export function PlayerController() {
     const onPointerDown = (e: PointerEvent) => {
       if (isCoarse()) return
       if (e.button !== 0) return
+      unlockAudio()
       if (document.pointerLockElement !== el) {
         void el.requestPointerLock()
         return
