@@ -73,12 +73,12 @@ function rayHitsAabb(
 }
 
 function rayHitsFloor(
-  ox: number,
+  _ox: number,
   oy: number,
-  oz: number,
-  dx: number,
+  _oz: number,
+  _dx: number,
   dy: number,
-  dz: number,
+  _dz: number,
   maxDist: number,
 ): number | null {
   if (dy >= -1e-8) return null
