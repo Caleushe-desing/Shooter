@@ -19,7 +19,6 @@ export function PlayerController() {
   const bodyYaw = useRef(0)
   const moving = useRef(false)
   const pos = useRef(new THREE.Vector3(PLAYER.spawn.x, 0, PLAYER.spawn.z))
-  const camH = useRef<number>(CAMERA.height)
   const forward = useRef(new THREE.Vector3())
   const right = useRef(new THREE.Vector3())
   const wish = useRef(new THREE.Vector3())
@@ -70,11 +69,6 @@ export function PlayerController() {
     }
 
     const down = (e: KeyboardEvent) => {
-      if (e.code === 'ControlLeft' || e.code === 'ControlRight') {
-        e.preventDefault()
-        if (!e.repeat) useGameStore.getState().toggleCrouch()
-        return
-      }
       keys.add(e.code)
       if (e.code.startsWith('Arrow') || e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
         e.preventDefault()
@@ -106,15 +100,10 @@ export function PlayerController() {
       PLAYER.pitchMax,
     )
 
-    const store = useGameStore.getState()
-    const crouched = store.crouched
-
     bodyYaw.current = lookYaw.current
     yawPivot.current.rotation.y = lookYaw.current
     pitchObj.current.rotation.x = lookPitch.current
-    const targetCam = crouched ? CAMERA.crouchHeight : CAMERA.height
-    camH.current = THREE.MathUtils.damp(camH.current, targetCam, 12, dt)
-    yawPivot.current.position.y = camH.current
+    yawPivot.current.position.y = CAMERA.height
 
     // Hierarchical boom: camera on +Z looks local −Z at the character.
     camera.position.set(CAMERA.shoulder, CAMERA.lift, CAMERA.distance)
@@ -123,7 +112,7 @@ export function PlayerController() {
     forward.current.set(-Math.sin(lookYaw.current), 0, -Math.cos(lookYaw.current))
     right.current.set(Math.cos(lookYaw.current), 0, -Math.sin(lookYaw.current))
 
-    const { moveX, moveZ, sprint } = store.input
+    const { moveX, moveZ, sprint } = useGameStore.getState().input
     wish.current
       .set(0, 0, 0)
       .addScaledVector(right.current, moveX)
@@ -131,10 +120,7 @@ export function PlayerController() {
 
     moving.current = wish.current.lengthSq() > 1e-6
     if (moving.current) {
-      let gait = 1
-      if (crouched) gait = PLAYER.crouchMul
-      else if (sprint) gait = PLAYER.runMul
-      const speed = PLAYER.speed * gait
+      const speed = PLAYER.speed * (sprint ? PLAYER.runMul : 1)
       wish.current.normalize().multiplyScalar(speed * dt)
       const next = clampToArena(
         pos.current.x + wish.current.x,

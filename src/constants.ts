@@ -12,7 +12,6 @@ export const PLAYER = {
   radius: 0.35,
   speed: 4.2,
   runMul: 1.7,
-  crouchMul: 0.45,
   lookSensitivity: 0.0022,
   pitchMin: -0.55,
   pitchMax: 0.4,
@@ -25,7 +24,6 @@ export const PLAYER = {
 export const CAMERA = {
   shoulder: 0.35,
   height: 1.7,
-  crouchHeight: 1.2,
   lift: 0.22,
   distance: 3.6,
   near: 0.1,
