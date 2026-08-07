@@ -47,6 +47,24 @@ export const CAMERA = {
   fov: 60,
 } as const
 
+/**
+ * Third-person aim: crosshair sits off-center (over-the-shoulder),
+ * shots follow a ray through that screen point.
+ */
+export const WEAPON = {
+  /** Screen offset from center (px) — right / slightly up. */
+  crosshairOffsetX: 56,
+  crosshairOffsetY: -10,
+  /** Matching NDC for unproject (−1…1). Tuned with the HUD offsets. */
+  ndcX: 0.15,
+  ndcY: 0.05,
+  cooldown: 0.14,
+  speed: 92,
+  range: 90,
+  muzzleForward: 0.85,
+  tracerRadius: 0.045,
+} as const
+
 export const ARENA = {
   /** Playable square (meters). */
   size: 96,

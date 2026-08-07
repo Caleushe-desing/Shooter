@@ -2,6 +2,7 @@ import { Canvas } from '@react-three/fiber'
 import { Arena } from './scene/Arena'
 import { PlayerController } from './scene/PlayerController'
 import { MobileControls } from './ui/MobileControls'
+import { Crosshair } from './ui/Crosshair'
 import { useIsMobile } from '../hooks/useIsMobile'
 import { COLORS } from '../constants'
 
@@ -24,8 +25,8 @@ function ControlsHint() {
   return (
     <div className="pointer-events-none absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded-md bg-black/40 px-3 py-1.5 text-[11px] tracking-[0.12em] text-white/85">
       {mobile
-        ? 'JOYSTICK · CORRER · SALTAR · MIRAR'
-        : 'CLIC · WASD · SHIFT CORRER · SPACE SALTAR'}
+        ? 'JOYSTICK · DISPARO · SALTAR · CORRER · MIRAR'
+        : 'CLIC MIRAR/DISPARAR · WASD · SHIFT · SPACE'}
     </div>
   )
 }
@@ -44,6 +45,7 @@ export function Game() {
         <Scene />
       </Canvas>
 
+      <Crosshair />
       <MobileControls />
       <ControlsHint />
     </div>

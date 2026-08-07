@@ -10,6 +10,8 @@ type GameState = {
   input: InputState
   /** One-shot jump request (Space / jump button). */
   jumpQueued: boolean
+  /** One-shot fire requests (can stack briefly). */
+  fireQueued: number
   lookDx: number
   lookDy: number
   setMove: (x: number, z: number) => void
@@ -17,6 +19,8 @@ type GameState = {
   toggleSprint: () => void
   requestJump: () => void
   consumeJump: () => boolean
+  requestFire: () => void
+  consumeFire: () => boolean
   addLook: (dx: number, dy: number) => void
   consumeLook: () => { dx: number; dy: number }
 }
@@ -24,6 +28,7 @@ type GameState = {
 export const useGameStore = create<GameState>((set, get) => ({
   input: { moveX: 0, moveZ: 0, sprint: false },
   jumpQueued: false,
+  fireQueued: 0,
   lookDx: 0,
   lookDy: 0,
 
@@ -36,6 +41,13 @@ export const useGameStore = create<GameState>((set, get) => ({
   consumeJump: () => {
     if (!get().jumpQueued) return false
     set({ jumpQueued: false })
+    return true
+  },
+
+  requestFire: () => set((s) => ({ fireQueued: s.fireQueued + 1 })),
+  consumeFire: () => {
+    if (get().fireQueued <= 0) return false
+    set((s) => ({ fireQueued: Math.max(0, s.fireQueued - 1) }))
     return true
   },
 

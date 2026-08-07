@@ -5,6 +5,7 @@ import * as THREE from 'three'
 import { PLAYER, CAMERA, clampToArena, resolveCircleAabb } from '../../constants'
 import { useGameStore } from '../../store/gameStore'
 import { PlayerAvatar } from './PlayerAvatar'
+import { WeaponSystem } from './WeaponSystem'
 import { buildHavenInspiredMap } from '../../map/havenLayout'
 
 const MAP_SOLIDS = buildHavenInspiredMap().solids
@@ -29,14 +30,19 @@ export function PlayerController() {
   const wish = useRef(new THREE.Vector3())
   const { gl, camera } = useThree()
 
-  // Desktop mouse look. On phones/tablets, look comes from MobileControls.
+  // Desktop mouse look + fire. On phones/tablets, look/fire come from MobileControls.
   useEffect(() => {
     const el = gl.domElement
     const isCoarse = () => window.matchMedia('(pointer: coarse)').matches
 
-    const onClick = () => {
+    const onPointerDown = (e: PointerEvent) => {
       if (isCoarse()) return
-      if (document.pointerLockElement !== el) void el.requestPointerLock()
+      if (e.button !== 0) return
+      if (document.pointerLockElement !== el) {
+        void el.requestPointerLock()
+        return
+      }
+      useGameStore.getState().requestFire()
     }
     const onMouseMove = (e: MouseEvent) => {
       if (isCoarse()) return
@@ -47,10 +53,10 @@ export function PlayerController() {
       )
     }
 
-    el.addEventListener('click', onClick)
+    el.addEventListener('pointerdown', onPointerDown)
     document.addEventListener('mousemove', onMouseMove)
     return () => {
-      el.removeEventListener('click', onClick)
+      el.removeEventListener('pointerdown', onPointerDown)
       document.removeEventListener('mousemove', onMouseMove)
     }
   }, [gl])
@@ -181,6 +187,7 @@ export function PlayerController() {
   return (
     <group ref={rig} position={[PLAYER.spawn.x, 0, PLAYER.spawn.z]}>
       <PlayerAvatar yawRef={bodyYaw} movingRef={moving} />
+      <WeaponSystem />
       <group ref={yawPivot} position={[0, CAMERA.height, 0]}>
         <group ref={pitchObj}>
           <PerspectiveCamera

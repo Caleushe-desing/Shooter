@@ -6,8 +6,8 @@ import { useGameStore } from '../../store/gameStore'
 /**
  * Android / tablet overlay:
  * - Left: virtual joystick (move)
- * - Right: look drag + CORRER toggle + SALTAR button
- * Desktop uses WASD + Shift + Space in PlayerController; this stays hidden.
+ * - Right: look drag + DISPARO / SALTAR / CORRER
+ * Desktop uses WASD + Shift + Space + click in PlayerController; this stays hidden.
  */
 export function MobileControls() {
   const mobile = useIsMobile()
@@ -91,14 +91,26 @@ function Joystick() {
   )
 }
 
-/** Right-hand action cluster: jump (tap) + run (toggle). */
+/** Right-hand action cluster: fire · jump · run. */
 function RightHandButtons() {
   const sprint = useGameStore((s) => s.input.sprint)
   const toggleSprint = useGameStore((s) => s.toggleSprint)
   const requestJump = useGameStore((s) => s.requestJump)
+  const requestFire = useGameStore((s) => s.requestFire)
 
   return (
     <div className="absolute bottom-6 right-6 z-40 flex touch-none flex-col items-center gap-3 sm:bottom-8 sm:right-8">
+      <button
+        type="button"
+        className="flex h-16 w-16 select-none items-center justify-center rounded-full border-2 border-[#E8C86A]/70 bg-[#3A2A10]/70 text-[10px] font-bold tracking-[0.12em] text-[#F2E08A] shadow-md backdrop-blur-sm active:scale-95 active:bg-[#E8C86A] active:text-[#1A1408]"
+        onPointerDown={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          requestFire()
+        }}
+      >
+        DISPARO
+      </button>
       <button
         type="button"
         className="flex h-14 w-14 select-none items-center justify-center rounded-full border-2 border-white/50 bg-[#1A2430]/55 text-[10px] font-bold tracking-[0.12em] text-white/90 shadow-md backdrop-blur-sm active:scale-95 active:border-white active:bg-[#6FE04A] active:text-[#143018]"
