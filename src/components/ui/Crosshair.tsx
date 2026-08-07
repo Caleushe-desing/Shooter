@@ -1,13 +1,16 @@
 import { CAMERA } from '../../constants'
 import { useGameStore } from '../../store/gameStore'
+import { useWorldStore } from '../../store/worldStore'
 
 /**
- * Hip-fire reticle — deliberately off-center (No Man's Sky style) so the
- * player's back owns the left side of the frame. Hidden while scoped.
+ * Hip-fire reticle — off-center OTS (character left, mira right).
+ * Hitscan uses the same NDC. Hidden while scoped / map / inventory.
  */
 export function Crosshair() {
   const scoped = useGameStore((s) => s.scoped)
-  if (scoped) return null
+  const inventoryOpen = useWorldStore((s) => s.inventoryOpen)
+  const mapOpen = useWorldStore((s) => s.mapOpen)
+  if (scoped || inventoryOpen || mapOpen) return null
 
   return (
     <div

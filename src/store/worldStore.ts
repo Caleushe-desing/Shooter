@@ -72,6 +72,9 @@ type WorldStore = {
   equipped: Equipment
   inventoryOpen: boolean
   inventoryTab: 'mochila' | 'crafteo' | 'construir' | 'equipo'
+  mapOpen: boolean
+  /** Look/body facing for the world map heading wedge. */
+  playerYaw: number
   toast: Toast | null
   interactHint: string | null
   scanActive: boolean
@@ -94,6 +97,9 @@ type WorldStore = {
   toggleInventory: () => void
   setInventoryOpen: (open: boolean) => void
   setInventoryTab: (tab: 'mochila' | 'crafteo' | 'construir' | 'equipo') => void
+  toggleMap: () => void
+  setMapOpen: (open: boolean) => void
+  setPlayerYaw: (yaw: number) => void
   craft: (recipeId: string) => boolean
   consumeFood: (id: ResourceId) => { hunger: number; thirst: number; hygiene: number } | null
   gatherWater: (px: number, pz: number) => boolean
@@ -146,6 +152,8 @@ export const useWorldStore = create<WorldStore>((set, get) => ({
   equipped: {},
   inventoryOpen: false,
   inventoryTab: 'mochila',
+  mapOpen: false,
+  playerYaw: 0,
   toast: null,
   interactHint: null,
   scanActive: false,
@@ -253,17 +261,28 @@ export const useWorldStore = create<WorldStore>((set, get) => ({
 
   toggleInventory: () => {
     const next = !get().inventoryOpen
-    set({ inventoryOpen: next, buildMode: null })
+    set({ inventoryOpen: next, buildMode: null, mapOpen: next ? false : get().mapOpen })
     if (next && document.pointerLockElement) document.exitPointerLock()
   },
   setInventoryOpen: (open) => {
-    set({ inventoryOpen: open })
+    set({ inventoryOpen: open, mapOpen: open ? false : get().mapOpen })
     if (open && document.pointerLockElement) document.exitPointerLock()
   },
   setInventoryTab: (tab) => {
-    set({ inventoryTab: tab, inventoryOpen: true })
+    set({ inventoryTab: tab, inventoryOpen: true, mapOpen: false })
     if (document.pointerLockElement) document.exitPointerLock()
   },
+
+  toggleMap: () => {
+    const next = !get().mapOpen
+    set({ mapOpen: next, inventoryOpen: next ? false : get().inventoryOpen, buildMode: null })
+    if (next && document.pointerLockElement) document.exitPointerLock()
+  },
+  setMapOpen: (open) => {
+    set({ mapOpen: open, inventoryOpen: open ? false : get().inventoryOpen })
+    if (open && document.pointerLockElement) document.exitPointerLock()
+  },
+  setPlayerYaw: (yaw) => set({ playerYaw: yaw }),
 
   equipItem: (id) => {
     const slot = EQUIPABLE[id]

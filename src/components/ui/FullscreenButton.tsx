@@ -24,6 +24,7 @@ async function exitFullscreen() {
 export function FullscreenButton() {
   const [active, setActive] = useState(false)
   const inventoryOpen = useWorldStore((s) => s.inventoryOpen)
+  const mapOpen = useWorldStore((s) => s.mapOpen)
 
   useEffect(() => {
     const sync = () => setActive(isFullscreen())
@@ -41,7 +42,7 @@ export function FullscreenButton() {
     }
   }, [])
 
-  if (inventoryOpen) return null
+  if (inventoryOpen || mapOpen) return null
 
   return (
     <button

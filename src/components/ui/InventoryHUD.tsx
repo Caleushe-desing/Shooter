@@ -47,6 +47,7 @@ export function InventoryHUD() {
   const inventory = useWorldStore((s) => s.inventory)
   const equipped = useWorldStore((s) => s.equipped)
   const open = useWorldStore((s) => s.inventoryOpen)
+  const mapOpen = useWorldStore((s) => s.mapOpen)
   const tab = useWorldStore((s) => s.inventoryTab)
   const toggle = useWorldStore((s) => s.toggleInventory)
   const setTab = useWorldStore((s) => s.setInventoryTab)
@@ -101,19 +102,19 @@ export function InventoryHUD() {
         </div>
       )}
 
-      {hint && !open && (
+      {hint && !open && !mapOpen && (
         <div className="pointer-events-none absolute bottom-36 left-1/2 z-20 -translate-x-1/2 rounded-md border border-white/15 bg-black/60 px-4 py-2 text-[11px] font-semibold tracking-[0.1em] text-white/90 sm:bottom-20">
           {hint}
         </div>
       )}
 
-      {buildMode && !open && (
+      {buildMode && !open && !mapOpen && (
         <div className="pointer-events-none absolute top-28 left-1/2 z-20 -translate-x-1/2 rounded-md border border-sky-300/30 bg-black/70 px-4 py-2 text-[11px] font-semibold tracking-[0.12em] text-sky-100">
           Construir {BUILDINGS[buildMode].label} · F / click · Esc cancela
         </div>
       )}
 
-      {!open && (
+      {!open && !mapOpen && (
         <button
           type="button"
           onClick={toggle}

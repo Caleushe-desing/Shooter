@@ -91,10 +91,11 @@ export const CAMERA = {
   near: 0.12,
   far: 2200,
   /**
-   * Hip-fire reticle (% of viewport). Centered so shots match the mira.
+   * Hip-fire reticle (% of viewport). Off-center OTS: character left, mira right.
+   * Hitscan uses the same NDC via hipFireAimNdc().
    */
-  aimLeftPct: 50,
-  aimTopPct: 50,
+  aimLeftPct: 62,
+  aimTopPct: 46,
 } as const
 
 /** NDC coords matching `CAMERA.aimLeftPct` / `aimTopPct` for hitscan. */

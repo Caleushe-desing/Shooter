@@ -79,9 +79,14 @@ export function PlayerController() {
   useEffect(() => {
     const el = gl.domElement
 
+    const uiBlocking = () => {
+      const w = useWorldStore.getState()
+      return w.inventoryOpen || w.mapOpen
+    }
+
     const onMouseDown = (e: MouseEvent) => {
       if (isTouch) return
-      if (useWorldStore.getState().inventoryOpen) return
+      if (uiBlocking()) return
       if (document.pointerLockElement === el && e.button === 0) {
         useGameStore.getState().queueFire()
       }
@@ -89,7 +94,7 @@ export function PlayerController() {
 
     const onClick = () => {
       if (isTouch || useSettingsStore.getState().open) return
-      if (useWorldStore.getState().inventoryOpen) return
+      if (uiBlocking()) return
       if (document.pointerLockElement !== el) {
         el.requestPointerLock()
       }
@@ -112,9 +117,25 @@ export function PlayerController() {
 
       if (e.code === 'Escape') {
         world.setBuildMode(null)
+        if (world.mapOpen) {
+          world.setMapOpen(false)
+          return
+        }
         if (world.inventoryOpen) world.setInventoryOpen(false)
       }
-      if (world.inventoryOpen && e.code !== 'KeyI' && e.code !== 'Escape') return
+      if (e.code === 'KeyM') {
+        e.preventDefault()
+        world.toggleMap()
+        return
+      }
+      if (
+        (world.inventoryOpen || world.mapOpen) &&
+        e.code !== 'KeyI' &&
+        e.code !== 'KeyM' &&
+        e.code !== 'Escape'
+      ) {
+        return
+      }
       if (e.code === 'Space' || e.code === 'KeyF') {
         e.preventDefault()
         if (world.buildMode) {
@@ -220,7 +241,8 @@ export function PlayerController() {
     setPlayerPosition(pos.current.x, PLAYER.eyeHeight, pos.current.z)
     if (store.caught) return
     if (useSettingsStore.getState().open) return
-    if (useWorldStore.getState().inventoryOpen) return
+    const worldUi = useWorldStore.getState()
+    if (worldUi.inventoryOpen || worldUi.mapOpen) return
 
     store.tickNeeds(dt)
 
@@ -297,6 +319,8 @@ export function PlayerController() {
       bodyYaw.current = dampAngle(bodyYaw.current, lookYaw.current, CAMERA.bodyTurn, dt)
     }
 
+    useWorldStore.getState().setPlayerYaw(lookYaw.current)
+
     const groundY = sampleHeight(pos.current.x, pos.current.z)
     // Smooth vertical follow so hills don't yank the camera/mira.
     smoothedY.current = THREE.MathUtils.damp(smoothedY.current, groundY, 14, dt)
@@ -371,8 +395,8 @@ export function PlayerController() {
 
     camera.position.copy(_idealLocal).multiplyScalar(camScale.current)
 
-    // Stable look-at from boom (no setFromCamera feedback — that yanked pitch to the sky).
-    _focusLocal.set(-shoulder * 0.2, -lift * 0.35, -CAMERA.lookAhead)
+    // Look toward the open side of the frame (where the OTS mira sits).
+    _focusLocal.set(-shoulder * 0.35, -lift * 0.25, -CAMERA.lookAhead)
     _focusWorld.copy(_focusLocal).applyMatrix4(pitchObj.current.matrixWorld)
     camera.lookAt(_focusWorld)
     camera.updateMatrixWorld(true)
@@ -381,12 +405,13 @@ export function PlayerController() {
     if (store.consumeFire() && now - lastFire.current >= COMBAT.fireCooldownMs) {
       lastFire.current = now
       camera.updateMatrixWorld(true)
-      // Hitscan through the on-screen mira after the camera is settled.
+      // Exact screen-space mira (offset NDC) — bullets go where the reticle is.
       const aimNdc = store.scoped ? SCOPE_AIM : hipAim
       aimRaycaster.setFromCamera(aimNdc, camera)
       aimOrigin.current.copy(aimRaycaster.ray.origin)
       aimDir.current.copy(aimRaycaster.ray.direction)
-      muzzlePos.current.copy(aimOrigin.current).addScaledVector(aimDir.current, 0.85)
+      // Tracer rides the same mira ray (not the gun barrel offset).
+      muzzlePos.current.copy(aimOrigin.current).addScaledVector(aimDir.current, 1.1)
       store.spawnTracer(aimOrigin.current, aimDir.current, muzzlePos.current)
     }
   })

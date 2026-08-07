@@ -17,6 +17,7 @@ import { AudioBoot } from './ui/AudioBoot'
 import { SectorCleared } from './ui/SectorCleared'
 import { LandscapeGate } from './ui/LandscapeGate'
 import { FullscreenButton } from './ui/FullscreenButton'
+import { WorldMap } from './ui/WorldMap'
 import { COLORS } from '../constants'
 
 function Scene() {
@@ -66,6 +67,7 @@ export function Game() {
       <HUD />
       <FullscreenButton />
       <InventoryHUD />
+      <WorldMap />
       <MobileControls />
       <ControlSettings />
       <AudioBoot />
@@ -73,10 +75,10 @@ export function Game() {
       <LandscapeGate />
 
       <div className="pointer-events-none absolute bottom-3 left-1/2 z-30 hidden -translate-x-1/2 rounded-md bg-black/35 px-3 py-1 text-[10px] tracking-[0.12em] text-white/80 sm:block">
-        WASD · E RECOGER · V CAVAR · C ESCANEAR · I INVENTARIO · Q DUCHA · R PESCAR
+        WASD · E RECOGER · V CAVAR · C ESCANEAR · I INVENTARIO · M MAPA · Q DUCHA · R PESCAR
       </div>
       <div className="pointer-events-none absolute bottom-3 left-1/2 z-30 -translate-x-1/2 rounded-md bg-black/35 px-3 py-1 text-[9px] tracking-[0.1em] text-white/75 sm:hidden">
-        MOVER · I INVENTARIO · E RECOGER · V CAVAR
+        MOVER · I INVENTARIO · M MAPA · E RECOGER · V CAVAR
       </div>
     </div>
   )
