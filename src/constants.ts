@@ -52,8 +52,8 @@ export const PLAYER = {
   speed: 6.8,
   lookSensitivityDesktop: 0.0022,
   lookSensitivityMobile: 0.0034,
-  /** Negative = look up, positive = look down. */
-  pitchMin: -0.85,
+  /** Negative = look up, positive = look down. Soft look-up so boom stays above terrain. */
+  pitchMin: -0.62,
   pitchMax: 0.72,
   spawn: { x: 0, y: 0, z: 8 },
   maxHealth: 100,
@@ -88,6 +88,8 @@ export const CAMERA = {
   collisionPullSpeed: 28,
   minDistance: 1.1,
   collisionSkin: 0.55,
+  /** Keep lens above heightmap when orbiting / looking up. */
+  groundClearance: 0.65,
   near: 0.12,
   far: 2200,
   /**

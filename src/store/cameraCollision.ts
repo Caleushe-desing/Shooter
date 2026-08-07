@@ -1,7 +1,10 @@
 import * as THREE from 'three'
 import { CAMERA, OBSTACLES } from '../constants'
 import { FLORA, MINERALS, WORLD } from '../world/catalog'
+import { sampleHeight } from '../world/heightmap'
 import { useWorldStore } from './worldStore'
+
+const _terrainProbe = new THREE.Vector3()
 
 type Aabb = {
   minX: number
@@ -160,6 +163,37 @@ function rayAabbEnter(
   return t0
 }
 
+/** Walk the boom ray and stop before the lens dips under the heightmap. */
+export function maxCameraBoomDistanceAgainstTerrain(
+  origin: THREE.Vector3,
+  direction: THREE.Vector3,
+  desiredDistance: number,
+): number {
+  const dirLen = direction.length()
+  if (dirLen < 1e-8) return CAMERA.minDistance
+  const inv = 1 / dirLen
+  const maxDist = Math.max(desiredDistance, CAMERA.minDistance)
+  const clearance = CAMERA.groundClearance
+  const steps = 16
+  let hit = maxDist
+
+  for (let i = 1; i <= steps; i++) {
+    const t = (maxDist * i) / steps
+    _terrainProbe.set(
+      origin.x + direction.x * inv * t,
+      origin.y + direction.y * inv * t,
+      origin.z + direction.z * inv * t,
+    )
+    const floorY = sampleHeight(_terrainProbe.x, _terrainProbe.z) + clearance
+    if (_terrainProbe.y < floorY) {
+      hit = (maxDist * (i - 1)) / steps
+      break
+    }
+  }
+
+  return THREE.MathUtils.clamp(hit, CAMERA.minDistance, maxDist)
+}
+
 export function maxCameraBoomDistance(
   origin: THREE.Vector3,
   direction: THREE.Vector3,
@@ -181,6 +215,9 @@ export function maxCameraBoomDistance(
     const t = rayAabbEnter(origin, dir, box, 0, maxDist)
     if (t != null && t < hit) hit = t
   }
+
+  const terrainHit = maxCameraBoomDistanceAgainstTerrain(origin, direction, maxDist)
+  if (terrainHit < hit) hit = terrainHit
 
   return THREE.MathUtils.clamp(hit, CAMERA.minDistance, maxDist)
 }

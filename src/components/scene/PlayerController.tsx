@@ -28,6 +28,7 @@ const _idealWorld = new THREE.Vector3()
 const _camDir = new THREE.Vector3()
 const _focusWorld = new THREE.Vector3()
 const _focusLocal = new THREE.Vector3()
+const _camWorld = new THREE.Vector3()
 
 function dampAngle(current: number, target: number, speed: number, dt: number) {
   let diff = target - current
@@ -394,6 +395,16 @@ export function PlayerController() {
     }
 
     camera.position.copy(_idealLocal).multiplyScalar(camScale.current)
+
+    // Final ground clamp — boom pull-in can still leave the lens under steep hills / look-up.
+    camera.updateMatrixWorld(true)
+    camera.getWorldPosition(_camWorld)
+    const floorY = sampleHeight(_camWorld.x, _camWorld.z) + CAMERA.groundClearance
+    if (_camWorld.y < floorY) {
+      _camWorld.y = floorY
+      pitchObj.current.worldToLocal(_camWorld)
+      camera.position.copy(_camWorld)
+    }
 
     // Look toward the open side of the frame (where the OTS mira sits).
     _focusLocal.set(-shoulder * 0.35, -lift * 0.25, -CAMERA.lookAhead)
