@@ -65,11 +65,11 @@ export const CAMERA = {
   fpFov: 72,
   /** Tiny forward so near plane clears the invisible body. */
   fpForward: 0.12,
-  /** Top-down / 2D Pac-Man style. */
-  topHeight: 34,
-  topFov: 46,
-  topNear: 2,
-  topFar: 160,
+  /** Top-down / 2D Pac-Man style — closer = larger on screen. */
+  topHeight: 18,
+  topFov: 42,
+  topNear: 1,
+  topFar: 120,
 } as const
 
 export type CameraMode = 'third' | 'first' | 'top'
