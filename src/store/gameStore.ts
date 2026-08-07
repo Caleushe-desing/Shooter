@@ -1,6 +1,5 @@
 import { create } from 'zustand'
 import { COMBAT, PLAYER, type CameraMode } from '../constants'
-import { clearEnemies } from '../combat/enemies'
 
 type InputState = {
   moveX: number
@@ -110,7 +109,6 @@ export const useGameStore = create<GameState>((set, get) => ({
   registerKill: () => set((s) => ({ kills: s.kills + 1 })),
 
   restartRun: () => {
-    clearEnemies()
     set({
       health: COMBAT.maxHealth,
       alive: true,
