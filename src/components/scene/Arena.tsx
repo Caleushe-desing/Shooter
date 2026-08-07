@@ -1,7 +1,6 @@
-import { Suspense, useMemo } from 'react'
+import { useMemo } from 'react'
 import { ARENA, COLORS } from '../../constants'
 import { buildHavenInspiredMap } from '../../map/havenLayout'
-import { RealisticTree } from './RealisticTree'
 
 /** Large Haven-inspired blockout: three plazas, mid lane, buildings, outer walls. */
 export function Arena() {
@@ -51,10 +50,6 @@ export function Arena() {
           />
         </mesh>
       ))}
-
-      <Suspense fallback={null}>
-        <RealisticTree />
-      </Suspense>
     </group>
   )
 }

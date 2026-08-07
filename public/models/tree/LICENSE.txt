@@ -1,4 +1,0 @@
-Poly Haven — fir_tree_01 textures (CC0 / public domain)
-Source: https://polyhaven.com/a/fir_tree_01
-License: Creative Commons Zero (CC0)
-No attribution required; included here as bark + twig maps for the in-game hero tree.
