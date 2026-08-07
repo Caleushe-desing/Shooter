@@ -24,7 +24,7 @@ function ControlsHint() {
   return (
     <div className="pointer-events-none absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded-md bg-black/40 px-3 py-1.5 text-[11px] tracking-[0.12em] text-white/85">
       {mobile
-        ? 'JOYSTICK MOVER · DEDO DERECHO MIRAR · CORRER'
+        ? 'JOYSTICK · ARRIBA A TOPE = CORRER · DEDO DERECHO MIRAR'
         : 'CLIC · WASD CAMINAR · SHIFT CORRER'}
     </div>
   )
