@@ -1,4 +1,11 @@
-import { Suspense, useEffect, useMemo, useRef, type MutableRefObject } from 'react'
+import {
+  Suspense,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  type MutableRefObject,
+} from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useAnimations, useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
@@ -7,25 +14,60 @@ import { PLAYER } from '../../constants'
 import { useGameStore } from '../../store/gameStore'
 
 type Props = {
+  /** Body / legs facing (follows move direction when strafing). */
   yawRef: MutableRefObject<number>
+  /** Camera look yaw — head stays aimed this way. */
+  lookYawRef: MutableRefObject<number>
   movingRef: MutableRefObject<boolean>
 }
 
 const MODEL_URL = '/models/human.glb'
 const TARGET_HEIGHT = PLAYER.height
+/** Max head twist vs body (radians). */
+const HEAD_YAW_MAX = 1.15
+const _up = new THREE.Vector3(0, 1, 0)
+const _twistQ = new THREE.Quaternion()
 
 useGLTF.preload(MODEL_URL)
 
 type ClipName = 'idle' | 'walk' | 'run'
 
+function findBone(root: THREE.Object3D, names: string[]): THREE.Bone | null {
+  let found: THREE.Bone | null = null
+  root.traverse((obj) => {
+    if (found) return
+    if (names.includes(obj.name) && (obj as THREE.Bone).isBone) {
+      found = obj as THREE.Bone
+    }
+  })
+  return found
+}
+
+function shortestAngle(from: number, to: number) {
+  let d = to - from
+  while (d > Math.PI) d -= Math.PI * 2
+  while (d < -Math.PI) d += Math.PI * 2
+  return d
+}
+
+/** Apply local Y twist after the mixer wrote the animated quaternion. */
+function twistBoneY(bone: THREE.Bone, radians: number) {
+  if (Math.abs(radians) < 1e-5) return
+  _twistQ.setFromAxisAngle(_up, radians)
+  bone.quaternion.multiply(_twistQ)
+}
+
 /**
- * Mixamo X-Bot nude human — idle / walk / run.
- * Restored from the working clip setup (modelRef + real clip names).
+ * Mixamo X-Bot — idle / walk / run.
+ * Body uses yawRef (move facing); head follows lookYawRef so strafing
+ * keeps the face forward while legs walk sideways.
  */
-function MixamoHuman({ yawRef, movingRef }: Props) {
+function MixamoHuman({ yawRef, lookYawRef, movingRef }: Props) {
   const root = useRef<THREE.Group>(null)
   const modelRef = useRef<THREE.Group>(null)
   const currentClip = useRef<ClipName | null>(null)
+  const headRef = useRef<THREE.Bone | null>(null)
+  const neckRef = useRef<THREE.Bone | null>(null)
   const { scene, animations } = useGLTF(MODEL_URL)
 
   const { clone, fitScale, footOffset } = useMemo(() => {
@@ -62,6 +104,11 @@ function MixamoHuman({ yawRef, movingRef }: Props) {
     })
     return { clone: c, fitScale, footOffset }
   }, [scene])
+
+  useLayoutEffect(() => {
+    headRef.current = findBone(clone, ['mixamorigHead', 'mixamorig:Head'])
+    neckRef.current = findBone(clone, ['mixamorigNeck', 'mixamorig:Neck'])
+  }, [clone])
 
   const { actions, mixer } = useAnimations(animations, modelRef)
 
@@ -108,6 +155,16 @@ function MixamoHuman({ yawRef, movingRef }: Props) {
     modelRef.current.rotation.y = Math.PI
   })
 
+  // After mixer: twist neck/head so the face keeps looking with the camera.
+  useFrame(() => {
+    let headYaw = shortestAngle(yawRef.current, lookYawRef.current)
+    headYaw = THREE.MathUtils.clamp(headYaw, -HEAD_YAW_MAX, HEAD_YAW_MAX)
+    // Model is yaw-flipped Math.PI; negate so look stays world-forward.
+    const local = -headYaw
+    if (neckRef.current) twistBoneY(neckRef.current, local * 0.4)
+    if (headRef.current) twistBoneY(headRef.current, local * 0.6)
+  }, 1)
+
   return (
     <group ref={root}>
       <group ref={modelRef} scale={fitScale} position={[0, footOffset, 0]}>
@@ -117,9 +174,9 @@ function MixamoHuman({ yawRef, movingRef }: Props) {
   )
 }
 
-/** Simple capsule while the GLB loads — also animates so movement is obvious. */
-function FallbackHuman({ yawRef, movingRef }: Props) {
+function FallbackHuman({ yawRef, lookYawRef, movingRef }: Props) {
   const root = useRef<THREE.Group>(null)
+  const head = useRef<THREE.Group>(null)
   const legL = useRef<THREE.Group>(null)
   const legR = useRef<THREE.Group>(null)
 
@@ -133,6 +190,11 @@ function FallbackHuman({ yawRef, movingRef }: Props) {
     const swing = Math.sin(performance.now() * 0.001 * rate) * amp * (moving ? 1 : 0)
     if (legL.current) legL.current.rotation.x = swing
     if (legR.current) legR.current.rotation.x = -swing
+    if (head.current) {
+      let hy = shortestAngle(yawRef.current, lookYawRef.current)
+      hy = THREE.MathUtils.clamp(hy, -HEAD_YAW_MAX, HEAD_YAW_MAX)
+      head.current.rotation.y = hy
+    }
   })
 
   const h = 1
@@ -142,10 +204,12 @@ function FallbackHuman({ yawRef, movingRef }: Props) {
         <capsuleGeometry args={[0.18, 0.5, 6, 12]} />
         <meshStandardMaterial color={PLAYER.skin} roughness={0.7} />
       </mesh>
-      <mesh position={[0, 1.58 * h, 0]} castShadow>
-        <sphereGeometry args={[0.13, 14, 12]} />
-        <meshStandardMaterial color={PLAYER.skin} roughness={0.7} />
-      </mesh>
+      <group ref={head} position={[0, 1.58 * h, 0]}>
+        <mesh castShadow>
+          <sphereGeometry args={[0.13, 14, 12]} />
+          <meshStandardMaterial color={PLAYER.skin} roughness={0.7} />
+        </mesh>
+      </group>
       <group ref={legL} position={[-0.1, 0.82, 0]}>
         <mesh position={[0, -0.28, 0]} castShadow>
           <capsuleGeometry args={[0.07, 0.38, 4, 8]} />

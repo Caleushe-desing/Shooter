@@ -6,9 +6,17 @@ import { PLAYER, CAMERA, clampToArena } from '../../constants'
 import { useGameStore } from '../../store/gameStore'
 import { PlayerAvatar } from './PlayerAvatar'
 
+function dampAngle(current: number, target: number, speed: number, dt: number) {
+  let diff = target - current
+  while (diff > Math.PI) diff -= Math.PI * 2
+  while (diff < -Math.PI) diff += Math.PI * 2
+  return current + diff * (1 - Math.exp(-speed * dt))
+}
+
 /**
  * Minimal third-person controller:
  * WASD move · Shift run · mouse look · chase cam on the back.
+ * Body faces move direction; face stays on look yaw (strafe).
  */
 export function PlayerController() {
   const rig = useRef<THREE.Group>(null)
@@ -103,7 +111,6 @@ export function PlayerController() {
       PLAYER.pitchMax,
     )
 
-    bodyYaw.current = lookYaw.current
     yawPivot.current.rotation.y = lookYaw.current
     pitchObj.current.rotation.x = lookPitch.current
     yawPivot.current.position.y = CAMERA.height
@@ -123,6 +130,9 @@ export function PlayerController() {
 
     moving.current = wish.current.lengthSq() > 1e-6
     if (moving.current) {
+      // Body faces walk direction; head keeps looking with the camera (lookYaw).
+      const moveYaw = Math.atan2(-wish.current.x, -wish.current.z)
+      bodyYaw.current = dampAngle(bodyYaw.current, moveYaw, 12, dt)
       const speed = PLAYER.speed * (sprint ? PLAYER.runMul : 1)
       wish.current.normalize().multiplyScalar(speed * dt)
       const next = clampToArena(
@@ -132,6 +142,8 @@ export function PlayerController() {
       )
       pos.current.x = next.x
       pos.current.z = next.z
+    } else {
+      bodyYaw.current = dampAngle(bodyYaw.current, lookYaw.current, 10, dt)
     }
 
     rig.current.position.set(pos.current.x, 0, pos.current.z)
@@ -139,7 +151,7 @@ export function PlayerController() {
 
   return (
     <group ref={rig} position={[PLAYER.spawn.x, 0, PLAYER.spawn.z]}>
-      <PlayerAvatar yawRef={bodyYaw} movingRef={moving} />
+      <PlayerAvatar yawRef={bodyYaw} lookYawRef={lookYaw} movingRef={moving} />
       <group ref={yawPivot} position={[0, CAMERA.height, 0]}>
         <group ref={pitchObj}>
           <PerspectiveCamera
