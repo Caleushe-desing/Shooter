@@ -83,7 +83,8 @@ export const WEAPON = {
   muzzleHeight: 1.22,
   muzzleShoulder: 0.22,
   muzzleForward: 0.38,
-  cooldown: 0.14,
+  /** Revolver cadence. */
+  cooldown: 0.32,
   speed: 95,
   range: 90,
   tracerRadius: 0.03,
@@ -96,6 +97,62 @@ export const ARENA = {
   wallHeight: 3.6,
   wallThickness: 0.9,
 } as const
+
+/** Pac-Man survival loop — golden orbs + limited revolver. */
+export const PICKUPS = {
+  orbRadius: 0.38,
+  orbHeight: 0.55,
+  orbCollectDist: 1.05,
+  orbPoints: 10,
+  ammoBoxSize: 0.55,
+  ammoCollectDist: 1.25,
+  ammoPerBox: 3,
+} as const
+
+export const WEAPON_AMMO = {
+  max: 6,
+  start: 6,
+} as const
+
+/** Pursuing zombies (wireframe-ish capsules). */
+export const ZOMBIE = {
+  radius: 0.4,
+  height: 1.7,
+  speed: 2.55,
+  chaseSpeed: 3.35,
+  hp: 2,
+  catchRange: 1.05,
+  visionRange: 18,
+  loseRange: 26,
+  stunTime: 2.8,
+  patrolSpeed: 1.65,
+  color: '#4A6B3A',
+  eyeColor: '#C8FF66',
+  /** Initial spawn points (far from mid spawn). */
+  spawns: [
+    { x: -30, z: -16 },
+    { x: 30, z: -16 },
+    { x: -24, z: 26 },
+    { x: 24, z: 26 },
+    { x: 0, z: -30 },
+    { x: 0, z: 40 },
+    { x: -34, z: 8 },
+    { x: 34, z: 8 },
+  ],
+  /** Shared patrol corners around the map. */
+  waypoints: [
+    { x: -28, z: -12 },
+    { x: -28, z: 12 },
+    { x: 0, z: 20 },
+    { x: 28, z: 12 },
+    { x: 28, z: -12 },
+    { x: 0, z: -20 },
+    { x: -18, z: 30 },
+    { x: 18, z: 30 },
+  ],
+} as const
+
+export type GameStatus = 'playing' | 'won' | 'lost'
 
 export function clampToArena(x: number, z: number, radius: number) {
   const half = ARENA.size / 2 - radius

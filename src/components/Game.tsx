@@ -3,6 +3,8 @@ import { Cloud, Clouds, Sky } from '@react-three/drei'
 import * as THREE from 'three'
 import { Arena } from './scene/Arena'
 import { PlayerController } from './scene/PlayerController'
+import { PickupSystem } from './scene/PickupSystem'
+import { ZombieSystem } from './scene/ZombieSystem'
 import { MobileControls } from './ui/MobileControls'
 import { Crosshair } from './ui/Crosshair'
 import { CombatHud } from './ui/CombatHud'
@@ -82,6 +84,8 @@ function Scene() {
         shadow-bias={-0.0002}
       />
       <Arena />
+      <PickupSystem />
+      <ZombieSystem />
       <PlayerController />
     </>
   )
@@ -92,8 +96,8 @@ function ControlsHint() {
   return (
     <div className="pointer-events-none absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded-md bg-black/40 px-3 py-1.5 text-[11px] tracking-[0.12em] text-white/85">
       {mobile
-        ? 'IZQ MOVER · DER MIRAR · 1ª/3ª · SALTAR · CORRER'
-        : 'CLIC MIRAR · WASD · SHIFT · SPACE · V VISTA'}
+        ? 'IZQ MOVER · DER MIRAR/DISPARO · ORBES · MUNICIÓN · 1ª/3ª'
+        : 'WASD · CLIC DISPARO · ORBES DORADOS · CAJAS DE MUNICIÓN · V'}
     </div>
   )
 }

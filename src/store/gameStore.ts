@@ -1,5 +1,13 @@
 import { create } from 'zustand'
-import { PLAYER, type CameraMode } from '../constants'
+import {
+  PLAYER,
+  WEAPON_AMMO,
+  PICKUPS,
+  type CameraMode,
+  type GameStatus,
+} from '../constants'
+import { ORB_SPAWNS } from '../map/pickupsLayout'
+import { clearZombies } from '../combat/zombies'
 
 type InputState = {
   moveX: number
@@ -18,9 +26,15 @@ type GameState = {
   playerX: number
   playerY: number
   playerZ: number
-  /** Bumped on restart so systems can reset timers. */
   runId: number
   cameraMode: CameraMode
+
+  status: GameStatus
+  score: number
+  orbsRemaining: number
+  orbsTotal: number
+  ammo: number
+  ammoMax: number
 
   setMove: (x: number, z: number) => void
   setSprint: (on: boolean) => void
@@ -33,10 +47,17 @@ type GameState = {
   consumeLook: () => { dx: number; dy: number }
 
   setPlayerPos: (x: number, y: number, z: number) => void
+  /** Spend one round; returns false if empty / not playing. */
+  tryFireAmmo: () => boolean
+  collectOrb: () => void
+  collectAmmo: () => void
+  setLost: () => void
   restartRun: () => void
   setCameraMode: (mode: CameraMode) => void
   toggleCameraMode: () => void
 }
+
+const totalOrbs = ORB_SPAWNS.length
 
 export const useGameStore = create<GameState>((set, get) => ({
   input: { moveX: 0, moveZ: 0, sprint: false },
@@ -52,20 +73,32 @@ export const useGameStore = create<GameState>((set, get) => ({
   runId: 1,
   cameraMode: 'third',
 
+  status: 'playing',
+  score: 0,
+  orbsRemaining: totalOrbs,
+  orbsTotal: totalOrbs,
+  ammo: WEAPON_AMMO.start,
+  ammoMax: WEAPON_AMMO.max,
+
   setMove: (x, z) => set((s) => ({ input: { ...s.input, moveX: x, moveZ: z } })),
   setSprint: (on) => set((s) => ({ input: { ...s.input, sprint: on } })),
   toggleSprint: () =>
     set((s) => ({ input: { ...s.input, sprint: !s.input.sprint } })),
 
-  requestJump: () => set({ jumpQueued: true }),
+  requestJump: () => {
+    if (get().status !== 'playing') return
+    set({ jumpQueued: true })
+  },
   consumeJump: () => {
     if (!get().jumpQueued) return false
     set({ jumpQueued: false })
     return true
   },
 
-  requestFire: () =>
-    set((s) => ({ fireQueued: s.fireQueued + 1, shotId: s.shotId + 1 })),
+  requestFire: () => {
+    if (get().status !== 'playing') return
+    set((s) => ({ fireQueued: s.fireQueued + 1, shotId: s.shotId + 1 }))
+  },
   consumeFire: () => {
     if (get().fireQueued <= 0) return false
     set((s) => ({ fireQueued: Math.max(0, s.fireQueued - 1) }))
@@ -86,8 +119,46 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   setPlayerPos: (x, y, z) => set({ playerX: x, playerY: y, playerZ: z }),
 
-  restartRun: () => {
+  tryFireAmmo: () => {
+    const s = get()
+    if (s.status !== 'playing' || s.ammo <= 0) return false
+    set({ ammo: s.ammo - 1 })
+    return true
+  },
+
+  collectOrb: () => {
+    const s = get()
+    if (s.status !== 'playing' || s.orbsRemaining <= 0) return
+    const orbsRemaining = s.orbsRemaining - 1
+    const score = s.score + PICKUPS.orbPoints
     set({
+      orbsRemaining,
+      score,
+      status: orbsRemaining <= 0 ? 'won' : 'playing',
+    })
+  },
+
+  collectAmmo: () => {
+    const s = get()
+    if (s.status !== 'playing') return
+    set({
+      ammo: Math.min(s.ammoMax, s.ammo + PICKUPS.ammoPerBox),
+    })
+  },
+
+  setLost: () => {
+    if (get().status !== 'playing') return
+    set({ status: 'lost' })
+  },
+
+  restartRun: () => {
+    clearZombies()
+    set({
+      status: 'playing',
+      score: 0,
+      orbsRemaining: totalOrbs,
+      orbsTotal: totalOrbs,
+      ammo: WEAPON_AMMO.start,
       fireQueued: 0,
       jumpQueued: false,
       input: { moveX: 0, moveZ: 0, sprint: false },

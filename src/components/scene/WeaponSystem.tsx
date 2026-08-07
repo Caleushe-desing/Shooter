@@ -4,7 +4,13 @@ import * as THREE from 'three'
 import { WEAPON } from '../../constants'
 import { useGameStore } from '../../store/gameStore'
 import { buildHavenInspiredMap } from '../../map/havenLayout'
-import { playGunshot, playImpact, unlockAudio } from '../../audio/gunshot'
+import { getZombies, hurtZombie, zombieHitBox } from '../../combat/zombies'
+import {
+  playGunshot,
+  playImpact,
+  playEmptyClick,
+  unlockAudio,
+} from '../../audio/gunshot'
 
 type Bullet = {
   id: number
@@ -205,6 +211,13 @@ export function WeaponSystem({ rigRef, lookYaw, lookPitch }: Props) {
     const game = useGameStore.getState()
     while (game.consumeFire()) {
       if (cooldown.current > 0) continue
+      if (game.status !== 'playing') continue
+      if (!game.tryFireAmmo()) {
+        unlockAudio()
+        playEmptyClick()
+        cooldown.current = 0.18
+        continue
+      }
       cooldown.current = WEAPON.cooldown
       unlockAudio()
       playGunshot()
@@ -316,11 +329,22 @@ export function WeaponSystem({ rigRef, lookYaw, lookPitch }: Props) {
     for (const b of bullets.current) {
       const step = WEAPON.speed * dt
       let hitT: number | null = null
+      let hitZombieId: number | null = null
 
       for (const box of hitBoxes) {
         const t = rayHitsAabb(b.pos.x, b.pos.y, b.pos.z, b.dir.x, b.dir.y, b.dir.z, step, box)
         if (t !== null && (hitT === null || t < hitT)) {
           hitT = t
+          hitZombieId = null
+        }
+      }
+      for (const z of getZombies()) {
+        if (!z.alive) continue
+        const box = zombieHitBox(z)
+        const t = rayHitsAabb(b.pos.x, b.pos.y, b.pos.z, b.dir.x, b.dir.y, b.dir.z, step, box)
+        if (t !== null && (hitT === null || t < hitT)) {
+          hitT = t
+          hitZombieId = z.id
         }
       }
 
@@ -333,7 +357,14 @@ export function WeaponSystem({ rigRef, lookYaw, lookPitch }: Props) {
       const hitFloor = b.pos.y <= 0.05
       const dead = hitT !== null || hitFloor || b.traveled >= WEAPON.range
       if (dead) {
-        if (hitT !== null || hitFloor) {
+        if (hitZombieId !== null) {
+          hurtZombie(hitZombieId, 1)
+          playImpact()
+          const spark = new THREE.Mesh(sparkGeo, sparkMat.clone())
+          spark.position.copy(b.pos)
+          parent.add(spark)
+          sparks.current.push({ mesh: spark, age: 0 })
+        } else if (hitT !== null || hitFloor) {
           playImpact()
           const spark = new THREE.Mesh(sparkGeo, sparkMat.clone())
           spark.position.copy(b.pos)

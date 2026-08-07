@@ -90,3 +90,60 @@ export function playImpact() {
   o.start(now)
   o.stop(now + 0.11)
 }
+
+/** Soft chime when collecting a golden orb. */
+export function playOrbPickup() {
+  const ctx = getCtx()
+  if (!ctx) return
+  if (ctx.state === 'suspended') void ctx.resume()
+  const now = ctx.currentTime
+  const o = ctx.createOscillator()
+  const g = ctx.createGain()
+  o.type = 'sine'
+  o.frequency.setValueAtTime(880, now)
+  o.frequency.exponentialRampToValueAtTime(1320, now + 0.08)
+  g.gain.setValueAtTime(0.16, now)
+  g.gain.exponentialRampToValueAtTime(0.001, now + 0.18)
+  o.connect(g)
+  g.connect(ctx.destination)
+  o.start(now)
+  o.stop(now + 0.2)
+}
+
+/** Soft thud when grabbing an ammo crate. */
+export function playAmmoPickup() {
+  const ctx = getCtx()
+  if (!ctx) return
+  if (ctx.state === 'suspended') void ctx.resume()
+  const now = ctx.currentTime
+  const o = ctx.createOscillator()
+  const g = ctx.createGain()
+  o.type = 'triangle'
+  o.frequency.setValueAtTime(180, now)
+  o.frequency.exponentialRampToValueAtTime(90, now + 0.1)
+  g.gain.setValueAtTime(0.14, now)
+  g.gain.exponentialRampToValueAtTime(0.001, now + 0.12)
+  o.connect(g)
+  g.connect(ctx.destination)
+  o.start(now)
+  o.stop(now + 0.13)
+}
+
+/** Dry click when trying to fire with empty cylinder. */
+export function playEmptyClick() {
+  const ctx = getCtx()
+  if (!ctx) return
+  if (ctx.state === 'suspended') void ctx.resume()
+  const now = ctx.currentTime
+  const o = ctx.createOscillator()
+  const g = ctx.createGain()
+  o.type = 'square'
+  o.frequency.setValueAtTime(180, now)
+  o.frequency.exponentialRampToValueAtTime(60, now + 0.04)
+  g.gain.setValueAtTime(0.08, now)
+  g.gain.exponentialRampToValueAtTime(0.001, now + 0.05)
+  o.connect(g)
+  g.connect(ctx.destination)
+  o.start(now)
+  o.stop(now + 0.06)
+}

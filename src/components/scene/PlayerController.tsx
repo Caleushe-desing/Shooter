@@ -258,10 +258,11 @@ export function PlayerController() {
     right.current.set(Math.cos(lookYaw.current), 0, -Math.sin(lookYaw.current))
 
     const { moveX, moveZ, sprint } = game.input
+    const canPlay = game.status === 'playing'
     wish.current
       .set(0, 0, 0)
-      .addScaledVector(right.current, moveX)
-      .addScaledVector(forward.current, -moveZ)
+      .addScaledVector(right.current, canPlay ? moveX : 0)
+      .addScaledVector(forward.current, canPlay ? -moveZ : 0)
 
     moving.current = wish.current.lengthSq() > 1e-6
     if (moving.current) {
@@ -286,9 +287,11 @@ export function PlayerController() {
       pos.current.z = hit.z
     }
 
-    if (game.consumeJump() && grounded.current) {
+    if (canPlay && game.consumeJump() && grounded.current) {
       velY.current = PLAYER.jumpSpeed
       grounded.current = false
+    } else if (!canPlay) {
+      game.consumeJump()
     }
 
     const supportR = PLAYER.radius * COLLISION.supportRadiusScale
