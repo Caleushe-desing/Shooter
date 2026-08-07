@@ -221,13 +221,24 @@ export const OBSTACLES: { x: number; z: number; w: number; d: number; h: number 
 
 function buildWallColliders(): Collider[] {
   const half = ARENA.size / 2
-  const t = ARENA.wallThickness
+  // Thicker than the mesh so fast run frames can't tunnel out.
+  const t = Math.max(ARENA.wallThickness, 0.9)
+  const inset = 0.15
   return [
-    { minX: -half - t, maxX: half + t, minZ: -half - t, maxZ: -half },
-    { minX: -half - t, maxX: half + t, minZ: half, maxZ: half + t },
-    { minX: -half - t, maxX: -half, minZ: -half, maxZ: half },
-    { minX: half, maxX: half + t, minZ: -half, maxZ: half },
+    { minX: -half - t, maxX: half + t, minZ: -half - t, maxZ: -half + inset },
+    { minX: -half - t, maxX: half + t, minZ: half - inset, maxZ: half + t },
+    { minX: -half - t, maxX: -half + inset, minZ: -half, maxZ: half },
+    { minX: half - inset, maxX: half + t, minZ: -half, maxZ: half },
   ]
+}
+
+/** Keep the player inside the patio even if a frame tunnels a thin wall. */
+export function clampToArena(x: number, z: number, radius: number): { x: number; z: number } {
+  const limit = ARENA.size / 2 - radius - 0.08
+  return {
+    x: Math.max(-limit, Math.min(limit, x)),
+    z: Math.max(-limit, Math.min(limit, z)),
+  }
 }
 
 export function buildColliders(): Collider[] {

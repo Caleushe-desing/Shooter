@@ -7,6 +7,7 @@ import {
   CAMERA,
   LOCOMOTION,
   resolveCircleBoxCollision,
+  clampToArena,
   COMBAT,
   SCOPE,
   hipFireAimNdc,
@@ -356,8 +357,9 @@ export function PlayerController() {
           PLAYER.radius,
           mergeColliders(worldCols),
         )
-        pos.current.x = resolved.x
-        pos.current.z = resolved.z
+        const clamped = clampToArena(resolved.x, resolved.z, PLAYER.radius)
+        pos.current.x = clamped.x
+        pos.current.z = clamped.z
 
         const moveYaw = Math.atan2(-wish.current.x, -wish.current.z)
         bodyYaw.current = dampAngle(bodyYaw.current, moveYaw, CAMERA.bodyTurn, dt)
