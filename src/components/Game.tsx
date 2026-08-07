@@ -118,8 +118,9 @@ export function Game() {
       </Canvas>
 
       <Crosshair />
-      <CombatHud />
       <MobileControls />
+      {/* HUD above touch fire layer so zoom / camera buttons aren't treated as shots. */}
+      <CombatHud />
       <ControlsHint />
     </div>
   )

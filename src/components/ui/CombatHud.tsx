@@ -28,7 +28,7 @@ export function CombatHud() {
 
   return (
     <>
-      <div className="pointer-events-none absolute left-3 top-3 z-20 flex flex-col gap-1.5">
+      <div className="pointer-events-none absolute left-3 top-3 z-50 flex flex-col gap-1.5">
         <div className="rounded bg-black/50 px-2.5 py-1.5 backdrop-blur-sm">
           <div className="text-[10px] font-semibold tracking-[0.14em] text-white/65">
             ORBES
@@ -71,7 +71,7 @@ export function CombatHud() {
         </div>
       </div>
 
-      <div className="absolute right-3 top-3 z-30 flex flex-col items-end gap-2">
+      <div className="absolute right-3 top-3 z-50 flex flex-col items-end gap-2">
         <button
           type="button"
           className="pointer-events-auto rounded border border-white/40 bg-black/50 px-3 py-2 text-[11px] font-bold tracking-[0.14em] text-white/90 shadow-md backdrop-blur-sm hover:border-[#E8C86A]/80 hover:text-[#F2E08A] active:scale-95"
@@ -81,6 +81,7 @@ export function CombatHud() {
             toggleCameraMode()
           }}
           onPointerDown={(e) => {
+            e.preventDefault()
             e.stopPropagation()
           }}
         >
@@ -91,7 +92,13 @@ export function CombatHud() {
         </button>
 
         {cameraMode === 'top' && (
-          <div className="pointer-events-auto flex items-center gap-1 rounded border border-white/30 bg-black/50 p-1 backdrop-blur-sm">
+          <div
+            className="pointer-events-auto flex items-center gap-1 rounded border border-white/30 bg-black/50 p-1 backdrop-blur-sm"
+            onPointerDown={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+            }}
+          >
             <button
               type="button"
               className="flex h-9 w-9 items-center justify-center rounded text-lg font-bold text-white/90 hover:bg-white/10 active:scale-95"
@@ -101,7 +108,10 @@ export function CombatHud() {
                 e.stopPropagation()
                 adjustTopZoom(-CAMERA.topZoomStep)
               }}
-              onPointerDown={(e) => e.stopPropagation()}
+              onPointerDown={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+              }}
             >
               +
             </button>
@@ -118,7 +128,10 @@ export function CombatHud() {
                 e.stopPropagation()
                 adjustTopZoom(CAMERA.topZoomStep)
               }}
-              onPointerDown={(e) => e.stopPropagation()}
+              onPointerDown={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+              }}
             >
               −
             </button>

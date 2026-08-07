@@ -94,13 +94,14 @@ export function PlayerController() {
 
     const onWheel = (e: WheelEvent) => {
       if (useGameStore.getState().cameraMode !== 'top') return
+      // Always zoom in top-down; never treat wheel as a shot.
       e.preventDefault()
-      // Scroll up → zoom in (lower camera).
       useGameStore.getState().adjustTopZoom(e.deltaY * CAMERA.topZoomWheel)
     }
-    el.addEventListener('wheel', onWheel, { passive: false })
+    // Window so zoom works even with pointer lock / focus quirks.
+    window.addEventListener('wheel', onWheel, { passive: false })
 
-    // Pinch-to-zoom (mobile / trackpad gestures via two touches).
+    // Pinch-to-zoom (mobile) on the canvas — does not fire.
     let pinchDist = 0
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length === 2) {
@@ -112,26 +113,26 @@ export function PlayerController() {
     const onTouchMove = (e: TouchEvent) => {
       if (useGameStore.getState().cameraMode !== 'top') return
       if (e.touches.length !== 2 || pinchDist <= 0) return
+      e.preventDefault()
       const a = e.touches[0]
       const b = e.touches[1]
       const d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY)
       const delta = pinchDist - d
       pinchDist = d
-      // Pinch out → zoom in.
       useGameStore.getState().adjustTopZoom(delta * 0.04)
     }
     const onTouchEnd = () => {
       pinchDist = 0
     }
     el.addEventListener('touchstart', onTouchStart, { passive: true })
-    el.addEventListener('touchmove', onTouchMove, { passive: true })
+    el.addEventListener('touchmove', onTouchMove, { passive: false })
     el.addEventListener('touchend', onTouchEnd)
     el.addEventListener('touchcancel', onTouchEnd)
 
     return () => {
       el.removeEventListener('pointerdown', onPointerDown)
       document.removeEventListener('mousemove', onMouseMove)
-      el.removeEventListener('wheel', onWheel)
+      window.removeEventListener('wheel', onWheel)
       el.removeEventListener('touchstart', onTouchStart)
       el.removeEventListener('touchmove', onTouchMove)
       el.removeEventListener('touchend', onTouchEnd)

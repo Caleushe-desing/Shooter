@@ -16,7 +16,7 @@ export function MobileControls() {
   if (!mobile) return null
 
   return (
-    <div className="absolute inset-0 z-30">
+    <div className="pointer-events-none absolute inset-0 z-30">
       <Joystick />
       <RightLookAndFire />
       <RightHandButtons />
@@ -63,7 +63,7 @@ function Joystick() {
   return (
     <div
       ref={baseRef}
-      className="absolute bottom-6 left-6 z-40 h-32 w-32 touch-none sm:bottom-8 sm:left-8"
+      className="pointer-events-auto absolute bottom-6 left-6 z-40 h-32 w-32 touch-none sm:bottom-8 sm:left-8"
       onPointerDown={(e) => {
         e.preventDefault()
         e.currentTarget.setPointerCapture(e.pointerId)
@@ -102,7 +102,7 @@ function RightHandButtons() {
   const toggleCameraMode = useGameStore((s) => s.toggleCameraMode)
 
   return (
-    <div className="absolute bottom-6 right-6 z-40 flex touch-none flex-col items-center gap-3 sm:bottom-8 sm:right-8">
+    <div className="pointer-events-auto absolute bottom-6 right-6 z-40 flex touch-none flex-col items-center gap-3 sm:bottom-8 sm:right-8">
       <button
         type="button"
         className="flex h-12 w-12 select-none items-center justify-center rounded-full border-2 border-[#E8C86A]/55 bg-[#3A2A10]/65 text-[9px] font-bold tracking-[0.1em] text-[#F2E08A] shadow-md backdrop-blur-sm active:scale-95"
@@ -145,10 +145,10 @@ function RightHandButtons() {
 }
 
 /**
- * Entire right half of the screen:
+ * Right play area (below the top HUD strip):
  * - tap / press → fire
- * - hold finger offset from press → keep looking (stick, no Zustand spam)
- * - drag deltas still add a snappy correction
+ * - hold finger offset → look stick
+ * Multi-touch / non-primary pointers are ignored (pinch zoom must not shoot).
  */
 function RightLookAndFire() {
   const requestFire = useGameStore((s) => s.requestFire)
@@ -157,16 +157,18 @@ function RightLookAndFire() {
   const origin = useRef({ x: 0, y: 0 })
   const last = useRef({ x: 0, y: 0 })
   const pointerId = useRef<number | null>(null)
+  const touchCount = useRef(0)
 
-  const end = () => {
+  const end = (id?: number) => {
+    if (id !== undefined && pointerId.current !== null && pointerId.current !== id) return
     active.current = false
     pointerId.current = null
     resetMobileLookStick()
   }
 
   const writeStick = (clientX: number, clientY: number) => {
-    let ox = clientX - origin.current.x
-    let oy = clientY - origin.current.y
+    const ox = clientX - origin.current.x
+    const oy = clientY - origin.current.y
     const dist = Math.hypot(ox, oy)
     if (dist <= PLAYER.lookStickDeadzone) {
       mobileLookStick.active = true
@@ -175,7 +177,8 @@ function RightLookAndFire() {
       return
     }
     const clamped = Math.min(dist, PLAYER.lookStickMax)
-    const scale = (clamped - PLAYER.lookStickDeadzone) / (PLAYER.lookStickMax - PLAYER.lookStickDeadzone)
+    const scale =
+      (clamped - PLAYER.lookStickDeadzone) / (PLAYER.lookStickMax - PLAYER.lookStickDeadzone)
     mobileLookStick.active = true
     mobileLookStick.x = (ox / dist) * scale
     mobileLookStick.y = (oy / dist) * scale
@@ -183,9 +186,18 @@ function RightLookAndFire() {
 
   return (
     <div
-      className="absolute bottom-0 right-0 top-0 z-30 w-1/2 touch-none"
+      className="pointer-events-auto absolute bottom-0 right-0 top-28 z-30 w-1/2 touch-none"
       onPointerDown={(e) => {
         if ((e.target as HTMLElement).closest('button')) return
+        if (!e.isPrimary) return
+        if (e.pointerType === 'touch') {
+          touchCount.current += 1
+          // Second finger = pinch zoom, cancel look/fire.
+          if (touchCount.current > 1) {
+            end()
+            return
+          }
+        }
         e.preventDefault()
         e.currentTarget.setPointerCapture(e.pointerId)
         active.current = true
@@ -198,16 +210,29 @@ function RightLookAndFire() {
       }}
       onPointerMove={(e) => {
         if (!active.current || pointerId.current !== e.pointerId) return
+        if (touchCount.current > 1) {
+          end()
+          return
+        }
         const dx = e.clientX - last.current.x
         const dy = e.clientY - last.current.y
         last.current = { x: e.clientX, y: e.clientY }
         writeStick(e.clientX, e.clientY)
-        // Snappy response while dragging.
         addLook(dx * PLAYER.lookSensitivityMobile, dy * PLAYER.lookSensitivityMobile)
       }}
-      onPointerUp={end}
-      onPointerCancel={end}
-      onLostPointerCapture={end}
+      onPointerUp={(e) => {
+        if (e.pointerType === 'touch') {
+          touchCount.current = Math.max(0, touchCount.current - 1)
+        }
+        end(e.pointerId)
+      }}
+      onPointerCancel={(e) => {
+        if (e.pointerType === 'touch') {
+          touchCount.current = Math.max(0, touchCount.current - 1)
+        }
+        end(e.pointerId)
+      }}
+      onLostPointerCapture={() => end()}
     />
   )
 }
