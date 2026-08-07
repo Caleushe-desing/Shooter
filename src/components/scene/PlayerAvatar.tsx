@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, type MutableRefObject } from 'react'
 import { useFrame } from '@react-three/fiber'
+import { useAnimations, useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
+import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js'
 import { COLORS, PLAYER } from '../../constants'
 import { useGameStore } from '../../store/gameStore'
 import { setMuzzleObject } from '../../store/muzzle'
@@ -11,61 +13,97 @@ type PlayerAvatarProps = {
   movingRef: MutableRefObject<boolean>
 }
 
+const MODEL_URL = '/models/human.glb'
+
+useGLTF.preload(MODEL_URL)
+
+type ClipName = 'idle' | 'walk' | 'run' | 'sneak_pose'
+
 /**
- * Nude adult human (game-appropriate, non-explicit) — no clothing.
- * Mesh faces local −Z so the chase cam on +Z always reads the back.
+ * Mixamo X-Bot — same class of humanoid as before, but nude (no suit).
+ * Real clips: idle / walk / run / sneak_pose (agachado). Prone = lie on floor.
+ * Always oriented so the chase cam sees the back.
  */
-export function PlayerAvatar({ yawRef, pitchRef, movingRef }: PlayerAvatarProps) {
+export function PlayerAvatar({ yawRef, pitchRef: _pitchRef, movingRef }: PlayerAvatarProps) {
   const root = useRef<THREE.Group>(null)
-  const pose = useRef<THREE.Group>(null)
-  const torso = useRef<THREE.Group>(null)
-  const legL = useRef<THREE.Group>(null)
-  const legR = useRef<THREE.Group>(null)
-  const armL = useRef<THREE.Group>(null)
-  const armR = useRef<THREE.Group>(null)
+  const modelRef = useRef<THREE.Group>(null)
+  const propRef = useRef<THREE.Group>(null)
   const muzzleRef = useRef<THREE.Group>(null)
-  const lastRecoil = useRef(0)
-  const recoil = useRef(0)
+  const currentClip = useRef<ClipName | null>(null)
+  const { scene, animations } = useGLTF(MODEL_URL)
 
-  const h = PLAYER.height
+  const clone = useMemo(() => {
+    const c = cloneSkeleton(scene) as THREE.Group
+    c.traverse((obj) => {
+      const mesh = obj as THREE.Mesh
+      if (!mesh.isMesh) return
+      mesh.castShadow = true
+      mesh.receiveShadow = true
 
-  const materials = useMemo(() => {
-    const make = (color: string, roughness = 0.72) =>
-      new THREE.MeshStandardMaterial({ color, roughness, metalness: 0 })
-    return {
-      skin: make(PLAYER.skin, 0.68),
-      skinLight: make(PLAYER.skinLight, 0.7),
-      skinShadow: make(PLAYER.skinShadow, 0.75),
-      hair: make(PLAYER.hair, 0.85),
-      eye: new THREE.MeshBasicMaterial({ color: COLORS.enemyEye }),
-      gun: make(COLORS.gunMetal, 0.4),
-      grip: make(COLORS.gunGrip, 0.65),
-    }
-  }, [])
+      // Hide gray joint orbs — body surface only (nude look).
+      const n = (mesh.name || '').toLowerCase()
+      const matName = (
+        Array.isArray(mesh.material)
+          ? mesh.material.map((m) => m.name).join(' ')
+          : mesh.material?.name || ''
+      ).toLowerCase()
+      if (n.includes('joint') || matName.includes('joint')) {
+        mesh.visible = false
+        return
+      }
 
-  useEffect(() => {
-    return () => {
-      for (const mat of Object.values(materials)) mat.dispose()
-    }
-  }, [materials])
+      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
+      for (const mat of mats) {
+        const std = mat as THREE.MeshStandardMaterial
+        if (!std?.isMeshStandardMaterial) continue
+        std.color.set(PLAYER.skin)
+        std.metalness = 0.02
+        std.roughness = 0.72
+      }
+    })
+    return c
+  }, [scene])
+
+  const hand = useMemo(() => {
+    let bone: THREE.Object3D | null = null
+    clone.traverse((obj) => {
+      if (obj.name === 'mixamorig:RightHand' || obj.name === 'mixamorigRightHand') {
+        bone = obj
+      }
+    })
+    return bone as THREE.Object3D | null
+  }, [clone])
+
+  const { actions, mixer } = useAnimations(animations, modelRef)
 
   useLayoutEffect(() => {
     setMuzzleObject(muzzleRef.current)
     return () => setMuzzleObject(null)
   }, [])
 
+  useLayoutEffect(() => {
+    const prop = propRef.current
+    if (!hand || !prop) return
+    hand.add(prop)
+    return () => {
+      hand.remove(prop)
+    }
+  }, [hand])
+
   useEffect(() => {
-    return useGameStore.subscribe((s) => {
-      if (s.recoilNonce !== lastRecoil.current) {
-        lastRecoil.current = s.recoilNonce
-        recoil.current = 1
-      }
-    })
-  }, [])
+    const idle = actions.idle
+    if (idle) {
+      idle.reset().fadeIn(0.25).play()
+      idle.setLoop(THREE.LoopRepeat, Infinity)
+      currentClip.current = 'idle'
+    }
+    return () => {
+      mixer?.stopAllAction()
+    }
+  }, [actions, mixer])
 
   useFrame((_, delta) => {
-    if (!root.current || !pose.current || !torso.current) return
-    // Body yaw = look yaw → camera always sees the back.
+    if (!root.current || !modelRef.current) return
     root.current.rotation.y = yawRef.current
 
     const game = useGameStore.getState()
@@ -73,128 +111,75 @@ export function PlayerAvatar({ yawRef, pitchRef, movingRef }: PlayerAvatarProps)
     const sprint = game.input.sprint && stance === 'stand'
     const slow = game.input.slow
     const airborne = game.airborne
-    const walk = movingRef.current && !airborne ? 1 : 0
+    const moving = movingRef.current
 
-    let rootY = 0
-    let posePitch = 0
-    let torsoPitch = 0
-    let legBend = 0
-    let armHang = 0
-    let swingAmp = 0.5
-    let swingRate = 8.5
+    let next: ClipName = 'idle'
+    if (stance === 'prone') {
+      next = 'idle'
+    } else if (stance === 'crouch') {
+      // sneak_pose = agachado humano; walk lento si se mueve agachado
+      next = moving ? 'walk' : 'sneak_pose'
+    } else if (airborne) {
+      next = 'idle'
+    } else if (moving && sprint) {
+      next = 'run'
+    } else if (moving) {
+      next = 'walk'
+    }
 
-    if (stance === 'crouch') {
-      rootY = -0.28
-      torsoPitch = 0.32
-      legBend = 0.85
-      armHang = 0.25
-      swingAmp = 0.26
-      swingRate = 7
+    if (next !== currentClip.current) {
+      const prev = currentClip.current ? actions[currentClip.current] : null
+      const action = actions[next]
+      if (action) {
+        action.reset().setEffectiveTimeScale(1).setEffectiveWeight(1).fadeIn(0.22).play()
+        action.setLoop(THREE.LoopRepeat, Infinity)
+        prev?.fadeOut(0.22)
+        currentClip.current = next
+      }
+    }
+
+    const action = currentClip.current ? actions[currentClip.current] : null
+    if (action) {
+      if (stance === 'crouch' && next === 'walk') action.setEffectiveTimeScale(0.68)
+      else if (slow && next === 'walk') action.setEffectiveTimeScale(0.58)
+      else if (sprint && next === 'run') action.setEffectiveTimeScale(1.05)
+      else if (stance === 'prone') action.setEffectiveTimeScale(0.3)
+      else action.setEffectiveTimeScale(1)
+    }
+
+    let y = 0
+    let pitch = 0
+    if (stance === 'crouch' && moving) {
+      // Slight squat while using walk clip crouched
+      y = -0.08
+      pitch = 0.18
     } else if (stance === 'prone') {
-      rootY = 0.18
-      posePitch = 1.35
-      torsoPitch = 0.08
-      legBend = 0.15
-      armHang = 1.05
-      swingAmp = 0.1
-      swingRate = 5
-    } else if (sprint) {
-      swingAmp = 0.72
-      swingRate = 13
-    } else if (slow) {
-      swingAmp = 0.26
-      swingRate = 5.5
+      // Tenderse en el piso (barriga al suelo, espalda hacia arriba / cámara)
+      y = 0.32
+      pitch = 1.38
+    } else if (airborne) {
+      y = 0.05
+      pitch = -0.05
     }
 
-    if (airborne) {
-      legBend = Math.max(legBend, 0.35)
-      armHang = Math.max(armHang, 0.4)
-      swingAmp = 0
-    }
-
-    pose.current.position.y = THREE.MathUtils.damp(pose.current.position.y, rootY, 12, delta)
-    pose.current.rotation.x = THREE.MathUtils.damp(pose.current.rotation.x, posePitch, 12, delta)
-    torso.current.rotation.x = THREE.MathUtils.damp(torso.current.rotation.x, torsoPitch, 12, delta)
-
-    const t = performance.now() * 0.001
-    const swing = Math.sin(t * swingRate) * swingAmp * walk
-    if (legL.current) legL.current.rotation.x = legBend + swing
-    if (legR.current) legR.current.rotation.x = legBend - swing
-    if (armL.current) armL.current.rotation.x = armHang - swing * 0.7
-    if (armR.current) {
-      const aim = stance === 'prone' ? pitchRef.current * 0.35 : pitchRef.current * 0.85
-      armR.current.rotation.x = aim - 0.55 + armHang * 0.35 + swing * 0.15 - recoil.current * 0.35
-    }
-    recoil.current = Math.max(0, recoil.current - delta * 6)
+    // Mixamo +Z forward → flip so camera on +Z sees the back.
+    modelRef.current.rotation.x = THREE.MathUtils.damp(modelRef.current.rotation.x, pitch, 14, delta)
+    modelRef.current.rotation.y = Math.PI
+    modelRef.current.rotation.z = 0
+    modelRef.current.position.y = THREE.MathUtils.damp(modelRef.current.position.y, y, 14, delta)
   })
 
   return (
     <group ref={root}>
-      <group ref={pose}>
-        <group ref={legL} position={[-0.1 * h, 0.82 * h, 0]}>
-          <mesh material={materials.skin} position={[0, -0.28 * h, 0]} castShadow>
-            <capsuleGeometry args={[0.07 * h, 0.38 * h, 4, 8]} />
-          </mesh>
-          <mesh material={materials.skinShadow} position={[0, -0.55 * h, 0.02]} castShadow>
-            <boxGeometry args={[0.1 * h, 0.08 * h, 0.16 * h]} />
-          </mesh>
-        </group>
-        <group ref={legR} position={[0.1 * h, 0.82 * h, 0]}>
-          <mesh material={materials.skin} position={[0, -0.28 * h, 0]} castShadow>
-            <capsuleGeometry args={[0.07 * h, 0.38 * h, 4, 8]} />
-          </mesh>
-          <mesh material={materials.skinShadow} position={[0, -0.55 * h, 0.02]} castShadow>
-            <boxGeometry args={[0.1 * h, 0.08 * h, 0.16 * h]} />
-          </mesh>
-        </group>
-
-        <group ref={torso} position={[0, 0.92 * h, 0]}>
-          {/* Hips / pelvis — non-explicit */}
-          <mesh material={materials.skinShadow} position={[0, 0, 0]} castShadow>
-            <boxGeometry args={[0.34 * h, 0.22 * h, 0.2 * h]} />
-          </mesh>
-          <mesh material={materials.skin} position={[0, 0.3 * h, 0.02]} castShadow>
-            <boxGeometry args={[0.38 * h, 0.42 * h, 0.22 * h]} />
-          </mesh>
-          <mesh material={materials.skinLight} position={[0, 0.46 * h, 0.04]} castShadow>
-            <boxGeometry args={[0.4 * h, 0.18 * h, 0.2 * h]} />
-          </mesh>
-
-          {/* Head — back of head faces camera (+Z) */}
-          <mesh material={materials.skin} position={[0, 0.7 * h, 0]} castShadow>
-            <sphereGeometry args={[0.13 * h, 14, 12]} />
-          </mesh>
-          <mesh material={materials.hair} position={[0, 0.78 * h, 0.04]} castShadow>
-            <sphereGeometry args={[0.135 * h, 12, 10]} />
-          </mesh>
-          {/* Face looks toward −Z (away from camera) */}
-          <mesh material={materials.eye} position={[-0.045 * h, 0.72 * h, -0.1 * h]}>
-            <sphereGeometry args={[0.018, 6, 6]} />
-          </mesh>
-          <mesh material={materials.eye} position={[0.045 * h, 0.72 * h, -0.1 * h]}>
-            <sphereGeometry args={[0.018, 6, 6]} />
-          </mesh>
-
-          <group ref={armL} position={[-0.24 * h, 0.48 * h, 0]}>
-            <mesh material={materials.skin} position={[0, -0.22 * h, 0]} castShadow>
-              <capsuleGeometry args={[0.055 * h, 0.32 * h, 4, 8]} />
-            </mesh>
-          </group>
-          <group ref={armR} position={[0.24 * h, 0.48 * h, 0]}>
-            <mesh material={materials.skin} position={[0, -0.22 * h, 0]} castShadow>
-              <capsuleGeometry args={[0.055 * h, 0.32 * h, 4, 8]} />
-            </mesh>
-            <group position={[0.02, -0.42 * h, -0.08]} rotation={[0.2, 0, 0]}>
-              <mesh material={materials.grip} position={[0, 0.02, 0.02]}>
-                <boxGeometry args={[0.04, 0.12, 0.05]} />
-              </mesh>
-              <mesh material={materials.gun} position={[0, -0.02, -0.12]}>
-                <boxGeometry args={[0.035, 0.05, 0.28]} />
-              </mesh>
-              <group ref={muzzleRef} position={[0, -0.02, -0.28]} />
-            </group>
-          </group>
-        </group>
+      <group ref={modelRef}>
+        <primitive object={clone} />
+      </group>
+      <group ref={propRef} position={[0, 0.03, 0.05]} rotation={[Math.PI / 2, 0, 0]}>
+        <mesh position={[0, 0, -0.08]}>
+          <boxGeometry args={[0.035, 0.045, 0.2]} />
+          <meshStandardMaterial color={COLORS.gunMetal} roughness={0.4} metalness={0.45} />
+        </mesh>
+        <group ref={muzzleRef} position={[0, 0, -0.2]} />
       </group>
     </group>
   )
