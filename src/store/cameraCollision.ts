@@ -1,10 +1,5 @@
 import * as THREE from 'three'
-import { CAMERA, OBSTACLES } from '../constants'
-import { FLORA, MINERALS, WORLD } from '../world/catalog'
-import { sampleHeight } from '../world/heightmap'
-import { useWorldStore } from './worldStore'
-
-const _terrainProbe = new THREE.Vector3()
+import { ARENA, CAMERA, OBSTACLES } from '../constants'
 
 type Aabb = {
   minX: number
@@ -16,16 +11,17 @@ type Aabb = {
 }
 
 function buildStaticCameraColliders(): Aabb[] {
-  const half = WORLD.half
-  const t = 4
+  const half = ARENA.size / 2
+  const t = ARENA.wallThickness
   const pad = CAMERA.collisionSkin
+  const wallH = ARENA.wallHeight + pad
 
   const walls: Aabb[] = [
     {
       minX: -half - t - pad,
       maxX: half + t + pad,
       minY: -0.5,
-      maxY: 8,
+      maxY: wallH,
       minZ: -half - t - pad,
       maxZ: -half + pad,
     },
@@ -33,7 +29,7 @@ function buildStaticCameraColliders(): Aabb[] {
       minX: -half - t - pad,
       maxX: half + t + pad,
       minY: -0.5,
-      maxY: 8,
+      maxY: wallH,
       minZ: half - pad,
       maxZ: half + t + pad,
     },
@@ -41,7 +37,7 @@ function buildStaticCameraColliders(): Aabb[] {
       minX: -half - t - pad,
       maxX: -half + pad,
       minY: -0.5,
-      maxY: 8,
+      maxY: wallH,
       minZ: -half - pad,
       maxZ: half + pad,
     },
@@ -49,7 +45,7 @@ function buildStaticCameraColliders(): Aabb[] {
       minX: half - pad,
       maxX: half + t + pad,
       minY: -0.5,
-      maxY: 8,
+      maxY: wallH,
       minZ: -half - pad,
       maxZ: half + pad,
     },
@@ -69,38 +65,7 @@ function buildStaticCameraColliders(): Aabb[] {
 
 const STATIC_BOXES = buildStaticCameraColliders()
 
-function liveBoxes(): Aabb[] {
-  const pad = CAMERA.collisionSkin * 0.8
-  const boxes: Aabb[] = []
-  const state = useWorldStore.getState()
-  for (const f of state.flora) {
-    if (!f.alive) continue
-    const def = FLORA[f.kind]
-    const r = def.radius * f.scale + pad
-    boxes.push({
-      minX: f.x - r,
-      maxX: f.x + r,
-      minY: -0.2,
-      maxY: def.height * f.scale + pad,
-      minZ: f.z - r,
-      maxZ: f.z + r,
-    })
-  }
-  for (const m of state.minerals) {
-    if (!m.alive) continue
-    const def = MINERALS[m.kind]
-    const r = def.radius * m.scale + pad
-    boxes.push({
-      minX: m.x - r,
-      maxX: m.x + r,
-      minY: -0.2,
-      maxY: def.height * m.scale + pad,
-      minZ: m.z - r,
-      maxZ: m.z + r,
-    })
-  }
-  return boxes
-}
+const _terrainProbe = new THREE.Vector3()
 
 function pointInAabb(p: THREE.Vector3, box: Aabb): boolean {
   return (
@@ -115,9 +80,6 @@ function pointInAabb(p: THREE.Vector3, box: Aabb): boolean {
 
 export function isInsideCameraSolid(point: THREE.Vector3): boolean {
   for (const box of STATIC_BOXES) {
-    if (pointInAabb(point, box)) return true
-  }
-  for (const box of liveBoxes()) {
     if (pointInAabb(point, box)) return true
   }
   return false
@@ -163,7 +125,7 @@ function rayAabbEnter(
   return t0
 }
 
-/** Walk the boom ray and stop before the lens dips under the heightmap. */
+/** Flat patio floor clearance along the boom. */
 export function maxCameraBoomDistanceAgainstTerrain(
   origin: THREE.Vector3,
   direction: THREE.Vector3,
@@ -184,8 +146,7 @@ export function maxCameraBoomDistanceAgainstTerrain(
       origin.y + direction.y * inv * t,
       origin.z + direction.z * inv * t,
     )
-    const floorY = sampleHeight(_terrainProbe.x, _terrainProbe.z) + clearance
-    if (_terrainProbe.y < floorY) {
+    if (_terrainProbe.y < clearance) {
       hit = (maxDist * (i - 1)) / steps
       break
     }
@@ -208,10 +169,6 @@ export function maxCameraBoomDistance(
 
   let hit = maxDist
   for (const box of STATIC_BOXES) {
-    const t = rayAabbEnter(origin, dir, box, 0, maxDist)
-    if (t != null && t < hit) hit = t
-  }
-  for (const box of liveBoxes()) {
     const t = rayAabbEnter(origin, dir, box, 0, maxDist)
     if (t != null && t < hit) hit = t
   }

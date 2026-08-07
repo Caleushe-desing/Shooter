@@ -1,9 +1,10 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, type MutableRefObject } from 'react'
 import { useFrame } from '@react-three/fiber'
+import { useAnimations, useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
-import { COLORS, PLAYER } from '../../constants'
+import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js'
+import { COLORS } from '../../constants'
 import { useGameStore } from '../../store/gameStore'
-import { useWorldStore } from '../../store/worldStore'
 import { setMuzzleObject } from '../../store/muzzle'
 
 type PlayerAvatarProps = {
@@ -12,71 +13,87 @@ type PlayerAvatarProps = {
   movingRef: MutableRefObject<boolean>
 }
 
+const MODEL_URL = '/models/human.glb'
+
+useGLTF.preload(MODEL_URL)
+
 /**
- * Nude adult human colonist (game-appropriate, non-explicit).
- * Mesh faces local -Z. Camera sits on +Z so you see the back.
- * Stance posing: stand / crouch / prone + gait-aware limb swing.
+ * Rigged human (Mixamo) with real Idle / Walk / Run clips.
+ * Stances (crouch / prone) and jump lean on those clips + pose offsets.
  */
 export function PlayerAvatar({ yawRef, pitchRef, movingRef }: PlayerAvatarProps) {
   const root = useRef<THREE.Group>(null)
-  const pose = useRef<THREE.Group>(null)
-  const torso = useRef<THREE.Group>(null)
-  const legL = useRef<THREE.Group>(null)
-  const legR = useRef<THREE.Group>(null)
-  const armL = useRef<THREE.Group>(null)
-  const armR = useRef<THREE.Group>(null)
+  const modelRef = useRef<THREE.Group>(null)
+  const propRef = useRef<THREE.Group>(null)
   const muzzleRef = useRef<THREE.Group>(null)
-  const lastRecoil = useRef(0)
-  const recoil = useRef(0)
+  const currentClip = useRef<string | null>(null)
+  const { scene, animations } = useGLTF(MODEL_URL)
 
-  const equipped = useWorldStore((s) => s.equipped)
-  const h = PLAYER.height
+  const clone = useMemo(() => {
+    const c = cloneSkeleton(scene) as THREE.Group
+    c.traverse((obj) => {
+      const mesh = obj as THREE.Mesh
+      if (!mesh.isMesh) return
+      mesh.castShadow = true
+      mesh.receiveShadow = true
+      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
+      for (const mat of mats) {
+        const std = mat as THREE.MeshStandardMaterial
+        if (!std?.isMeshStandardMaterial) continue
+        // Soften the sci-fi armor into a warmer civilian palette.
+        if ((std.name || '').toLowerCase().includes('visor')) {
+          std.color.set('#5A8AAA')
+          std.metalness = 0.35
+          std.roughness = 0.45
+        } else {
+          std.color.set('#C4A882')
+          std.metalness = 0.05
+          std.roughness = 0.78
+        }
+      }
+    })
+    return c
+  }, [scene])
 
-  const materials = useMemo(() => {
-    const make = (color: string, roughness = 0.72, metalness = 0) =>
-      new THREE.MeshStandardMaterial({
-        color,
-        roughness,
-        metalness,
-      })
-    return {
-      skin: make(PLAYER.skin, 0.68),
-      skinLight: make(PLAYER.skinLight, 0.7),
-      skinShadow: make(PLAYER.skinShadow, 0.75),
-      hair: make(PLAYER.hair, 0.85),
-      eye: new THREE.MeshBasicMaterial({ color: COLORS.enemyEye }),
-      cloth: make('#6A5A48', 0.9),
-      leather: make('#4A3020', 0.82),
-      wool: make('#C8C0B0', 0.88),
-      tool: make('#6A6A68', 0.45, 0.35),
-      wood: make('#6B4E3A', 0.8),
-      gun: make(COLORS.gunMetal, 0.4, 0.45),
-      grip: make(COLORS.gunGrip, 0.65),
-    }
-  }, [])
+  const hand = useMemo(() => {
+    let bone: THREE.Object3D | null = null
+    clone.traverse((obj) => {
+      if (obj.name === 'mixamorig:RightHand' || obj.name === 'mixamorigRightHand') {
+        bone = obj
+      }
+    })
+    return bone as THREE.Object3D | null
+  }, [clone])
 
-  useEffect(() => {
-    return () => {
-      for (const mat of Object.values(materials)) mat.dispose()
-    }
-  }, [materials])
+  const { actions, mixer } = useAnimations(animations, modelRef)
 
   useLayoutEffect(() => {
     setMuzzleObject(muzzleRef.current)
     return () => setMuzzleObject(null)
   }, [])
 
+  useLayoutEffect(() => {
+    const prop = propRef.current
+    if (!hand || !prop) return
+    hand.add(prop)
+    return () => {
+      hand.remove(prop)
+    }
+  }, [hand])
+
   useEffect(() => {
-    return useGameStore.subscribe((s) => {
-      if (s.recoilNonce !== lastRecoil.current) {
-        lastRecoil.current = s.recoilNonce
-        recoil.current = 1
-      }
-    })
-  }, [])
+    const idle = actions.Idle
+    if (idle) {
+      idle.reset().fadeIn(0.2).play()
+      currentClip.current = 'Idle'
+    }
+    return () => {
+      mixer?.stopAllAction()
+    }
+  }, [actions, mixer])
 
   useFrame((_, delta) => {
-    if (!root.current || !pose.current || !torso.current) return
+    if (!root.current || !modelRef.current) return
     root.current.rotation.y = yawRef.current
 
     const game = useGameStore.getState()
@@ -84,176 +101,70 @@ export function PlayerAvatar({ yawRef, pitchRef, movingRef }: PlayerAvatarProps)
     const sprint = game.input.sprint && stance === 'stand'
     const slow = game.input.slow
     const airborne = game.airborne
-    const walk = movingRef.current && !airborne ? 1 : 0
+    const moving = movingRef.current
 
-    // Stance targets
-    let rootY = 0
-    let posePitch = 0
-    let torsoPitch = 0
-    let legBend = 0
-    let armHang = 0
-    let swingAmp = 0.55
-    let swingRate = 9
+    let next = 'Idle'
+    if (airborne) next = 'Idle'
+    else if (stance === 'prone') next = 'Idle'
+    else if (moving && stance === 'crouch') next = 'Walk'
+    else if (moving && sprint) next = 'Run'
+    else if (moving) next = 'Walk'
 
+    if (next !== currentClip.current) {
+      const prev = currentClip.current ? actions[currentClip.current] : null
+      const action = actions[next]
+      if (action) {
+        action.reset().setEffectiveTimeScale(1).setEffectiveWeight(1).fadeIn(0.18).play()
+        prev?.fadeOut(0.18)
+        currentClip.current = next
+      }
+    }
+
+    const action = currentClip.current ? actions[currentClip.current] : null
+    if (action) {
+      if (stance === 'crouch') action.setEffectiveTimeScale(moving ? 0.75 : 1)
+      else if (slow && next === 'Walk') action.setEffectiveTimeScale(0.65)
+      else if (sprint && next === 'Run') action.setEffectiveTimeScale(1.05)
+      else action.setEffectiveTimeScale(1)
+    }
+
+    let y = 0
+    let pitch = 0
+    let scaleY = 1
     if (stance === 'crouch') {
-      rootY = -0.28
-      torsoPitch = 0.35
-      legBend = 0.85
-      armHang = 0.25
-      swingAmp = 0.28
-      swingRate = 7
+      y = -0.2
+      pitch = 0.12
+      scaleY = 0.88
     } else if (stance === 'prone') {
-      rootY = 0.18
-      posePitch = 1.35
-      torsoPitch = 0.08
-      legBend = 0.15
-      armHang = 1.1
-      swingAmp = 0.12
-      swingRate = 5
-    } else if (sprint) {
-      swingAmp = 0.75
-      swingRate = 13
-    } else if (slow) {
-      swingAmp = 0.28
-      swingRate = 6
+      y = 0.15
+      pitch = 1.25
+      scaleY = 0.95
+    } else if (airborne) {
+      y = 0.05
+      pitch = -0.08
+    } else {
+      pitch = pitchRef.current * 0.12
     }
 
-    if (airborne) {
-      legBend = Math.max(legBend, 0.35)
-      armHang = Math.max(armHang, 0.4)
-      swingAmp = 0
-    }
-
-    pose.current.position.y = THREE.MathUtils.damp(pose.current.position.y, rootY, 12, delta)
-    pose.current.rotation.x = THREE.MathUtils.damp(pose.current.rotation.x, posePitch, 12, delta)
-    torso.current.rotation.x = THREE.MathUtils.damp(torso.current.rotation.x, torsoPitch, 12, delta)
-
-    const t = performance.now() * 0.001
-    const swing = Math.sin(t * swingRate) * swingAmp * walk
-    if (legL.current) legL.current.rotation.x = legBend + swing
-    if (legR.current) legR.current.rotation.x = legBend - swing
-    if (armL.current) armL.current.rotation.x = armHang - swing * 0.7
-    if (armR.current) {
-      const aim = stance === 'prone' ? pitchRef.current * 0.35 : pitchRef.current * 0.85
-      armR.current.rotation.x = aim - 0.55 + armHang * 0.35 + swing * 0.15 - recoil.current * 0.35
-    }
-    recoil.current = Math.max(0, recoil.current - delta * 6)
+    // Mixamo faces +Z; our locomotion yaw faces −Z → flip 180°.
+    modelRef.current.rotation.set(pitch, Math.PI, 0)
+    modelRef.current.position.y = THREE.MathUtils.damp(modelRef.current.position.y, y, 12, delta)
+    const sy = THREE.MathUtils.damp(modelRef.current.scale.y, scaleY, 12, delta)
+    modelRef.current.scale.set(1, sy, 1)
   })
 
-  const hasTorso = !!equipped.torso
-  const hasLegs = !!equipped.piernas
-  const hasCapa = !!equipped.capa
-  const hasBoots = !!equipped.pies
-  const tool = equipped.mano
-
   return (
-    <group ref={root} position={[0, 0, 0]}>
-      <group ref={pose}>
-        {/* Legs (hip pivots) */}
-        <group ref={legL} position={[-0.1 * h, 0.82 * h, 0]}>
-          <mesh material={hasLegs ? materials.leather : materials.skin} position={[0, -0.28 * h, 0]} castShadow>
-            <capsuleGeometry args={[0.07 * h, 0.38 * h, 4, 8]} />
-          </mesh>
-          <mesh
-            material={hasBoots ? materials.leather : materials.skinShadow}
-            position={[0, -0.55 * h, 0.02]}
-            castShadow
-          >
-            <boxGeometry args={[0.1 * h, 0.08 * h, 0.16 * h]} />
-          </mesh>
-        </group>
-        <group ref={legR} position={[0.1 * h, 0.82 * h, 0]}>
-          <mesh material={hasLegs ? materials.leather : materials.skin} position={[0, -0.28 * h, 0]} castShadow>
-            <capsuleGeometry args={[0.07 * h, 0.38 * h, 4, 8]} />
-          </mesh>
-          <mesh
-            material={hasBoots ? materials.leather : materials.skinShadow}
-            position={[0, -0.55 * h, 0.02]}
-            castShadow
-          >
-            <boxGeometry args={[0.1 * h, 0.08 * h, 0.16 * h]} />
-          </mesh>
-        </group>
-
-        {/* Upper body folds for crouch / prone */}
-        <group ref={torso} position={[0, 0.92 * h, 0]}>
-          <mesh material={materials.skinShadow} position={[0, 0, 0]} castShadow>
-            <boxGeometry args={[0.34 * h, 0.22 * h, 0.2 * h]} />
-          </mesh>
-          <mesh material={materials.skin} position={[0, 0.3 * h, 0.02]} castShadow>
-            <boxGeometry args={[0.38 * h, 0.42 * h, 0.22 * h]} />
-          </mesh>
-          <mesh material={materials.skinLight} position={[0, 0.46 * h, 0.04]} castShadow>
-            <boxGeometry args={[0.4 * h, 0.18 * h, 0.2 * h]} />
-          </mesh>
-
-          {hasTorso && (
-            <mesh material={materials.cloth} position={[0, 0.32 * h, 0.02]} castShadow>
-              <boxGeometry args={[0.42 * h, 0.48 * h, 0.26 * h]} />
-            </mesh>
-          )}
-          {hasCapa && (
-            <mesh material={materials.wool} position={[0, 0.36 * h, 0.16]} castShadow>
-              <boxGeometry args={[0.5 * h, 0.55 * h, 0.06 * h]} />
-            </mesh>
-          )}
-
-          <mesh material={materials.skin} position={[0, 0.7 * h, 0]} castShadow>
-            <sphereGeometry args={[0.13 * h, 14, 12]} />
-          </mesh>
-          <mesh material={materials.hair} position={[0, 0.78 * h, 0.02]} castShadow>
-            <sphereGeometry args={[0.135 * h, 12, 10]} />
-          </mesh>
-          <mesh material={materials.eye} position={[-0.045 * h, 0.72 * h, -0.1 * h]}>
-            <sphereGeometry args={[0.018, 6, 6]} />
-          </mesh>
-          <mesh material={materials.eye} position={[0.045 * h, 0.72 * h, -0.1 * h]}>
-            <sphereGeometry args={[0.018, 6, 6]} />
-          </mesh>
-
-          <group ref={armL} position={[-0.24 * h, 0.48 * h, 0]}>
-            <mesh material={materials.skin} position={[0, -0.22 * h, 0]} castShadow>
-              <capsuleGeometry args={[0.055 * h, 0.32 * h, 4, 8]} />
-            </mesh>
-          </group>
-          <group ref={armR} position={[0.24 * h, 0.48 * h, 0]}>
-            <mesh material={materials.skin} position={[0, -0.22 * h, 0]} castShadow>
-              <capsuleGeometry args={[0.055 * h, 0.32 * h, 4, 8]} />
-            </mesh>
-
-            <group position={[0.02, -0.42 * h, -0.08]} rotation={[0.2, 0, 0]}>
-              {tool === 'pala' ? (
-                <>
-                  <mesh material={materials.wood} position={[0, 0.12, 0]}>
-                    <cylinderGeometry args={[0.02, 0.025, 0.55, 6]} />
-                  </mesh>
-                  <mesh material={materials.tool} position={[0, -0.18, -0.02]} rotation={[0.4, 0, 0]}>
-                    <boxGeometry args={[0.18, 0.04, 0.22]} />
-                  </mesh>
-                </>
-              ) : tool === 'herramienta' ? (
-                <>
-                  <mesh material={materials.wood} position={[0, 0.05, 0]}>
-                    <cylinderGeometry args={[0.02, 0.02, 0.4, 6]} />
-                  </mesh>
-                  <mesh material={materials.tool} position={[0, -0.14, -0.04]} rotation={[0.6, 0, 0]}>
-                    <boxGeometry args={[0.08, 0.03, 0.16]} />
-                  </mesh>
-                </>
-              ) : (
-                <>
-                  <mesh material={materials.grip} position={[0, 0.02, 0.02]}>
-                    <boxGeometry args={[0.04, 0.12, 0.05]} />
-                  </mesh>
-                  <mesh material={materials.gun} position={[0, -0.02, -0.12]}>
-                    <boxGeometry args={[0.035, 0.05, 0.28]} />
-                  </mesh>
-                </>
-              )}
-              <group ref={muzzleRef} position={[0, -0.02, -0.28]} />
-            </group>
-          </group>
-        </group>
+    <group ref={root}>
+      <group ref={modelRef}>
+        <primitive object={clone} />
+      </group>
+      {/* Attached to RightHand in layout effect; kept outside clone tree for React ownership. */}
+      <group ref={propRef} position={[0, 0.04, 0.06]} rotation={[Math.PI / 2, 0, 0]}>
+        <mesh position={[0, 0, -0.08]}>
+          <boxGeometry args={[0.04, 0.05, 0.22]} />
+          <meshStandardMaterial color={COLORS.gunMetal} roughness={0.4} metalness={0.45} />
+        </mesh>
+        <group ref={muzzleRef} position={[0, 0, -0.22]} />
       </group>
     </group>
   )

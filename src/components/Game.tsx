@@ -4,7 +4,6 @@ import { Arena } from './scene/Arena'
 import { Sky } from './scene/Sky'
 import { PlayerController } from './scene/PlayerController'
 import { Tracers } from './scene/Tracers'
-import { Fauna } from './scene/Fauna'
 import { Explosions } from './scene/Explosions'
 import { PierceHoles } from './scene/PierceHoles'
 import { HUD } from './ui/HUD'
@@ -17,21 +16,19 @@ import { AudioBoot } from './ui/AudioBoot'
 import { SectorCleared } from './ui/SectorCleared'
 import { LandscapeGate } from './ui/LandscapeGate'
 import { FullscreenButton } from './ui/FullscreenButton'
-import { WorldMap } from './ui/WorldMap'
 import { COLORS } from '../constants'
 
 function Scene() {
   return (
     <>
       <color attach="background" args={[COLORS.sky]} />
-      <fog attach="fog" args={[COLORS.skyHaze, 120, 520]} />
-      <ambientLight intensity={0.55} color="#D8E0E4" />
-      <hemisphereLight args={['#8AABBE', '#4A5A3A', 0.55]} />
-      <directionalLight position={[40, 60, 20]} intensity={1.15} color="#F0E4C8" castShadow={false} />
-      <directionalLight position={[-20, 18, -14]} intensity={0.28} color="#6A8AAA" />
+      <fog attach="fog" args={[COLORS.skyHaze, 18, 55]} />
+      <ambientLight intensity={0.62} color="#E8EEF2" />
+      <hemisphereLight args={['#B8D0E0', '#6A8A50', 0.55]} />
+      <directionalLight position={[12, 22, 10]} intensity={1.2} color="#FFF2D8" castShadow={false} />
+      <directionalLight position={[-10, 10, -8]} intensity={0.3} color="#8AACC4" />
       <Sky />
       <Arena />
-      <Fauna />
       <PlayerController />
       <Tracers />
       <Explosions />
@@ -67,7 +64,6 @@ export function Game() {
       <HUD />
       <FullscreenButton />
       <InventoryHUD />
-      <WorldMap />
       <MobileControls />
       <ControlSettings />
       <AudioBoot />
@@ -75,10 +71,10 @@ export function Game() {
       <LandscapeGate />
 
       <div className="pointer-events-none absolute bottom-3 left-1/2 z-30 hidden -translate-x-1/2 rounded-md bg-black/35 px-3 py-1 text-[10px] tracking-[0.12em] text-white/80 sm:block">
-        WASD · SHIFT CORRER · ALT LENTO · CTRL AGACHAR · X ACOSTAR · ESPACIO SALTAR · F DISPARAR · I INV · M MAPA
+        WASD · SHIFT CORRER · ALT LENTO · CTRL AGACHAR · X ACOSTAR · ESPACIO SALTAR · F DISPARAR
       </div>
       <div className="pointer-events-none absolute bottom-3 left-1/2 z-30 -translate-x-1/2 rounded-md bg-black/35 px-3 py-1 text-[9px] tracking-[0.1em] text-white/75 sm:hidden">
-        JOYSTICK · CORRER / LENTO / AGACHAR / ACOSTAR / SALTAR · I INV · M MAPA
+        JOYSTICK · CORRER / LENTO / AGACHAR / ACOSTAR / SALTAR
       </div>
     </div>
   )

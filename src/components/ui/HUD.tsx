@@ -1,8 +1,6 @@
 import { PLAYER } from '../../constants'
 import { useGameStore } from '../../store/gameStore'
 import { useWorldStore } from '../../store/worldStore'
-import { useEffect, useState } from 'react'
-import { getPlayerPosition } from '../../store/enemyRuntime'
 
 function NeedBar({
   label,
@@ -39,20 +37,11 @@ export function HUD() {
   const scanActive = useWorldStore((s) => s.scanActive)
   const inventoryOpen = useWorldStore((s) => s.inventoryOpen)
   const mapOpen = useWorldStore((s) => s.mapOpen)
-  const biomeLabelAt = useWorldStore((s) => s.biomeLabelAt)
   const buildings = useWorldStore((s) => s.buildings)
-  const [biome, setBiome] = useState('Pradera')
+  const biome = 'Patio de pruebas'
 
   const healthPct = Math.max(0, Math.round((health / PLAYER.maxHealth) * 100))
   const critical = healthPct <= 30
-
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      const p = getPlayerPosition()
-      setBiome(biomeLabelAt(p.x, p.z))
-    }, 400)
-    return () => window.clearInterval(id)
-  }, [biomeLabelAt])
 
   if (inventoryOpen || mapOpen) return null
 

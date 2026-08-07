@@ -56,7 +56,7 @@ export const PLAYER = {
   /** Negative = look up, positive = look down. Soft look-up so boom stays above terrain. */
   pitchMin: -0.62,
   pitchMax: 0.72,
-  spawn: { x: 0, y: 0, z: 8 },
+  spawn: { x: 0, y: 0, z: 5 },
   maxHealth: 100,
   skin: '#C9956E',
   skinLight: '#D8A882',
@@ -113,7 +113,7 @@ export const CAMERA = {
   /** Keep lens above heightmap when orbiting / looking up. */
   groundClearance: 0.65,
   near: 0.12,
-  far: 2200,
+  far: 120,
   /**
    * Hip-fire reticle (% of viewport). Off-center OTS: character left, mira right.
    * Hitscan uses the same NDC via hipFireAimNdc().
@@ -139,10 +139,10 @@ export const SCOPE = {
 } as const
 
 export const ARENA = {
-  /** Legacy crate clearing size near spawn (open world uses WORLD). */
-  size: 28,
-  wallHeight: 4,
-  wallThickness: 0.4,
+  /** Small boxed patio (half-extent on X/Z). */
+  size: 22,
+  wallHeight: 3.6,
+  wallThickness: 0.45,
 } as const
 
 /** Hostile bandits still roam the open country. */
@@ -206,23 +206,38 @@ export type Collider = {
   maxZ: number
 }
 
-/** Static obstacle boxes near spawn (center + half extents on XZ). */
+/** Wooden crates / lumber stacks inside the patio. */
 export const OBSTACLES: { x: number; z: number; w: number; d: number; h: number }[] = [
-  { x: -6, z: -2, w: 2, d: 2, h: 2.5 },
-  { x: 5, z: -5, w: 2.5, d: 2, h: 3 },
-  { x: 0, z: -8, w: 3, d: 1.5, h: 2 },
-  { x: -8, z: 4, w: 1.8, d: 1.8, h: 2.2 },
-  { x: 8, z: 2, w: 2, d: 3, h: 2.8 },
+  { x: -5.5, z: -3.5, w: 1.8, d: 1.8, h: 1.6 },
+  { x: 4.8, z: -6.2, w: 2.2, d: 1.6, h: 2.1 },
+  { x: -1.2, z: -7.5, w: 2.6, d: 1.2, h: 1.1 },
+  { x: 7.2, z: 1.5, w: 1.5, d: 2.4, h: 1.8 },
+  { x: -7.4, z: 3.2, w: 1.7, d: 1.7, h: 2.4 },
+  { x: 2.4, z: 6.8, w: 2.0, d: 1.4, h: 1.3 },
+  { x: -3.8, z: 7.0, w: 1.4, d: 1.4, h: 0.9 },
+  { x: 6.0, z: -2.0, w: 1.2, d: 1.2, h: 2.8 },
+  { x: -6.5, z: -7.0, w: 2.4, d: 1.0, h: 0.7 },
 ]
 
+function buildWallColliders(): Collider[] {
+  const half = ARENA.size / 2
+  const t = ARENA.wallThickness
+  return [
+    { minX: -half - t, maxX: half + t, minZ: -half - t, maxZ: -half },
+    { minX: -half - t, maxX: half + t, minZ: half, maxZ: half + t },
+    { minX: -half - t, maxX: -half, minZ: -half, maxZ: half },
+    { minX: half, maxX: half + t, minZ: -half, maxZ: half },
+  ]
+}
+
 export function buildColliders(): Collider[] {
-  // Open world: only spawn crates here. Trees / rim come from worldStore.
-  return OBSTACLES.map((o) => ({
+  const crates = OBSTACLES.map((o) => ({
     minX: o.x - o.w / 2,
     maxX: o.x + o.w / 2,
     minZ: o.z - o.d / 2,
     maxZ: o.z + o.d / 2,
   }))
+  return [...crates, ...buildWallColliders()]
 }
 
 export const COLLIDERS = buildColliders()

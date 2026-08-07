@@ -17,7 +17,6 @@ import { setPlayerPosition, getPlayerPosition } from '../../store/enemyRuntime'
 import { useSettingsStore } from '../../store/settings'
 import { maxCameraBoomDistance, fitCameraScaleOutsideSolids } from '../../store/cameraCollision'
 import { useWorldStore } from '../../store/worldStore'
-import { FLORA, MINERALS, WORLD } from '../../world/catalog'
 import { sampleHeight } from '../../world/heightmap'
 import { PlayerAvatar } from './PlayerAvatar'
 
@@ -128,15 +127,9 @@ export function PlayerController() {
         }
         if (world.inventoryOpen) world.setInventoryOpen(false)
       }
-      if (e.code === 'KeyM') {
-        e.preventDefault()
-        world.toggleMap()
-        return
-      }
       if (
         (world.inventoryOpen || world.mapOpen) &&
         e.code !== 'KeyI' &&
-        e.code !== 'KeyM' &&
         e.code !== 'Escape'
       ) {
         return
@@ -419,39 +412,7 @@ export function PlayerController() {
     rig.current.position.set(pos.current.x, pos.current.y, pos.current.z)
     setPlayerPosition(pos.current.x, pos.current.y + eyeH, pos.current.z)
 
-    // Proximity hint for harvest, lakes, minerals.
-    {
-      const range = WORLD.interactRange
-      const world = useWorldStore.getState()
-      let hint: string | null = null
-      if (world.nearestLake(pos.current.x, pos.current.z)) {
-        hint = 'E · Agua  ·  Q · Ducharse  ·  R · Pescar'
-      }
-      if (!hint) {
-        for (const f of world.flora) {
-          if (!f.alive || f.harvested) continue
-          if (Math.hypot(f.x - pos.current.x, f.z - pos.current.z) <= range) {
-            hint = `E · Recolectar ${FLORA[f.kind].label}`
-            break
-          }
-        }
-      }
-      if (!hint) {
-        for (const m of world.minerals) {
-          if (!m.alive || !m.revealed) continue
-          if (Math.hypot(m.x - pos.current.x, m.z - pos.current.z) <= range) {
-            hint = `E · Extraer ${MINERALS[m.kind].label}`
-            break
-          }
-        }
-      }
-      if (!hint && world.equipped.mano === 'pala') {
-        hint = 'V · Cavar tierra'
-      } else if (!hint && world.scanActive) {
-        hint = 'C · Pulsar escáner de minerales'
-      }
-      world.setInteractHint(hint)
-    }
+    useWorldStore.getState().setInteractHint(null)
 
     // --- Rear-right boom + wall collision ---
     const boomMul = LOCOMOTION.boomScale[stance]

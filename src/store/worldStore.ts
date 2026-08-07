@@ -16,7 +16,6 @@ import {
   type EquipSlot,
 } from '../world/catalog'
 import {
-  generateWorld,
   biomeAt,
   type FaunaInstance,
   type FloraInstance,
@@ -116,8 +115,16 @@ type WorldStore = {
 
 let toastSeq = 0
 let buildingSeq = 0
-// Bump seed when world layout changes so clients get fresh mines/orchards/height.
-const generated = generateWorld(20260807)
+
+/** Empty world — patio demo has no open-country generation. */
+const generated = {
+  lakes: [] as import('../world/catalog').LakeDef[],
+  orchards: [] as OrchardZone[],
+  mines: [] as MineInstance[],
+  flora: [] as FloraInstance[],
+  minerals: [] as MineralInstance[],
+  fauna: [] as FaunaInstance[],
+}
 
 function emptyInventory(): Inventory {
   return {
@@ -193,33 +200,8 @@ export const useWorldStore = create<WorldStore>((set, get) => ({
   },
 
   getTreeColliders: () => {
-    const list: Collider[] = []
-    for (const f of get().flora) {
-      if (!f.alive) continue
-      const r = FLORA[f.kind].radius * f.scale
-      list.push({ minX: f.x - r, maxX: f.x + r, minZ: f.z - r, maxZ: f.z + r })
-    }
-    for (const m of get().minerals) {
-      if (!m.alive || !m.revealed) continue
-      const r = MINERALS[m.kind].radius * m.scale
-      list.push({ minX: m.x - r, maxX: m.x + r, minZ: m.z - r, maxZ: m.z + r })
-    }
-    for (const b of get().buildings) {
-      if (b.kind === 'tramo_calle' || b.kind === 'hoguera') continue
-      const def = BUILDINGS[b.kind]
-      const hx = def.width * 0.45
-      const hz = def.depth * 0.45
-      list.push({ minX: b.x - hx, maxX: b.x + hx, minZ: b.z - hz, maxZ: b.z + hz })
-    }
-    const h = WORLD.half
-    const t = 4
-    list.push(
-      { minX: -h - t, maxX: h + t, minZ: -h - t, maxZ: -h },
-      { minX: -h - t, maxX: h + t, minZ: h, maxZ: h + t },
-      { minX: -h - t, maxX: -h, minZ: -h, maxZ: h },
-      { minX: h, maxX: h + t, minZ: -h, maxZ: h },
-    )
-    return list
+    // Patio walls/crates come from constants COLLIDERS; no wilderness props.
+    return []
   },
 
   addLoot: (id, amount, label) => {
