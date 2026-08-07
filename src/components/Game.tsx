@@ -16,6 +16,7 @@ import { ControlSettings } from './ui/ControlSettings'
 import { AudioBoot } from './ui/AudioBoot'
 import { SectorCleared } from './ui/SectorCleared'
 import { LandscapeGate } from './ui/LandscapeGate'
+import { FullscreenButton } from './ui/FullscreenButton'
 import { COLORS } from '../constants'
 
 function Scene() {
@@ -63,6 +64,7 @@ export function Game() {
       <ScopeOverlay />
       <ScopeButton />
       <HUD />
+      <FullscreenButton />
       <InventoryHUD />
       <MobileControls />
       <ControlSettings />

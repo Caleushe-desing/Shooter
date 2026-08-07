@@ -37,6 +37,7 @@ export function HUD() {
   const thirst = useGameStore((s) => s.thirst)
   const hygiene = useGameStore((s) => s.hygiene)
   const scanActive = useWorldStore((s) => s.scanActive)
+  const inventoryOpen = useWorldStore((s) => s.inventoryOpen)
   const biomeLabelAt = useWorldStore((s) => s.biomeLabelAt)
   const buildings = useWorldStore((s) => s.buildings)
   const [biome, setBiome] = useState('Pradera')
@@ -51,6 +52,8 @@ export function HUD() {
     }, 400)
     return () => window.clearInterval(id)
   }, [biomeLabelAt])
+
+  if (inventoryOpen) return null
 
   return (
     <>

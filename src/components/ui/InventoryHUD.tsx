@@ -113,9 +113,14 @@ export function InventoryHUD() {
       )}
 
       {open && (
-        <div className="pointer-events-auto absolute inset-0 z-40 flex flex-col bg-[#0c1014]/94 backdrop-blur-sm">
+        <div
+          className="pointer-events-auto fixed inset-0 z-[200] flex h-[100dvh] w-screen flex-col bg-[#0c1014]"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Inventario del colono"
+        >
           {/* Top bar */}
-          <div className="flex items-center justify-between border-b border-white/10 px-4 py-3 sm:px-6">
+          <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-4 py-3 sm:px-6">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-white/45">
                 Supervivencia
@@ -134,7 +139,7 @@ export function InventoryHUD() {
           </div>
 
           {/* Tabs — large touch targets */}
-          <div className="flex gap-1 overflow-x-auto border-b border-white/10 px-3 py-2 sm:px-6">
+          <div className="flex shrink-0 gap-1 overflow-x-auto border-b border-white/10 px-3 py-2 sm:px-6">
             {TABS.map((t) => (
               <button
                 key={t.id}
