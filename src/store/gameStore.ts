@@ -346,11 +346,13 @@ export const useGameStore = create<GameState>((set, get) => ({
     // Soft world reset so the colonist can start gathering again.
     useWorldStore.setState({
       inventory: {
-        madera: 4,
-        bayas: 3,
-        agua: 2,
-        fibra: 2,
+        madera: 6,
+        bayas: 4,
+        agua: 3,
+        fibra: 4,
+        piedra: 2,
       },
+      equipped: {},
       inventoryOpen: false,
       buildMode: null,
       buildings: [],

@@ -9,9 +9,11 @@ import {
   BUILDINGS,
   RESOURCE_LABELS,
   NEEDS,
+  EQUIPABLE,
   type ResourceId,
   type BuildingKind,
   type LakeDef,
+  type EquipSlot,
 } from '../world/catalog'
 import {
   generateWorld,
@@ -20,6 +22,8 @@ import {
   type FloraInstance,
   type MineralInstance,
 } from '../world/generate'
+
+export type Equipment = Partial<Record<EquipSlot, ResourceId>>
 
 export type Inventory = Partial<Record<ResourceId, number>>
 
@@ -61,26 +65,31 @@ type WorldStore = {
   lakes: LakeDef[]
   buildings: BuildingState[]
   inventory: Inventory
+  equipped: Equipment
   inventoryOpen: boolean
-  inventoryTab: 'mochila' | 'crafteo' | 'construir'
+  inventoryTab: 'mochila' | 'crafteo' | 'construir' | 'equipo'
   toast: Toast | null
   interactHint: string | null
   scanActive: boolean
   scanPulseAt: number
   buildMode: BuildingKind | null
+  lastDigAt: number
   initWorld: () => void
   getTreeColliders: () => Collider[]
   addLoot: (id: ResourceId, amount: number, label?: string) => void
   hasResources: (cost: { id: ResourceId; amount: number }[]) => boolean
   spendResources: (cost: { id: ResourceId; amount: number }[]) => boolean
   tryInteract: (px: number, pz: number) => boolean
+  dig: (px: number, pz: number) => boolean
+  equipItem: (id: ResourceId) => void
+  unequipSlot: (slot: EquipSlot) => void
   damageFlora: (id: string, amount?: number) => void
   damageMineral: (id: string, amount?: number) => void
   damageFauna: (id: string, amount?: number) => void
   setInteractHint: (hint: string | null) => void
   toggleInventory: () => void
   setInventoryOpen: (open: boolean) => void
-  setInventoryTab: (tab: 'mochila' | 'crafteo' | 'construir') => void
+  setInventoryTab: (tab: 'mochila' | 'crafteo' | 'construir' | 'equipo') => void
   craft: (recipeId: string) => boolean
   consumeFood: (id: ResourceId) => { hunger: number; thirst: number; hygiene: number } | null
   gatherWater: (px: number, pz: number) => boolean
@@ -100,12 +109,12 @@ let buildingSeq = 0
 const generated = generateWorld()
 
 function emptyInventory(): Inventory {
-  // Starter pack so the pup can begin colonizing immediately.
   return {
-    madera: 4,
-    bayas: 3,
-    agua: 2,
-    fibra: 2,
+    madera: 6,
+    bayas: 4,
+    agua: 3,
+    fibra: 4,
+    piedra: 2,
   }
 }
 
@@ -125,6 +134,7 @@ export const useWorldStore = create<WorldStore>((set, get) => ({
   lakes: [],
   buildings: [],
   inventory: emptyInventory(),
+  equipped: {},
   inventoryOpen: false,
   inventoryTab: 'mochila',
   toast: null,
@@ -132,6 +142,7 @@ export const useWorldStore = create<WorldStore>((set, get) => ({
   scanActive: false,
   scanPulseAt: 0,
   buildMode: null,
+  lastDigAt: 0,
 
   initWorld: () => {
     if (get().ready) return
@@ -229,9 +240,84 @@ export const useWorldStore = create<WorldStore>((set, get) => ({
     set({ interactHint: hint })
   },
 
-  toggleInventory: () => set((s) => ({ inventoryOpen: !s.inventoryOpen, buildMode: null })),
-  setInventoryOpen: (open) => set({ inventoryOpen: open }),
-  setInventoryTab: (tab) => set({ inventoryTab: tab, inventoryOpen: true }),
+  toggleInventory: () => {
+    const next = !get().inventoryOpen
+    set({ inventoryOpen: next, buildMode: null })
+    if (next && document.pointerLockElement) document.exitPointerLock()
+  },
+  setInventoryOpen: (open) => {
+    set({ inventoryOpen: open })
+    if (open && document.pointerLockElement) document.exitPointerLock()
+  },
+  setInventoryTab: (tab) => {
+    set({ inventoryTab: tab, inventoryOpen: true })
+    if (document.pointerLockElement) document.exitPointerLock()
+  },
+
+  equipItem: (id) => {
+    const slot = EQUIPABLE[id]
+    if (!slot) return
+    if ((get().inventory[id] ?? 0) < 1 && get().equipped[slot] !== id) return
+    set((s) => {
+      const equipped = { ...s.equipped }
+      const prev = equipped[slot]
+      const inv = { ...s.inventory }
+      // Return previous item of that slot to inventory.
+      if (prev && prev !== id) inv[prev] = (inv[prev] ?? 0) + 1
+      if (equipped[slot] !== id) {
+        inv[id] = Math.max(0, (inv[id] ?? 0) - 1)
+        if (inv[id] === 0) delete inv[id]
+      }
+      equipped[slot] = id
+      return {
+        equipped,
+        inventory: inv,
+        toast: { id: ++toastSeq, text: `Equipado: ${RESOURCE_LABELS[id]}` },
+      }
+    })
+  },
+
+  unequipSlot: (slot) => {
+    set((s) => {
+      const id = s.equipped[slot]
+      if (!id) return s
+      const equipped = { ...s.equipped }
+      delete equipped[slot]
+      return {
+        equipped,
+        inventory: { ...s.inventory, [id]: (s.inventory[id] ?? 0) + 1 },
+        toast: { id: ++toastSeq, text: `Guardado: ${RESOURCE_LABELS[id]}` },
+      }
+    })
+  },
+
+  dig: (px, pz) => {
+    const now = performance.now()
+    if (now - get().lastDigAt < 700) return false
+    if (get().equipped.mano !== 'pala') {
+      set({ toast: { id: ++toastSeq, text: 'Equipa una pala para cavar (V)' } })
+      return false
+    }
+    if (get().nearestLake(px, pz)) {
+      set({ toast: { id: ++toastSeq, text: 'No puedes cavar en el agua' } })
+      return false
+    }
+    const biome = biomeAt(px, pz, get().lakes)
+    let yieldId: ResourceId = 'tierra'
+    let amount = 2
+    if (biome === 'lago' || biome === 'humedal') {
+      yieldId = Math.random() > 0.45 ? 'arcilla' : 'tierra'
+      amount = 2
+    } else if (biome === 'pradera') {
+      yieldId = Math.random() > 0.65 ? 'arena' : 'tierra'
+    } else if (biome === 'rocoso') {
+      yieldId = Math.random() > 0.5 ? 'piedra' : 'tierra'
+      amount = 1
+    }
+    set({ lastDigAt: now })
+    get().addLoot(yieldId, amount)
+    return true
+  },
 
   craft: (recipeId) => {
     const recipe = RECIPES.find((r) => r.id === recipeId)

@@ -78,7 +78,7 @@ export function getBrickTexture(): THREE.Texture {
   return brickTexture
 }
 
-/** Bright suburban lawn — vivid green, soft blades. */
+/** Natural meadow grass — muted earth tones, denser blades. */
 export function getGrassTexture(): THREE.Texture {
   if (grassTexture) return grassTexture
 
@@ -88,16 +88,16 @@ export function getGrassTexture(): THREE.Texture {
   ctx.fillStyle = COLORS.grass
   ctx.fillRect(0, 0, size, size)
 
-  const patches = [COLORS.grassLight, COLORS.grassDark, '#6ECF5A', '#4AAE50']
-  for (let i = 0; i < 70; i++) {
+  const patches = [COLORS.grassLight, COLORS.grassDark, '#3F6A32', '#5A7A40', '#4A6030']
+  for (let i = 0; i < 90; i++) {
     ctx.fillStyle = patches[Math.floor(Math.random() * patches.length)]
-    ctx.globalAlpha = 0.28
+    ctx.globalAlpha = 0.22
     ctx.beginPath()
     ctx.ellipse(
       Math.random() * size,
       Math.random() * size,
-      24 + Math.random() * 70,
-      16 + Math.random() * 48,
+      20 + Math.random() * 80,
+      14 + Math.random() * 50,
       Math.random() * Math.PI,
       0,
       Math.PI * 2,
@@ -106,27 +106,29 @@ export function getGrassTexture(): THREE.Texture {
   }
   ctx.globalAlpha = 1
 
-  const blades = ['#4AAE50', '#7ED957', '#3F9A45', '#8AE06A']
-  for (let i = 0; i < 3800; i++) {
+  const blades = ['#3A5A2E', '#4A6A38', '#2E4A28', '#5A7040']
+  for (let i = 0; i < 5200; i++) {
     const x = Math.random() * size
     const y = Math.random() * size
-    const len = 3 + Math.random() * 6
-    const lean = (Math.random() - 0.5) * 2.5
+    const len = 2 + Math.random() * 5
+    const lean = (Math.random() - 0.5) * 2
     ctx.strokeStyle = blades[Math.floor(Math.random() * blades.length)]
-    ctx.lineWidth = Math.random() > 0.8 ? 1.8 : 1.1
+    ctx.lineWidth = Math.random() > 0.85 ? 1.4 : 0.9
+    ctx.globalAlpha = 0.55 + Math.random() * 0.35
     ctx.beginPath()
     ctx.moveTo(x, y)
     ctx.lineTo(x + lean, y - len)
     ctx.stroke()
   }
+  ctx.globalAlpha = 1
 
-  // Occasional flower dots — classic Sims yard charm.
-  for (let i = 0; i < 40; i++) {
-    ctx.fillStyle = Math.random() > 0.5 ? '#FFE566' : '#FF8FAB'
-    ctx.beginPath()
-    ctx.arc(Math.random() * size, Math.random() * size, 1.5 + Math.random() * 2, 0, Math.PI * 2)
-    ctx.fill()
+  // Sparse dirt flecks for realism.
+  for (let i = 0; i < 80; i++) {
+    ctx.fillStyle = Math.random() > 0.5 ? '#5A4A30' : '#3A3428'
+    ctx.globalAlpha = 0.25
+    ctx.fillRect(Math.random() * size, Math.random() * size, 2 + Math.random() * 4, 1 + Math.random() * 3)
   }
+  ctx.globalAlpha = 1
 
   grassTexture = finish(canvas, 1)
   return grassTexture
@@ -145,7 +147,7 @@ export function getSkyTexture(): THREE.Texture {
   const grad = ctx.createLinearGradient(0, 0, 0, canvas.height)
   grad.addColorStop(0, COLORS.skyZenith)
   grad.addColorStop(0.45, COLORS.sky)
-  grad.addColorStop(0.78, '#B8DFF8')
+  grad.addColorStop(0.78, '#9BB8C8')
   grad.addColorStop(1, COLORS.skyHorizon)
   ctx.fillStyle = grad
   ctx.fillRect(0, 0, canvas.width, canvas.height)

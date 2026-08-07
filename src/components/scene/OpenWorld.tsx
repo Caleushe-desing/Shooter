@@ -227,17 +227,20 @@ export function OpenWorld() {
 
       {/* Distant ridges */}
       {[
-        [90, 0, -100, 28],
-        [-95, 0, -70, 22],
-        [70, 0, 95, 24],
-        [-110, 0, 60, 20],
-        [40, 0, -120, 18],
+        [320, 0, -380, 70],
+        [-350, 0, -260, 55],
+        [280, 0, 360, 60],
+        [-400, 0, 220, 48],
+        [150, 0, -450, 42],
+        [-180, 0, 420, 50],
+        [480, 0, 80, 65],
+        [-500, 0, -100, 58],
       ].map(([x, , z, r], i) => (
-        <mesh key={i} position={[x, -1.2, z]} castShadow>
-          <sphereGeometry args={[r, 16, 12]} />
+        <mesh key={i} position={[x, -2.5, z]} castShadow>
+          <sphereGeometry args={[r, 18, 14]} />
           <meshStandardMaterial
-            color={i % 2 ? '#6B8A5A' : '#7A7A70'}
-            roughness={0.95}
+            color={i % 2 ? '#5A7A48' : '#6A6A60'}
+            roughness={0.96}
             metalness={0}
           />
         </mesh>

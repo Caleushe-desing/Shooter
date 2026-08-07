@@ -78,6 +78,7 @@ export function PlayerController() {
 
     const onMouseDown = (e: MouseEvent) => {
       if (isTouch) return
+      if (useWorldStore.getState().inventoryOpen) return
       if (document.pointerLockElement === el && e.button === 0) {
         useGameStore.getState().queueFire()
       }
@@ -85,6 +86,7 @@ export function PlayerController() {
 
     const onClick = () => {
       if (isTouch || useSettingsStore.getState().open) return
+      if (useWorldStore.getState().inventoryOpen) return
       if (document.pointerLockElement !== el) {
         el.requestPointerLock()
       }
@@ -107,8 +109,9 @@ export function PlayerController() {
 
       if (e.code === 'Escape') {
         world.setBuildMode(null)
-        world.setInventoryOpen(false)
+        if (world.inventoryOpen) world.setInventoryOpen(false)
       }
+      if (world.inventoryOpen && e.code !== 'KeyI' && e.code !== 'Escape') return
       if (e.code === 'Space' || e.code === 'KeyF') {
         e.preventDefault()
         if (world.buildMode) {
@@ -143,6 +146,10 @@ export function PlayerController() {
       if (e.code === 'KeyR') {
         e.preventDefault()
         world.fish(p.x, p.z)
+      }
+      if (e.code === 'KeyV') {
+        e.preventDefault()
+        world.dig(p.x, p.z)
       }
     }
 
@@ -210,6 +217,7 @@ export function PlayerController() {
     setPlayerPosition(pos.current.x, PLAYER.eyeHeight, pos.current.z)
     if (store.caught) return
     if (useSettingsStore.getState().open) return
+    if (useWorldStore.getState().inventoryOpen) return
 
     store.tickNeeds(dt)
 
@@ -309,7 +317,9 @@ export function PlayerController() {
           }
         }
       }
-      if (!hint && world.scanActive) {
+      if (!hint && world.equipped.mano === 'pala') {
+        hint = 'V · Cavar tierra'
+      } else if (!hint && world.scanActive) {
         hint = 'C · Pulsar escáner de minerales'
       }
       world.setInteractHint(hint)

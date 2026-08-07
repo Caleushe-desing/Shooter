@@ -213,12 +213,67 @@ const SPECS: Record<ResourceId, IconSpec> = {
       c.fill()
     },
   },
+  pala: {
+    bg: '#1A2018',
+    fg: '#8A8A86',
+    draw: (c, s) => {
+      c.fillStyle = '#6B4E3A'
+      c.fillRect(s * 0.45, s * 0.18, s * 0.1, s * 0.45)
+      c.fillStyle = '#8A8A86'
+      c.fillRect(s * 0.3, s * 0.58, s * 0.4, s * 0.22)
+    },
+  },
   jabon: {
     bg: '#203028',
     fg: '#B8E0C8',
     draw: (c, s) => {
       c.fillStyle = '#B8E0C8'
       c.fillRect(s * 0.28, s * 0.35, s * 0.44, s * 0.32)
+    },
+  },
+  tierra: { bg: '#2A1C10', fg: '#6B4A2A', draw: (c, s) => nugget(c, s, '#6B4A2A') },
+  tunica: {
+    bg: '#241810',
+    fg: '#8A7A5A',
+    draw: (c, s) => {
+      c.fillStyle = '#8A7A5A'
+      c.fillRect(s * 0.28, s * 0.28, s * 0.44, s * 0.5)
+      c.fillRect(s * 0.18, s * 0.32, s * 0.16, s * 0.18)
+      c.fillRect(s * 0.66, s * 0.32, s * 0.16, s * 0.18)
+    },
+  },
+  pantalon: {
+    bg: '#1A1410',
+    fg: '#5A3A28',
+    draw: (c, s) => {
+      c.fillStyle = '#5A3A28'
+      c.fillRect(s * 0.28, s * 0.25, s * 0.18, s * 0.55)
+      c.fillRect(s * 0.54, s * 0.25, s * 0.18, s * 0.55)
+    },
+  },
+  capa: {
+    bg: '#201818',
+    fg: '#C8C0B0',
+    draw: (c, s) => {
+      c.fillStyle = '#C8C0B0'
+      c.beginPath()
+      c.moveTo(s * 0.2, s * 0.3)
+      c.lineTo(s * 0.8, s * 0.3)
+      c.lineTo(s * 0.7, s * 0.8)
+      c.lineTo(s * 0.3, s * 0.8)
+      c.closePath()
+      c.fill()
+    },
+  },
+  botas: {
+    bg: '#1A1410',
+    fg: '#4A3020',
+    draw: (c, s) => {
+      c.fillStyle = '#4A3020'
+      c.fillRect(s * 0.22, s * 0.4, s * 0.22, s * 0.35)
+      c.fillRect(s * 0.56, s * 0.4, s * 0.22, s * 0.35)
+      c.fillRect(s * 0.18, s * 0.68, s * 0.3, s * 0.12)
+      c.fillRect(s * 0.52, s * 0.68, s * 0.3, s * 0.12)
     },
   },
 }

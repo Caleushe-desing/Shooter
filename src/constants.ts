@@ -3,14 +3,14 @@ export const COLORS = {
   neonGreen: '#6FE04A',
   white: '#FFFFFF',
   tracer: '#5CC8FF',
-  /** Sims-like daylight: bright, saturated, suburban. */
-  sky: '#7EC8F5',
-  skyZenith: '#4BA3E3',
-  skyHorizon: '#E8F4FC',
-  skyHaze: '#D6ECF8',
-  grass: '#5CB85A',
-  grassLight: '#7ED957',
-  grassDark: '#3F9A45',
+  /** Natural outdoor daylight — less toy, more earthy. */
+  sky: '#6FA8C8',
+  skyZenith: '#3A6F9A',
+  skyHorizon: '#C8D8E4',
+  skyHaze: '#A8BCC8',
+  grass: '#4A7A3A',
+  grassLight: '#5A8A48',
+  grassDark: '#3A5A2E',
   /** Warm suburban brick + cream coping. */
   wallCap: '#F2E8D5',
   brick: '#C96A4A',
@@ -23,47 +23,43 @@ export const COLORS = {
   woodEdge: '#B8A88A',
   foamChip: '#FFF8EC',
   foamHole: '#8A7A62',
-  /** Soft, even Sim-like skin. */
-  skin: '#F0C5A0',
-  skinLight: '#F8D9BC',
-  skinShadow: '#D4A07A',
+  /** Natural human skin. */
+  skin: '#C9956E',
+  skinLight: '#D8A882',
+  skinShadow: '#A87452',
+  hair: '#2A1E16',
   gunMetal: '#5A6570',
   gunMetalLight: '#7A8794',
   gunSteel: '#9AA6B2',
   gunGrip: '#6B4E3A',
-  /** Bright Sim wardrobe palette. */
-  enemySkins: ['#F0C5A0', '#E8B888', '#D4A070', '#C9946A'] as const,
-  enemyShirts: ['#FF6B6B', '#4D96FF', '#6BCB77', '#FFD93D', '#C77DFF', '#FF8C42'] as const,
-  enemyPants: ['#4A6FA5', '#6B7280', '#3D5A80', '#5B6B4A'] as const,
-  enemyEye: '#2B2B2B',
-  blood: '#E85A5A',
-  bloodDark: '#C43D3D',
-  /** UI — plumbob-adjacent greens and soft panels. */
-  uiAccent: '#6FE04A',
-  uiAccentHot: '#FF7A59',
-  uiPanel: '#1A2430',
-  uiPanelSoft: 'rgba(26, 36, 48, 0.72)',
+  enemySkins: ['#C9956E', '#B88460', '#D4A070', '#A87452'] as const,
+  enemyShirts: ['#6B5A4A', '#4A5A4A', '#5A4A3A', '#3A4A5A'] as const,
+  enemyPants: ['#3A3A38', '#4A4038', '#2A3028', '#3A3530'] as const,
+  enemyEye: '#1A1A1A',
+  blood: '#8A2A2A',
+  bloodDark: '#5A1818',
+  uiAccent: '#8FBF6A',
+  uiAccentHot: '#C86A4A',
+  uiPanel: '#141820',
+  uiPanelSoft: 'rgba(14, 18, 24, 0.88)',
 } as const
 
 export const PLAYER = {
-  eyeHeight: 1.65,
-  /** Body height scale for the bipedal pup avatar. */
+  eyeHeight: 1.62,
+  /** Body height scale for the nude human colonist. */
   height: 1.0,
-  radius: 0.45,
-  speed: 7.5,
+  radius: 0.4,
+  speed: 6.8,
   lookSensitivityDesktop: 0.0022,
   lookSensitivityMobile: 0.0034,
   pitchMin: -1.05,
   pitchMax: 0.85,
   spawn: { x: 0, y: 0, z: 8 },
   maxHealth: 100,
-  /** Soft toy-dog fur palette + plumbob collar. */
-  fur: '#D4A574',
-  furLight: '#E8C9A0',
-  furDark: '#B8895A',
-  belly: '#F5E6D3',
-  nose: '#2B2B2B',
-  collar: '#6FE04A',
+  skin: '#C9956E',
+  skinLight: '#D8A882',
+  skinShadow: '#A87452',
+  hair: '#2A1E16',
 } as const
 
 /**
@@ -92,7 +88,7 @@ export const CAMERA = {
   minDistance: 1.1,
   collisionSkin: 0.55,
   near: 0.12,
-  far: 600,
+  far: 2200,
   /**
    * Hip-fire reticle (% of viewport). Open space to the right of the pup.
    */

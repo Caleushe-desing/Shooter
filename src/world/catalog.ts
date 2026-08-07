@@ -33,7 +33,14 @@ export type ResourceId =
   | 'clavo'
   | 'lingote_hierro'
   | 'herramienta'
+  | 'pala'
   | 'jabon'
+  | 'tierra'
+  // Clothing
+  | 'tunica'
+  | 'pantalon'
+  | 'capa'
+  | 'botas'
 
 export type BiomeId = 'bosque' | 'pradera' | 'lago' | 'rocoso' | 'humedal'
 
@@ -88,10 +95,18 @@ export const RESOURCE_LABELS: Record<ResourceId, string> = {
   clavo: 'Clavos',
   lingote_hierro: 'Lingote de hierro',
   herramienta: 'Herramienta',
+  pala: 'Pala',
   jabon: 'Jabón',
+  tierra: 'Tierra',
+  tunica: 'Túnica',
+  pantalon: 'Pantalón',
+  capa: 'Capa',
+  botas: 'Botas',
 }
 
-export const RESOURCE_CATEGORY: Record<ResourceId, 'comida' | 'natural' | 'mineral' | 'crafteado'> = {
+export type ResourceCategory = 'comida' | 'natural' | 'mineral' | 'crafteado' | 'ropa' | 'herramienta'
+
+export const RESOURCE_CATEGORY: Record<ResourceId, ResourceCategory> = {
   bayas: 'comida',
   carne: 'comida',
   pez: 'comida',
@@ -102,6 +117,7 @@ export const RESOURCE_CATEGORY: Record<ResourceId, 'comida' | 'natural' | 'miner
   fibra: 'natural',
   cuero: 'natural',
   lana: 'natural',
+  tierra: 'natural',
   piedra: 'mineral',
   arena: 'mineral',
   arcilla: 'mineral',
@@ -118,9 +134,16 @@ export const RESOURCE_CATEGORY: Record<ResourceId, 'comida' | 'natural' | 'miner
   cuerda: 'crafteado',
   clavo: 'crafteado',
   lingote_hierro: 'crafteado',
-  herramienta: 'crafteado',
   jabon: 'crafteado',
+  herramienta: 'herramienta',
+  pala: 'herramienta',
+  tunica: 'ropa',
+  pantalon: 'ropa',
+  capa: 'ropa',
+  botas: 'ropa',
 }
+
+export type EquipSlot = 'torso' | 'piernas' | 'capa' | 'pies' | 'mano'
 
 export type FloraDef = {
   kind: FloraKind
@@ -589,7 +612,73 @@ export const RECIPES: RecipeDef[] = [
     output: { id: 'jabon', amount: 1 },
     workSec: 3,
   },
+  {
+    id: 'pala',
+    label: 'Pala',
+    description: 'Cavar tierra, arena y arcilla del suelo.',
+    inputs: [
+      { id: 'madera', amount: 2 },
+      { id: 'piedra', amount: 2 },
+      { id: 'cuerda', amount: 1 },
+    ],
+    output: { id: 'pala', amount: 1 },
+    workSec: 3,
+  },
+  {
+    id: 'tunica',
+    label: 'Túnica de fibra',
+    description: 'Ropa básica para el torso.',
+    inputs: [
+      { id: 'fibra', amount: 6 },
+      { id: 'cuerda', amount: 1 },
+    ],
+    output: { id: 'tunica', amount: 1 },
+    workSec: 4,
+  },
+  {
+    id: 'pantalon',
+    label: 'Pantalón de cuero',
+    description: 'Protege las piernas del matorral.',
+    inputs: [
+      { id: 'cuero', amount: 3 },
+      { id: 'cuerda', amount: 2 },
+    ],
+    output: { id: 'pantalon', amount: 1 },
+    workSec: 4,
+  },
+  {
+    id: 'capa',
+    label: 'Capa de lana',
+    description: 'Abrigo ligero sobre los hombros.',
+    inputs: [
+      { id: 'lana', amount: 4 },
+      { id: 'cuerda', amount: 1 },
+    ],
+    output: { id: 'capa', amount: 1 },
+    workSec: 4,
+  },
+  {
+    id: 'botas',
+    label: 'Botas de cuero',
+    description: 'Calzado para caminar lejos.',
+    inputs: [
+      { id: 'cuero', amount: 2 },
+      { id: 'fibra', amount: 2 },
+    ],
+    output: { id: 'botas', amount: 1 },
+    workSec: 3,
+  },
 ]
+
+/** Which inventory items can be equipped, and to which slot. */
+export const EQUIPABLE: Partial<Record<ResourceId, EquipSlot>> = {
+  tunica: 'torso',
+  pantalon: 'piernas',
+  capa: 'capa',
+  botas: 'pies',
+  pala: 'mano',
+  herramienta: 'mano',
+}
 
 export const BUILDINGS: Record<BuildingKind, BuildingDef> = {
   refugio: {
@@ -646,15 +735,17 @@ export const BUILDINGS: Record<BuildingKind, BuildingDef> = {
 }
 
 export const WORLD = {
-  size: 280,
-  half: 140,
-  rimPadding: 2,
+  /** ~5× previous playable span (was 280). */
+  size: 1400,
+  half: 700,
+  rimPadding: 4,
   interactRange: 2.8,
-  scanRange: 18,
-  floraCount: 220,
-  faunaCount: 55,
-  mineralCount: 90,
-  lakeCount: 5,
+  scanRange: 32,
+  digRange: 2.4,
+  floraCount: 720,
+  faunaCount: 160,
+  mineralCount: 320,
+  lakeCount: 18,
   lifeTickSec: 0.05,
 } as const
 

@@ -122,15 +122,15 @@ export function generateWorld(seed = 20260806) {
     for (let attempt = 0; attempt < 40; attempt++) {
       x = randRange(rng, -half * 0.85, half * 0.85)
       z = randRange(rng, -half * 0.85, half * 0.85)
-      if (Math.hypot(x, z - 8) < 28) continue
-      if (!farEnough(x, z, lakes, 42)) continue
+      if (Math.hypot(x, z - 8) < 40) continue
+      if (!farEnough(x, z, lakes, 90)) continue
       break
     }
     lakes.push({
       id: `lake-${i}`,
       x,
       z,
-      radius: randRange(rng, 10, 18),
+      radius: randRange(rng, 14, 28),
     })
   }
 
