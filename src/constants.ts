@@ -29,10 +29,10 @@ export const PLAYER = {
   /** Touch look — higher so a short drag turns farther. */
   lookSensitivityMobile: 0.0058,
   /**
-   * While holding a finger offset from the press point, keep turning
-   * (rad/s per pixel of offset). No need to lift and swipe again.
+   * Hold-to-turn rate (rad/s at full stick deflection).
+   * Applied in PlayerController from mobileLookStick.
    */
-  lookStickRate: 0.055,
+  lookStickRate: 2.8,
   lookStickDeadzone: 10,
   /** Clamp finger offset (px) so max turn rate stays controllable. */
   lookStickMax: 120,

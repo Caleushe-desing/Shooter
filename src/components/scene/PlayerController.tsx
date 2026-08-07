@@ -8,6 +8,7 @@ import { PlayerAvatar } from './PlayerAvatar'
 import { WeaponSystem } from './WeaponSystem'
 import { buildHavenInspiredMap } from '../../map/havenLayout'
 import { unlockAudio } from '../../audio/gunshot'
+import { mobileLookStick } from '../../input/mobileLookStick'
 
 const MAP_SOLIDS = buildHavenInspiredMap().solids
 
@@ -139,6 +140,16 @@ export function PlayerController() {
       PLAYER.pitchMin,
       PLAYER.pitchMax,
     )
+
+    // Hold-to-turn from mobile look stick (no finger lift needed).
+    if (mobileLookStick.active) {
+      lookYaw.current -= mobileLookStick.x * PLAYER.lookStickRate * dt
+      lookPitch.current = THREE.MathUtils.clamp(
+        lookPitch.current - mobileLookStick.y * PLAYER.lookStickRate * dt,
+        PLAYER.pitchMin,
+        PLAYER.pitchMax,
+      )
+    }
 
     bodyYaw.current = lookYaw.current
     yawPivot.current.rotation.y = lookYaw.current

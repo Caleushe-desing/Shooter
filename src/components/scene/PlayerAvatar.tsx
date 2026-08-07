@@ -19,8 +19,9 @@ useGLTF.preload(MODEL_URL)
 type ClipName = 'idle' | 'walk' | 'run'
 
 /**
- * Mixamo X-Bot nude human — idle / walk / run.
- * Restored from the working clip setup (modelRef + real clip names).
+ * Mixamo X-Bot — idle / walk / run.
+ * Animations are bound to the skeleton clone (not a late ref) so clips
+ * always drive the mesh instead of leaving the bind / T-pose.
  */
 function MixamoHuman({ yawRef, movingRef }: Props) {
   const root = useRef<THREE.Group>(null)
@@ -63,30 +64,34 @@ function MixamoHuman({ yawRef, movingRef }: Props) {
     return { clone: c, fitScale, footOffset }
   }, [scene])
 
-  const { actions, mixer } = useAnimations(animations, modelRef)
+  // Bind clips to the cloned skeleton object so tracks resolve immediately.
+  const { actions, mixer } = useAnimations(animations, clone)
+  const idleAction = actions.idle
+  const walkAction = actions.walk
+  const runAction = actions.run
 
   useEffect(() => {
-    const idle = actions.idle
-    if (!idle) return
-    idle.reset().fadeIn(0.2).play()
-    idle.setLoop(THREE.LoopRepeat, Infinity)
+    if (!idleAction) return
+    idleAction.reset().setEffectiveWeight(1).fadeIn(0.2).play()
+    idleAction.setLoop(THREE.LoopRepeat, Infinity)
     currentClip.current = 'idle'
     return () => {
       mixer.stopAllAction()
+      currentClip.current = null
     }
-  }, [actions, mixer])
+  }, [idleAction, mixer])
 
   useFrame(() => {
     if (!root.current || !modelRef.current) return
     root.current.rotation.y = yawRef.current
 
     const { moveX, moveZ, sprint } = useGameStore.getState().input
-    const moving =
-      movingRef.current || Math.hypot(moveX, moveZ) > 0.05
+    const moving = movingRef.current || Math.hypot(moveX, moveZ) > 0.05
 
     let next: ClipName = 'idle'
-    if (moving && sprint) next = 'run'
-    else if (moving) next = 'walk'
+    if (moving && sprint && runAction) next = 'run'
+    else if (moving && walkAction) next = 'walk'
+    else next = 'idle'
 
     if (next !== currentClip.current) {
       const prev = currentClip.current ? actions[currentClip.current] : null

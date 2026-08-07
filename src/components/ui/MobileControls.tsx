@@ -3,6 +3,7 @@ import { PLAYER } from '../../constants'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useGameStore } from '../../store/gameStore'
 import { unlockAudio } from '../../audio/gunshot'
+import { mobileLookStick, resetMobileLookStick } from '../../input/mobileLookStick'
 
 /**
  * Android / tablet overlay:
@@ -133,58 +134,39 @@ function RightHandButtons() {
 /**
  * Entire right half of the screen:
  * - tap / press → fire
- * - hold finger offset from press → keep looking that way (no lift needed)
- * - also reacts to drag deltas for snappy corrections
- * SALTAR / CORRER sit above this and stopPropagation so they don't shoot.
+ * - hold finger offset from press → keep looking (stick, no Zustand spam)
+ * - drag deltas still add a snappy correction
  */
 function RightLookAndFire() {
-  const addLook = useGameStore((s) => s.addLook)
   const requestFire = useGameStore((s) => s.requestFire)
+  const addLook = useGameStore((s) => s.addLook)
   const active = useRef(false)
   const origin = useRef({ x: 0, y: 0 })
-  const finger = useRef({ x: 0, y: 0 })
   const last = useRef({ x: 0, y: 0 })
   const pointerId = useRef<number | null>(null)
-  const raf = useRef(0)
-
-  const stopLoop = () => {
-    if (raf.current) {
-      cancelAnimationFrame(raf.current)
-      raf.current = 0
-    }
-  }
 
   const end = () => {
     active.current = false
     pointerId.current = null
-    stopLoop()
+    resetMobileLookStick()
   }
 
-  const tick = useCallback(
-    (prevTime: number) => {
-      if (!active.current) {
-        raf.current = 0
-        return
-      }
-      const now = performance.now()
-      const dt = Math.min(0.05, (now - prevTime) / 1000)
-
-      // Continuous look from finger offset vs press point (hold to keep turning).
-      let ox = finger.current.x - origin.current.x
-      let oy = finger.current.y - origin.current.y
-      const dist = Math.hypot(ox, oy)
-      if (dist > PLAYER.lookStickDeadzone) {
-        const scale = Math.min(1, (dist - PLAYER.lookStickDeadzone) / PLAYER.lookStickMax)
-        const nx = ox / dist
-        const ny = oy / dist
-        const rate = PLAYER.lookStickRate * scale
-        addLook(nx * rate * dt * 60, ny * rate * dt * 60)
-      }
-
-      raf.current = requestAnimationFrame(() => tick(now))
-    },
-    [addLook],
-  )
+  const writeStick = (clientX: number, clientY: number) => {
+    let ox = clientX - origin.current.x
+    let oy = clientY - origin.current.y
+    const dist = Math.hypot(ox, oy)
+    if (dist <= PLAYER.lookStickDeadzone) {
+      mobileLookStick.active = true
+      mobileLookStick.x = 0
+      mobileLookStick.y = 0
+      return
+    }
+    const clamped = Math.min(dist, PLAYER.lookStickMax)
+    const scale = (clamped - PLAYER.lookStickDeadzone) / (PLAYER.lookStickMax - PLAYER.lookStickDeadzone)
+    mobileLookStick.active = true
+    mobileLookStick.x = (ox / dist) * scale
+    mobileLookStick.y = (oy / dist) * scale
+  }
 
   return (
     <div
@@ -196,20 +178,18 @@ function RightLookAndFire() {
         active.current = true
         pointerId.current = e.pointerId
         origin.current = { x: e.clientX, y: e.clientY }
-        finger.current = { x: e.clientX, y: e.clientY }
         last.current = { x: e.clientX, y: e.clientY }
+        writeStick(e.clientX, e.clientY)
         unlockAudio()
         requestFire()
-        stopLoop()
-        raf.current = requestAnimationFrame(() => tick(performance.now()))
       }}
       onPointerMove={(e) => {
         if (!active.current || pointerId.current !== e.pointerId) return
-        // Extra snappy response to movement while also feeding the hold-stick.
         const dx = e.clientX - last.current.x
         const dy = e.clientY - last.current.y
         last.current = { x: e.clientX, y: e.clientY }
-        finger.current = { x: e.clientX, y: e.clientY }
+        writeStick(e.clientX, e.clientY)
+        // Snappy response while dragging.
         addLook(dx * PLAYER.lookSensitivityMobile, dy * PLAYER.lookSensitivityMobile)
       }}
       onPointerUp={end}
