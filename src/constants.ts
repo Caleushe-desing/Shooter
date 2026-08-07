@@ -97,43 +97,6 @@ export const ARENA = {
   wallThickness: 0.9,
 } as const
 
-/** Hostile runners that spawn and chase the player. */
-export const ENEMY = {
-  radius: 0.38,
-  height: 1.65,
-  speed: 3.1,
-  hp: 3,
-  damage: 12,
-  attackRange: 1.15,
-  attackCooldown: 0.85,
-  /** Max alive at once. */
-  maxAlive: 10,
-  /** Seconds between spawn attempts. */
-  spawnInterval: 2.8,
-  /** First spawn delay. */
-  spawnDelay: 1.2,
-  /** Spawn points around the map (away from mid spawn). */
-  spawns: [
-    { x: -28, z: 0 },
-    { x: 28, z: 0 },
-    { x: 0, z: -28 },
-    { x: -22, z: 22 },
-    { x: 22, z: 22 },
-    { x: 0, z: 34 },
-    { x: -34, z: -12 },
-    { x: 34, z: -12 },
-  ],
-  /** Min distance from player to spawn. */
-  spawnClearance: 14,
-  color: '#C44A3A',
-  eyeColor: '#1A0808',
-} as const
-
-/** Player combat vitals. */
-export const COMBAT = {
-  maxHealth: 100,
-} as const
-
 export function clampToArena(x: number, z: number, radius: number) {
   const half = ARENA.size / 2 - radius
   return {

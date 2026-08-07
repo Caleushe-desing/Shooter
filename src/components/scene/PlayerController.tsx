@@ -257,90 +257,85 @@ export function PlayerController() {
     forward.current.set(-Math.sin(lookYaw.current), 0, -Math.cos(lookYaw.current))
     right.current.set(Math.cos(lookYaw.current), 0, -Math.sin(lookYaw.current))
 
-    if (game.alive) {
-      const { moveX, moveZ, sprint } = game.input
-      wish.current
-        .set(0, 0, 0)
-        .addScaledVector(right.current, moveX)
-        .addScaledVector(forward.current, -moveZ)
+    const { moveX, moveZ, sprint } = game.input
+    wish.current
+      .set(0, 0, 0)
+      .addScaledVector(right.current, moveX)
+      .addScaledVector(forward.current, -moveZ)
 
-      moving.current = wish.current.lengthSq() > 1e-6
-      if (moving.current) {
-        const speed = PLAYER.speed * (sprint ? PLAYER.runMul : 1)
-        wish.current.normalize().multiplyScalar(speed * dt)
-        let nx = pos.current.x + wish.current.x
-        let nz = pos.current.z + wish.current.z
-        const bounded = clampToArena(nx, nz, PLAYER.radius)
-        nx = bounded.x
-        nz = bounded.z
-        // Height-aware: cleared tops (jump/step) do not block XZ.
-        const hit = resolveCircleSolids(
-          nx,
-          nz,
-          PLAYER.radius,
-          MAP_SOLIDS,
-          pos.current.y,
-          PLAYER.height,
-          COLLISION.stepHeight,
-        )
-        pos.current.x = hit.x
-        pos.current.z = hit.z
-      }
+    moving.current = wish.current.lengthSq() > 1e-6
+    if (moving.current) {
+      const speed = PLAYER.speed * (sprint ? PLAYER.runMul : 1)
+      wish.current.normalize().multiplyScalar(speed * dt)
+      let nx = pos.current.x + wish.current.x
+      let nz = pos.current.z + wish.current.z
+      const bounded = clampToArena(nx, nz, PLAYER.radius)
+      nx = bounded.x
+      nz = bounded.z
+      // Height-aware: cleared tops (jump/step) do not block XZ.
+      const hit = resolveCircleSolids(
+        nx,
+        nz,
+        PLAYER.radius,
+        MAP_SOLIDS,
+        pos.current.y,
+        PLAYER.height,
+        COLLISION.stepHeight,
+      )
+      pos.current.x = hit.x
+      pos.current.z = hit.z
+    }
 
-      if (game.consumeJump() && grounded.current) {
-        velY.current = PLAYER.jumpSpeed
-        grounded.current = false
-      }
+    if (game.consumeJump() && grounded.current) {
+      velY.current = PLAYER.jumpSpeed
+      grounded.current = false
+    }
 
-      const supportR = PLAYER.radius * COLLISION.supportRadiusScale
-      if (!grounded.current || velY.current !== 0) {
-        velY.current -= PLAYER.gravity * dt
-        pos.current.y += velY.current * dt
-        const ceil = resolveCeiling(
-          pos.current.y,
-          velY.current,
-          PLAYER.radius,
-          pos.current.x,
-          pos.current.z,
-          PLAYER.height,
-          MAP_SOLIDS,
-        )
-        pos.current.y = ceil.feetY
-        velY.current = ceil.velY
+    const supportR = PLAYER.radius * COLLISION.supportRadiusScale
+    if (!grounded.current || velY.current !== 0) {
+      velY.current -= PLAYER.gravity * dt
+      pos.current.y += velY.current * dt
+      const ceil = resolveCeiling(
+        pos.current.y,
+        velY.current,
+        PLAYER.radius,
+        pos.current.x,
+        pos.current.z,
+        PLAYER.height,
+        MAP_SOLIDS,
+      )
+      pos.current.y = ceil.feetY
+      velY.current = ceil.velY
 
-        const support = findSupportY(
-          pos.current.x,
-          pos.current.z,
-          pos.current.y,
-          supportR,
-          MAP_SOLIDS,
-          COLLISION.landSnap,
-        )
-        if (velY.current <= 0 && pos.current.y <= support) {
-          pos.current.y = support
-          velY.current = 0
-          grounded.current = true
-        }
-      } else {
-        // Grounded: stick to platforms / fall off edges.
-        const support = findSupportY(
-          pos.current.x,
-          pos.current.z,
-          pos.current.y + 0.08,
-          supportR,
-          MAP_SOLIDS,
-          0.4,
-        )
-        if (support < pos.current.y - 0.06) {
-          grounded.current = false
-          velY.current = 0
-        } else {
-          pos.current.y = support
-        }
+      const support = findSupportY(
+        pos.current.x,
+        pos.current.z,
+        pos.current.y,
+        supportR,
+        MAP_SOLIDS,
+        COLLISION.landSnap,
+      )
+      if (velY.current <= 0 && pos.current.y <= support) {
+        pos.current.y = support
+        velY.current = 0
+        grounded.current = true
       }
     } else {
-      moving.current = false
-      game.consumeJump()
+      // Grounded: stick to platforms / fall off edges.
+      const support = findSupportY(
+        pos.current.x,
+        pos.current.z,
+        pos.current.y + 0.08,
+        supportR,
+        MAP_SOLIDS,
+        0.4,
+      )
+      if (support < pos.current.y - 0.06) {
+        grounded.current = false
+        velY.current = 0
+      } else {
+        pos.current.y = support
+      }
     }
 
     rig.current.position.set(pos.current.x, pos.current.y, pos.current.z)

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { COMBAT, PLAYER, type CameraMode } from '../constants'
+import { PLAYER, type CameraMode } from '../constants'
 
 type InputState = {
   moveX: number
@@ -18,9 +18,6 @@ type GameState = {
   playerX: number
   playerY: number
   playerZ: number
-  health: number
-  alive: boolean
-  kills: number
   /** Bumped on restart so systems can reset timers. */
   runId: number
   cameraMode: CameraMode
@@ -36,8 +33,6 @@ type GameState = {
   consumeLook: () => { dx: number; dy: number }
 
   setPlayerPos: (x: number, y: number, z: number) => void
-  damagePlayer: (amount: number) => void
-  registerKill: () => void
   restartRun: () => void
   setCameraMode: (mode: CameraMode) => void
   toggleCameraMode: () => void
@@ -54,9 +49,6 @@ export const useGameStore = create<GameState>((set, get) => ({
   playerX: PLAYER.spawn.x,
   playerY: 0,
   playerZ: PLAYER.spawn.z,
-  health: COMBAT.maxHealth,
-  alive: true,
-  kills: 0,
   runId: 1,
   cameraMode: 'third',
 
@@ -65,20 +57,15 @@ export const useGameStore = create<GameState>((set, get) => ({
   toggleSprint: () =>
     set((s) => ({ input: { ...s.input, sprint: !s.input.sprint } })),
 
-  requestJump: () => {
-    if (!get().alive) return
-    set({ jumpQueued: true })
-  },
+  requestJump: () => set({ jumpQueued: true }),
   consumeJump: () => {
     if (!get().jumpQueued) return false
     set({ jumpQueued: false })
     return true
   },
 
-  requestFire: () => {
-    if (!get().alive) return
-    set((s) => ({ fireQueued: s.fireQueued + 1, shotId: s.shotId + 1 }))
-  },
+  requestFire: () =>
+    set((s) => ({ fireQueued: s.fireQueued + 1, shotId: s.shotId + 1 })),
   consumeFire: () => {
     if (get().fireQueued <= 0) return false
     set((s) => ({ fireQueued: Math.max(0, s.fireQueued - 1) }))
@@ -99,20 +86,8 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   setPlayerPos: (x, y, z) => set({ playerX: x, playerY: y, playerZ: z }),
 
-  damagePlayer: (amount) => {
-    const s = get()
-    if (!s.alive) return
-    const health = Math.max(0, s.health - amount)
-    set({ health, alive: health > 0 })
-  },
-
-  registerKill: () => set((s) => ({ kills: s.kills + 1 })),
-
   restartRun: () => {
     set({
-      health: COMBAT.maxHealth,
-      alive: true,
-      kills: 0,
       fireQueued: 0,
       jumpQueued: false,
       input: { moveX: 0, moveZ: 0, sprint: false },
