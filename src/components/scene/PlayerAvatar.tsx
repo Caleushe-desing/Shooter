@@ -20,13 +20,14 @@ useGLTF.preload(MODEL_URL)
 type ClipName = 'idle' | 'walk' | 'run' | 'sneak_pose'
 
 /**
- * Mixamo X-Bot — same class of humanoid as before, but nude (no suit).
- * Real clips: idle / walk / run / sneak_pose (agachado). Prone = lie on floor.
- * Always oriented so the chase cam sees the back.
+ * Mixamo X-Bot — nude humanoid (no suit) with real human motion.
+ * idle / walk / run / sneak_pose (crouch). Prone lies on the floor.
+ * Facing flip is on a separate group so clips never show the face to the cam.
  */
 export function PlayerAvatar({ yawRef, pitchRef: _pitchRef, movingRef }: PlayerAvatarProps) {
   const root = useRef<THREE.Group>(null)
-  const modelRef = useRef<THREE.Group>(null)
+  const stanceRef = useRef<THREE.Group>(null)
+  const animRoot = useRef<THREE.Group>(null)
   const propRef = useRef<THREE.Group>(null)
   const muzzleRef = useRef<THREE.Group>(null)
   const currentClip = useRef<ClipName | null>(null)
@@ -40,7 +41,6 @@ export function PlayerAvatar({ yawRef, pitchRef: _pitchRef, movingRef }: PlayerA
       mesh.castShadow = true
       mesh.receiveShadow = true
 
-      // Hide gray joint orbs — body surface only (nude look).
       const n = (mesh.name || '').toLowerCase()
       const matName = (
         Array.isArray(mesh.material)
@@ -74,7 +74,7 @@ export function PlayerAvatar({ yawRef, pitchRef: _pitchRef, movingRef }: PlayerA
     return bone as THREE.Object3D | null
   }, [clone])
 
-  const { actions, mixer } = useAnimations(animations, modelRef)
+  const { actions, mixer } = useAnimations(animations, animRoot)
 
   useLayoutEffect(() => {
     setMuzzleObject(muzzleRef.current)
@@ -103,7 +103,8 @@ export function PlayerAvatar({ yawRef, pitchRef: _pitchRef, movingRef }: PlayerA
   }, [actions, mixer])
 
   useFrame((_, delta) => {
-    if (!root.current || !modelRef.current) return
+    if (!root.current || !stanceRef.current) return
+    // Locked to look yaw — camera is always on the back.
     root.current.rotation.y = yawRef.current
 
     const game = useGameStore.getState()
@@ -114,18 +115,11 @@ export function PlayerAvatar({ yawRef, pitchRef: _pitchRef, movingRef }: PlayerA
     const moving = movingRef.current
 
     let next: ClipName = 'idle'
-    if (stance === 'prone') {
-      next = 'idle'
-    } else if (stance === 'crouch') {
-      // sneak_pose = agachado humano; walk lento si se mueve agachado
-      next = moving ? 'walk' : 'sneak_pose'
-    } else if (airborne) {
-      next = 'idle'
-    } else if (moving && sprint) {
-      next = 'run'
-    } else if (moving) {
-      next = 'walk'
-    }
+    if (stance === 'prone') next = 'idle'
+    else if (stance === 'crouch') next = moving ? 'walk' : 'sneak_pose'
+    else if (airborne) next = 'idle'
+    else if (moving && sprint) next = 'run'
+    else if (moving) next = 'walk'
 
     if (next !== currentClip.current) {
       const prev = currentClip.current ? actions[currentClip.current] : null
@@ -150,11 +144,9 @@ export function PlayerAvatar({ yawRef, pitchRef: _pitchRef, movingRef }: PlayerA
     let y = 0
     let pitch = 0
     if (stance === 'crouch' && moving) {
-      // Slight squat while using walk clip crouched
       y = -0.08
       pitch = 0.18
     } else if (stance === 'prone') {
-      // Tenderse en el piso (barriga al suelo, espalda hacia arriba / cámara)
       y = 0.32
       pitch = 1.38
     } else if (airborne) {
@@ -162,17 +154,19 @@ export function PlayerAvatar({ yawRef, pitchRef: _pitchRef, movingRef }: PlayerA
       pitch = -0.05
     }
 
-    // Mixamo +Z forward → flip so camera on +Z sees the back.
-    modelRef.current.rotation.x = THREE.MathUtils.damp(modelRef.current.rotation.x, pitch, 14, delta)
-    modelRef.current.rotation.y = Math.PI
-    modelRef.current.rotation.z = 0
-    modelRef.current.position.y = THREE.MathUtils.damp(modelRef.current.position.y, y, 14, delta)
+    stanceRef.current.rotation.x = THREE.MathUtils.damp(stanceRef.current.rotation.x, pitch, 14, delta)
+    stanceRef.current.position.y = THREE.MathUtils.damp(stanceRef.current.position.y, y, 14, delta)
   })
 
   return (
     <group ref={root}>
-      <group ref={modelRef}>
-        <primitive object={clone} />
+      <group ref={stanceRef}>
+        {/* Fixed 180° so Mixamo +Z forward becomes −Z: camera on +Z sees the back. */}
+        <group rotation={[0, Math.PI, 0]}>
+          <group ref={animRoot}>
+            <primitive object={clone} />
+          </group>
+        </group>
       </group>
       <group ref={propRef} position={[0, 0.03, 0.05]} rotation={[Math.PI / 2, 0, 0]}>
         <mesh position={[0, 0, -0.08]}>

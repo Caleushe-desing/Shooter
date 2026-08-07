@@ -308,18 +308,15 @@ export function PlayerController() {
       PLAYER.pitchMax,
     )
 
-    // Tight follow — camera stays on the back, not orbiting to the face/side.
-    const yawFollow = store.scoped ? CAMERA.followYaw * 2.2 : CAMERA.followYaw
+    // Hard lock: camera yaw + body yaw = look yaw every frame → always the back.
+    camYaw.current = lookYaw.current
+    bodyYaw.current = lookYaw.current
     const pitchFollow = store.scoped ? CAMERA.followPitch * 2.2 : CAMERA.followPitch
-    camYaw.current = dampAngle(camYaw.current, lookYaw.current, yawFollow, dt)
     camPitch.current = dampAngle(camPitch.current, lookPitch.current, pitchFollow, dt)
     camPitch.current = THREE.MathUtils.clamp(camPitch.current, PLAYER.pitchMin, PLAYER.pitchMax)
 
     yawPivot.current.rotation.y = camYaw.current
     pitchObj.current.rotation.x = camPitch.current + CAMERA.pitchBias
-
-    // Body always faces look direction → espalda toward camera at all times.
-    bodyYaw.current = dampAngle(bodyYaw.current, lookYaw.current, CAMERA.bodyTurn, dt)
 
     // Camera-relative movement (classic third-person).
     forward.current.set(-Math.sin(camYaw.current), 0, -Math.cos(camYaw.current))
