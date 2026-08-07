@@ -17,12 +17,34 @@ const MODEL_URL = '/models/human.glb'
 
 useGLTF.preload(MODEL_URL)
 
-type ClipName = 'idle' | 'walk' | 'run' | 'sneak_pose'
+type ClipName = 'idle' | 'walk' | 'run'
+
+type BoneMap = {
+  hips: THREE.Object3D | null
+  spine: THREE.Object3D | null
+  spine1: THREE.Object3D | null
+  leftUpLeg: THREE.Object3D | null
+  rightUpLeg: THREE.Object3D | null
+  leftLeg: THREE.Object3D | null
+  rightLeg: THREE.Object3D | null
+  leftArm: THREE.Object3D | null
+  rightArm: THREE.Object3D | null
+  leftShoulder: THREE.Object3D | null
+  rightShoulder: THREE.Object3D | null
+}
+
+function findBone(root: THREE.Object3D, names: string[]): THREE.Object3D | null {
+  let found: THREE.Object3D | null = null
+  root.traverse((obj) => {
+    if (found) return
+    if (names.includes(obj.name)) found = obj
+  })
+  return found
+}
 
 /**
- * Mixamo X-Bot — nude humanoid (no suit) with real human motion.
- * idle / walk / run / sneak_pose (crouch). Prone lies on the floor.
- * Facing flip is on a separate group so clips never show the face to the cam.
+ * Mixamo X-Bot nude humanoid with real locomotion clips + layered poses:
+ * crouch (knee bend), jump (knees + arms up), prone on belly (guata al piso).
  */
 export function PlayerAvatar({ yawRef, pitchRef: _pitchRef, movingRef }: PlayerAvatarProps) {
   const root = useRef<THREE.Group>(null)
@@ -31,6 +53,10 @@ export function PlayerAvatar({ yawRef, pitchRef: _pitchRef, movingRef }: PlayerA
   const propRef = useRef<THREE.Group>(null)
   const muzzleRef = useRef<THREE.Group>(null)
   const currentClip = useRef<ClipName | null>(null)
+  const bonesRef = useRef<BoneMap | null>(null)
+  const crouchAmt = useRef(0)
+  const jumpAmt = useRef(0)
+  const proneAmt = useRef(0)
   const { scene, animations } = useGLTF(MODEL_URL)
 
   const clone = useMemo(() => {
@@ -65,13 +91,23 @@ export function PlayerAvatar({ yawRef, pitchRef: _pitchRef, movingRef }: PlayerA
   }, [scene])
 
   const hand = useMemo(() => {
-    let bone: THREE.Object3D | null = null
-    clone.traverse((obj) => {
-      if (obj.name === 'mixamorig:RightHand' || obj.name === 'mixamorigRightHand') {
-        bone = obj
-      }
-    })
-    return bone as THREE.Object3D | null
+    return findBone(clone, ['mixamorig:RightHand', 'mixamorigRightHand'])
+  }, [clone])
+
+  useLayoutEffect(() => {
+    bonesRef.current = {
+      hips: findBone(clone, ['mixamorig:Hips', 'mixamorigHips']),
+      spine: findBone(clone, ['mixamorig:Spine', 'mixamorigSpine']),
+      spine1: findBone(clone, ['mixamorig:Spine1', 'mixamorigSpine1']),
+      leftUpLeg: findBone(clone, ['mixamorig:LeftUpLeg', 'mixamorigLeftUpLeg']),
+      rightUpLeg: findBone(clone, ['mixamorig:RightUpLeg', 'mixamorigRightUpLeg']),
+      leftLeg: findBone(clone, ['mixamorig:LeftLeg', 'mixamorigLeftLeg']),
+      rightLeg: findBone(clone, ['mixamorig:RightLeg', 'mixamorigRightLeg']),
+      leftArm: findBone(clone, ['mixamorig:LeftArm', 'mixamorigLeftArm']),
+      rightArm: findBone(clone, ['mixamorig:RightArm', 'mixamorigRightArm']),
+      leftShoulder: findBone(clone, ['mixamorig:LeftShoulder', 'mixamorigLeftShoulder']),
+      rightShoulder: findBone(clone, ['mixamorig:RightShoulder', 'mixamorigRightShoulder']),
+    }
   }, [clone])
 
   const { actions, mixer } = useAnimations(animations, animRoot)
@@ -102,9 +138,9 @@ export function PlayerAvatar({ yawRef, pitchRef: _pitchRef, movingRef }: PlayerA
     }
   }, [actions, mixer])
 
+  // Priority 1: run after the animation mixer so bone overlays stick.
   useFrame((_, delta) => {
     if (!root.current || !stanceRef.current) return
-    // Locked to look yaw — camera is always on the back.
     root.current.rotation.y = yawRef.current
 
     const game = useGameStore.getState()
@@ -114,54 +150,98 @@ export function PlayerAvatar({ yawRef, pitchRef: _pitchRef, movingRef }: PlayerA
     const airborne = game.airborne
     const moving = movingRef.current
 
+    // Base locomotion clips (no sneak_pose — it froze the rig).
     let next: ClipName = 'idle'
     if (stance === 'prone') next = 'idle'
-    else if (stance === 'crouch') next = moving ? 'walk' : 'sneak_pose'
     else if (airborne) next = 'idle'
-    else if (moving && sprint) next = 'run'
+    else if (moving && sprint && stance === 'stand') next = 'run'
     else if (moving) next = 'walk'
+    else next = 'idle'
 
     if (next !== currentClip.current) {
       const prev = currentClip.current ? actions[currentClip.current] : null
       const action = actions[next]
       if (action) {
-        action.reset().setEffectiveTimeScale(1).setEffectiveWeight(1).fadeIn(0.22).play()
+        action.reset().setEffectiveTimeScale(1).setEffectiveWeight(1).fadeIn(0.18).play()
         action.setLoop(THREE.LoopRepeat, Infinity)
-        prev?.fadeOut(0.22)
+        prev?.fadeOut(0.18)
         currentClip.current = next
       }
     }
 
     const action = currentClip.current ? actions[currentClip.current] : null
     if (action) {
-      if (stance === 'crouch' && next === 'walk') action.setEffectiveTimeScale(0.68)
+      if (stance === 'crouch' && next === 'walk') action.setEffectiveTimeScale(0.72)
       else if (slow && next === 'walk') action.setEffectiveTimeScale(0.58)
       else if (sprint && next === 'run') action.setEffectiveTimeScale(1.05)
-      else if (stance === 'prone') action.setEffectiveTimeScale(0.3)
+      else if (stance === 'prone') action.setEffectiveTimeScale(0.25)
       else action.setEffectiveTimeScale(1)
     }
 
-    let y = 0
-    let pitch = 0
-    if (stance === 'crouch' && moving) {
-      y = -0.08
-      pitch = 0.18
-    } else if (stance === 'prone') {
-      y = 0.32
-      pitch = 1.38
-    } else if (airborne) {
-      y = 0.05
-      pitch = -0.05
-    }
+    // Blend pose weights
+    const crouchTarget = stance === 'crouch' ? 1 : 0
+    const jumpTarget = airborne && stance !== 'prone' ? 1 : 0
+    const proneTarget = stance === 'prone' ? 1 : 0
+    crouchAmt.current = THREE.MathUtils.damp(crouchAmt.current, crouchTarget, 12, delta)
+    jumpAmt.current = THREE.MathUtils.damp(jumpAmt.current, jumpTarget, 10, delta)
+    proneAmt.current = THREE.MathUtils.damp(proneAmt.current, proneTarget, 10, delta)
 
-    stanceRef.current.rotation.x = THREE.MathUtils.damp(stanceRef.current.rotation.x, pitch, 14, delta)
-    stanceRef.current.position.y = THREE.MathUtils.damp(stanceRef.current.position.y, y, 14, delta)
-  })
+    const c = crouchAmt.current
+    const j = jumpAmt.current
+    const p = proneAmt.current
+
+    // Root stance: crouch lowers body; prone = de guata (barriga al piso).
+    // Negative pitch puts belly on the floor and back toward the sky/camera.
+    const stanceY = c * -0.42 + p * 0.28 + j * 0.04
+    const stancePitch = p * -1.42 // de guata (not on back)
+    stanceRef.current.position.y = THREE.MathUtils.damp(
+      stanceRef.current.position.y,
+      stanceY,
+      14,
+      delta,
+    )
+    stanceRef.current.rotation.x = THREE.MathUtils.damp(
+      stanceRef.current.rotation.x,
+      stancePitch,
+      12,
+      delta,
+    )
+
+    // Bone overlays after mixer
+    const b = bonesRef.current
+    if (!b) return
+
+    if (b.hips) {
+      b.hips.position.y += c * -0.12 + j * 0.02
+    }
+    if (b.spine) b.spine.rotation.x += c * 0.35 + j * 0.1
+    if (b.spine1) b.spine1.rotation.x += c * 0.2
+
+    // Knees flex (crouch + jump)
+    const thigh = c * 1.05 + j * 0.85
+    const shin = c * -1.55 + j * -1.25
+    if (b.leftUpLeg) b.leftUpLeg.rotation.x += thigh
+    if (b.rightUpLeg) b.rightUpLeg.rotation.x += thigh
+    if (b.leftLeg) b.leftLeg.rotation.x += shin
+    if (b.rightLeg) b.rightLeg.rotation.x += shin
+
+    // Jump: arms up; crouch: arms a bit forward
+    const armUp = j * -2.4 + c * -0.45
+    const shoulderLift = j * 0.55
+    if (b.leftArm) b.leftArm.rotation.x += armUp
+    if (b.rightArm) b.rightArm.rotation.x += armUp
+    if (b.leftShoulder) b.leftShoulder.rotation.y += shoulderLift
+    if (b.rightShoulder) b.rightShoulder.rotation.y -= shoulderLift
+
+    // Prone: slight arm out for a natural belly-down rest
+    if (b.leftArm) b.leftArm.rotation.z += p * 0.35
+    if (b.rightArm) b.rightArm.rotation.z += p * -0.35
+  }, 1)
 
   return (
     <group ref={root}>
       <group ref={stanceRef}>
-        {/* Fixed 180° so Mixamo +Z forward becomes −Z: camera on +Z sees the back. */}
+        {/* Mixamo +Z forward → flip so camera on +Z always sees the back. */}
         <group rotation={[0, Math.PI, 0]}>
           <group ref={animRoot}>
             <primitive object={clone} />
