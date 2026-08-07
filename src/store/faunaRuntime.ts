@@ -1,4 +1,5 @@
 import { FAUNA, FLORA, MINERALS, WORLD, type FaunaKind } from '../world/catalog'
+import { sampleHeight } from '../world/heightmap'
 import { useWorldStore } from './worldStore'
 import { getPlayerPosition } from './enemyRuntime'
 import { resolveCircleBoxCollision, type Collider } from '../constants'
@@ -6,6 +7,7 @@ import { resolveCircleBoxCollision, type Collider } from '../constants'
 export type FaunaRuntime = {
   x: number
   z: number
+  y: number
   yaw: number
   speed: number
   phase: number
@@ -37,6 +39,7 @@ export function ensureFaunaRuntime(
   rt = {
     x,
     z,
+    y: sampleHeight(x, z),
     yaw,
     speed: FAUNA[kind].speed * (0.85 + Math.random() * 0.3),
     phase: Math.random() * Math.PI * 2,
@@ -95,7 +98,10 @@ export function stepFauna(dt: number, colliders: Collider[]) {
       const resolved = resolveCircleBoxCollision(nx, nz, def.radius, colliders)
       rt.x = resolved.x
       rt.z = resolved.z
+      rt.y = sampleHeight(rt.x, rt.z)
       rt.yaw = Math.atan2(dx, dz)
+    } else {
+      rt.y = sampleHeight(rt.x, rt.z)
     }
   }
 }
@@ -114,7 +120,7 @@ export function findClosestFaunaHit(
     const rt = getFaunaRuntime(animal.id)
     if (!rt) continue
     const cx = rt.x
-    const cy = def.height * 0.55
+    const cy = rt.y + def.height * 0.55
     const cz = rt.z
     const ox = origin.x - cx
     const oy = origin.y - cy
@@ -145,40 +151,47 @@ export function findClosestWorldPropHit(
   let best: { type: 'flora' | 'mineral'; id: string; distance: number } | null = null
   const state = useWorldStore.getState()
 
-  const testCylinder = (
-    type: 'flora' | 'mineral',
-    id: string,
-    x: number,
-    z: number,
-    radius: number,
-    height: number,
-  ) => {
-    // 2D XZ cylinder sweep approximation using closest approach on XZ.
-    const ox = origin.x - x
-    const oz = origin.z - z
-    const a = dir.x * dir.x + dir.z * dir.z
-    if (a < 1e-8) return
-    const b = ox * dir.x + oz * dir.z
-    const c = ox * ox + oz * oz - radius * radius
-    const disc = b * b - a * c
-    if (disc < 0) return
-    const t = (-b - Math.sqrt(disc)) / a
-    if (t < 0.05 || t > maxDistance) return
-    const y = origin.y + dir.y * t
-    if (y < -0.2 || y > height + 0.4) return
-    if (best && t >= best.distance) return
-    best = { type, id, distance: t }
-  }
-
   for (const f of state.flora) {
     if (!f.alive) continue
     const def = FLORA[f.kind]
-    testCylinder('flora', f.id, f.x, f.z, def.radius * f.scale, def.height * f.scale)
+    const baseY = f.y
+    const canopyR = def.radius * f.scale * (def.woodOnFell > 0 ? 1.85 : 1.25)
+    const a = dir.x * dir.x + dir.z * dir.z
+    if (a >= 1e-8) {
+      const bx = origin.x - f.x
+      const bz = origin.z - f.z
+      const b = bx * dir.x + bz * dir.z
+      const c = bx * bx + bz * bz - canopyR * canopyR
+      const disc = b * b - a * c
+      if (disc >= 0) {
+        const t = (-b - Math.sqrt(disc)) / a
+        if (t >= 0.05 && t <= maxDistance) {
+          const y = origin.y + dir.y * t
+          if (y >= baseY - 0.2 && y <= baseY + def.height * f.scale + 0.5) {
+            if (!best || t < best.distance) best = { type: 'flora', id: f.id, distance: t }
+          }
+        }
+      }
+    }
   }
   for (const m of state.minerals) {
     if (!m.alive || !m.revealed) continue
     const def = MINERALS[m.kind]
-    testCylinder('mineral', m.id, m.x, m.z, def.radius * m.scale, def.height * m.scale)
+    const baseY = m.y
+    const a = dir.x * dir.x + dir.z * dir.z
+    if (a < 1e-8) continue
+    const bx = origin.x - m.x
+    const bz = origin.z - m.z
+    const rad = def.radius * m.scale
+    const b = bx * dir.x + bz * dir.z
+    const c = bx * bx + bz * bz - rad * rad
+    const disc = b * b - a * c
+    if (disc < 0) continue
+    const t = (-b - Math.sqrt(disc)) / a
+    if (t < 0.05 || t > maxDistance) continue
+    const y = origin.y + dir.y * t
+    if (y < baseY - 0.2 || y > baseY + def.height * m.scale + 0.4) continue
+    if (!best || t < best.distance) best = { type: 'mineral', id: m.id, distance: t }
   }
   return best
 }

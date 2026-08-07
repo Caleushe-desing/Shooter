@@ -12,12 +12,12 @@ import {
   mergeColliders,
 } from '../../constants'
 import { useGameStore } from '../../store/gameStore'
-import { getMuzzleWorldPosition } from '../../store/muzzle'
 import { setPlayerPosition, getPlayerPosition } from '../../store/enemyRuntime'
 import { useSettingsStore } from '../../store/settings'
 import { maxCameraBoomDistance, fitCameraScaleOutsideSolids } from '../../store/cameraCollision'
 import { useWorldStore } from '../../store/worldStore'
 import { FLORA, MINERALS, WORLD } from '../../world/catalog'
+import { sampleHeight } from '../../world/heightmap'
 import { PlayerAvatar } from './PlayerAvatar'
 
 /** Scoped optics stay centered in the eyepiece. */
@@ -27,7 +27,6 @@ const _idealLocal = new THREE.Vector3()
 const _idealWorld = new THREE.Vector3()
 const _camDir = new THREE.Vector3()
 const _focusWorld = new THREE.Vector3()
-const _focusLocal = new THREE.Vector3()
 
 function dampAngle(current: number, target: number, speed: number, dt: number) {
   let diff = target - current
@@ -287,9 +286,10 @@ export function PlayerController() {
       bodyYaw.current = dampAngle(bodyYaw.current, lookYaw.current, CAMERA.bodyTurn, dt)
     }
 
-    pos.current.y = 0
-    rig.current.position.set(pos.current.x, 0, pos.current.z)
-    setPlayerPosition(pos.current.x, PLAYER.eyeHeight, pos.current.z)
+    const groundY = sampleHeight(pos.current.x, pos.current.z)
+    pos.current.y = groundY
+    rig.current.position.set(pos.current.x, groundY, pos.current.z)
+    setPlayerPosition(pos.current.x, groundY + PLAYER.eyeHeight, pos.current.z)
 
     // Proximity hint for harvest, lakes, minerals.
     {
@@ -358,27 +358,28 @@ export function PlayerController() {
 
     camera.position.copy(_idealLocal).multiplyScalar(camScale.current)
 
-    // Look toward a point ahead of the pup — locks ¾ framing (back + side).
-    _focusLocal.set(-shoulder * 0.25, -lift * 0.5, -CAMERA.lookAhead)
-    _focusWorld.copy(_focusLocal).applyMatrix4(pitchObj.current.matrixWorld)
+    // Aim through screen center / mira so look and hitscan share one ray.
+    camera.updateMatrixWorld(true)
+    const aimNdc = store.scoped ? SCOPE_AIM : hipAim
+    aimRaycaster.setFromCamera(aimNdc, camera)
+    _focusWorld
+      .copy(aimRaycaster.ray.origin)
+      .addScaledVector(aimRaycaster.ray.direction, 80)
     camera.lookAt(_focusWorld)
 
     const now = performance.now()
     if (store.consumeFire() && now - lastFire.current >= COMBAT.fireCooldownMs) {
       lastFire.current = now
       camera.updateMatrixWorld(true)
-
-      const aimPoint = store.scoped ? SCOPE_AIM : hipAim
-      aimRaycaster.setFromCamera(aimPoint, camera)
+      aimRaycaster.setFromCamera(aimNdc, camera)
       aimOrigin.current.copy(aimRaycaster.ray.origin)
       aimDir.current.copy(aimRaycaster.ray.direction)
 
-      const hasMuzzle = getMuzzleWorldPosition(muzzlePos.current)
-      store.spawnTracer(
-        aimOrigin.current,
-        aimDir.current,
-        hasMuzzle ? muzzlePos.current : undefined,
-      )
+      // Tracer starts a short distance along the aim ray (matches mira).
+      muzzlePos.current
+        .copy(aimOrigin.current)
+        .addScaledVector(aimDir.current, 0.85)
+      store.spawnTracer(aimOrigin.current, aimDir.current, muzzlePos.current)
     }
   })
 

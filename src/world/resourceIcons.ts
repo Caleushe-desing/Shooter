@@ -144,6 +144,48 @@ const SPECS: Record<ResourceId, IconSpec> = {
   hierro: { bg: '#241810', fg: '#8A5A48', draw: (c, s) => nugget(c, s, '#8A5A48') },
   cobre: { bg: '#2A2018', fg: '#B87333', draw: (c, s) => nugget(c, s, '#B87333') },
   oro: { bg: '#2A2410', fg: '#E8C84A', draw: (c, s) => nugget(c, s, '#E8C84A') },
+  diamante: {
+    bg: '#0A1828',
+    fg: '#A8E8FF',
+    draw: (c, s) => {
+      c.fillStyle = '#A8E8FF'
+      c.beginPath()
+      c.moveTo(s * 0.5, s * 0.18)
+      c.lineTo(s * 0.78, s * 0.42)
+      c.lineTo(s * 0.5, s * 0.85)
+      c.lineTo(s * 0.22, s * 0.42)
+      c.closePath()
+      c.fill()
+    },
+  },
+  trigo: {
+    bg: '#2A2410',
+    fg: '#D4B060',
+    draw: (c, s) => {
+      c.strokeStyle = '#D4B060'
+      c.lineWidth = 3
+      c.beginPath()
+      c.moveTo(s * 0.5, s * 0.85)
+      c.lineTo(s * 0.5, s * 0.25)
+      c.stroke()
+      c.fillStyle = '#D4B060'
+      c.beginPath()
+      c.ellipse(s * 0.5, s * 0.28, s * 0.12, s * 0.18, 0, 0, Math.PI * 2)
+      c.fill()
+    },
+  },
+  maiz: {
+    bg: '#1A2810',
+    fg: '#E8C84A',
+    draw: (c, s) => {
+      c.fillStyle = '#E8C84A'
+      c.beginPath()
+      c.ellipse(s * 0.5, s * 0.55, s * 0.14, s * 0.28, 0, 0, Math.PI * 2)
+      c.fill()
+    },
+  },
+  tomate: { bg: '#2A1010', fg: '#E04030', draw: (c, s) => berry(c, s, '#E04030') },
+  manzana: { bg: '#201010', fg: '#C43A3A', draw: (c, s) => berry(c, s, '#C43A3A') },
   sal: {
     bg: '#282820',
     fg: '#F4F0E4',

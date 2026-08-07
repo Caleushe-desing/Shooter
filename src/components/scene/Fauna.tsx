@@ -41,13 +41,13 @@ function AnimalBody({ animal }: { animal: FaunaState }) {
       return
     }
     g.visible = true
-    g.position.set(rt.x, 0, rt.z)
+    g.position.set(rt.x, rt.y, rt.z)
     g.rotation.y = rt.yaw
 
     if (!animal.alive) {
       const t = Math.min(1, (performance.now() - animal.diedAt) / 700)
       g.rotation.z = t * (Math.PI / 2) * 0.9
-      g.position.y = -t * 0.2
+      g.position.y = rt.y - t * 0.2
       materials.body.opacity = 1 - t * 0.7
       materials.body.transparent = true
       return
@@ -56,7 +56,7 @@ function AnimalBody({ animal }: { animal: FaunaState }) {
     materials.body.opacity = 1
     materials.body.transparent = false
     const bob = Math.sin(clock.elapsedTime * (rt.fleeing ? 10 : 5) + rt.phase) * 0.03
-    g.position.y = bob
+    g.position.y = rt.y + bob
   })
 
   const h = def.height

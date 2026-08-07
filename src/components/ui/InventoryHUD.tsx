@@ -21,7 +21,18 @@ const TABS = [
   { id: 'construir' as const, label: 'Construir' },
 ]
 
-const EDIBLE: ResourceId[] = ['bayas', 'carne', 'pez', 'comida_cocida', 'agua', 'jabon']
+const EDIBLE: ResourceId[] = [
+  'bayas',
+  'carne',
+  'pez',
+  'comida_cocida',
+  'agua',
+  'jabon',
+  'manzana',
+  'tomate',
+  'trigo',
+  'maiz',
+]
 
 const SLOT_LABELS: Record<EquipSlot, string> = {
   torso: 'Torso',

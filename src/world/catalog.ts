@@ -24,6 +24,12 @@ export type ResourceId =
   | 'cobre'
   | 'oro'
   | 'sal'
+  | 'diamante'
+  // Crops
+  | 'trigo'
+  | 'maiz'
+  | 'tomate'
+  | 'manzana'
   // Crafted materials
   | 'tablas'
   | 'ladrillo'
@@ -42,15 +48,30 @@ export type ResourceId =
   | 'capa'
   | 'botas'
 
-export type BiomeId = 'bosque' | 'pradera' | 'lago' | 'rocoso' | 'humedal'
+export type BiomeId =
+  | 'bosque'
+  | 'pradera'
+  | 'lago'
+  | 'rocoso'
+  | 'humedal'
+  | 'huerto'
+  | 'montana'
 
 export type FloraKind =
   | 'roble'
   | 'pino'
   | 'sauce'
+  | 'abeto'
+  | 'abedul'
+  | 'secuoya'
+  | 'olivo'
+  | 'manzano'
   | 'arbusto_bayas'
   | 'hierba_fibra'
   | 'juncos'
+  | 'trigo'
+  | 'maiz'
+  | 'tomatera'
 
 export type FaunaKind = 'ciervo' | 'oveja' | 'conejo' | 'pato'
 
@@ -64,6 +85,9 @@ export type MineralKind =
   | 'cobre'
   | 'oro'
   | 'sal'
+  | 'diamante'
+
+export type MineKind = 'carbon_subterranea' | 'cobre_cielo_abierto' | 'cobre_interior' | 'diamante_profunda'
 
 export type BuildingKind = 'refugio' | 'hoguera' | 'almacen' | 'tramo_calle'
 
@@ -87,6 +111,11 @@ export const RESOURCE_LABELS: Record<ResourceId, string> = {
   cobre: 'Cobre',
   oro: 'Oro',
   sal: 'Sal',
+  diamante: 'Diamante',
+  trigo: 'Trigo',
+  maiz: 'Maíz',
+  tomate: 'Tomate',
+  manzana: 'Manzana',
   tablas: 'Tablas',
   ladrillo: 'Ladrillo',
   cemento: 'Cemento',
@@ -127,6 +156,11 @@ export const RESOURCE_CATEGORY: Record<ResourceId, ResourceCategory> = {
   cobre: 'mineral',
   oro: 'mineral',
   sal: 'mineral',
+  diamante: 'mineral',
+  trigo: 'comida',
+  maiz: 'comida',
+  tomate: 'comida',
+  manzana: 'comida',
   tablas: 'crafteado',
   ladrillo: 'crafteado',
   cemento: 'crafteado',
@@ -215,44 +249,116 @@ export const FLORA: Record<FloraKind, FloraDef> = {
   roble: {
     kind: 'roble',
     label: 'Roble',
-    radius: 0.6,
-    height: 7.2,
+    radius: 0.65,
+    height: 8.2,
     harvest: 'madera',
     harvestAmount: 1,
-    hp: 10,
-    woodOnFell: 6,
+    hp: 11,
+    woodOnFell: 7,
     regenSec: 0,
     biomes: ['bosque'],
-    colorTrunk: '#5A4030',
-    colorFoliage: '#2F6B3A',
+    colorTrunk: '#4A3424',
+    colorFoliage: '#2A5A2E',
   },
   pino: {
     kind: 'pino',
     label: 'Pino',
     radius: 0.5,
-    height: 8.5,
+    height: 9.5,
     harvest: 'madera',
     harvestAmount: 1,
     hp: 8,
     woodOnFell: 5,
     regenSec: 0,
-    biomes: ['bosque', 'rocoso'],
-    colorTrunk: '#6B5238',
-    colorFoliage: '#1F5A32',
+    biomes: ['bosque', 'montana', 'rocoso'],
+    colorTrunk: '#5A4634',
+    colorFoliage: '#1A4A28',
   },
   sauce: {
     kind: 'sauce',
-    label: 'Sauce',
+    label: 'Sauce llorón',
     radius: 0.55,
-    height: 6,
+    height: 6.5,
     harvest: 'madera',
     harvestAmount: 1,
     hp: 7,
     woodOnFell: 4,
     regenSec: 0,
     biomes: ['lago', 'humedal'],
-    colorTrunk: '#7A6A4A',
-    colorFoliage: '#4A8A55',
+    colorTrunk: '#6A5A3A',
+    colorFoliage: '#3A7A48',
+  },
+  abeto: {
+    kind: 'abeto',
+    label: 'Abeto',
+    radius: 0.55,
+    height: 11,
+    harvest: 'madera',
+    harvestAmount: 1,
+    hp: 9,
+    woodOnFell: 6,
+    regenSec: 0,
+    biomes: ['montana', 'bosque'],
+    colorTrunk: '#4A3A28',
+    colorFoliage: '#163A22',
+  },
+  abedul: {
+    kind: 'abedul',
+    label: 'Abedul',
+    radius: 0.4,
+    height: 7,
+    harvest: 'madera',
+    harvestAmount: 1,
+    hp: 6,
+    woodOnFell: 4,
+    regenSec: 0,
+    biomes: ['bosque', 'pradera'],
+    colorTrunk: '#E8E0D4',
+    colorFoliage: '#4A8A3A',
+  },
+  secuoya: {
+    kind: 'secuoya',
+    label: 'Secuoya',
+    radius: 1.1,
+    height: 16,
+    harvest: 'madera',
+    harvestAmount: 2,
+    hp: 18,
+    woodOnFell: 14,
+    regenSec: 0,
+    biomes: ['bosque'],
+    colorTrunk: '#6A3A28',
+    colorFoliage: '#1A4A28',
+  },
+  olivo: {
+    kind: 'olivo',
+    label: 'Olivo',
+    radius: 0.5,
+    height: 4.5,
+    harvest: 'madera',
+    harvestAmount: 1,
+    hp: 7,
+    woodOnFell: 3,
+    regenSec: 0,
+    biomes: ['huerto', 'pradera'],
+    colorTrunk: '#6A5A40',
+    colorFoliage: '#6A8A4A',
+    colorAccent: '#C8C080',
+  },
+  manzano: {
+    kind: 'manzano',
+    label: 'Manzano',
+    radius: 0.45,
+    height: 4.2,
+    harvest: 'manzana',
+    harvestAmount: 4,
+    hp: 5,
+    woodOnFell: 2,
+    regenSec: 50,
+    biomes: ['huerto', 'bosque'],
+    colorTrunk: '#5A4030',
+    colorFoliage: '#3A7A38',
+    colorAccent: '#C43A3A',
   },
   arbusto_bayas: {
     kind: 'arbusto_bayas',
@@ -264,7 +370,7 @@ export const FLORA: Record<FloraKind, FloraDef> = {
     hp: 2,
     woodOnFell: 0,
     regenSec: 40,
-    biomes: ['bosque', 'pradera', 'humedal'],
+    biomes: ['bosque', 'pradera', 'humedal', 'huerto'],
     colorTrunk: '#4A3828',
     colorFoliage: '#3A7A40',
     colorAccent: '#C43A5A',
@@ -296,6 +402,50 @@ export const FLORA: Record<FloraKind, FloraDef> = {
     biomes: ['lago', 'humedal'],
     colorTrunk: '#8A9A4A',
     colorFoliage: '#6A8A40',
+  },
+  trigo: {
+    kind: 'trigo',
+    label: 'Trigo',
+    radius: 0.2,
+    height: 1.1,
+    harvest: 'trigo',
+    harvestAmount: 3,
+    hp: 1,
+    woodOnFell: 0,
+    regenSec: 35,
+    biomes: ['huerto', 'pradera'],
+    colorTrunk: '#C4A050',
+    colorFoliage: '#D4B060',
+  },
+  maiz: {
+    kind: 'maiz',
+    label: 'Maíz',
+    radius: 0.22,
+    height: 1.8,
+    harvest: 'maiz',
+    harvestAmount: 3,
+    hp: 1,
+    woodOnFell: 0,
+    regenSec: 40,
+    biomes: ['huerto'],
+    colorTrunk: '#5A8A30',
+    colorFoliage: '#6A9A38',
+    colorAccent: '#E8C84A',
+  },
+  tomatera: {
+    kind: 'tomatera',
+    label: 'Tomatera',
+    radius: 0.28,
+    height: 1.0,
+    harvest: 'tomate',
+    harvestAmount: 3,
+    hp: 1,
+    woodOnFell: 0,
+    regenSec: 30,
+    biomes: ['huerto'],
+    colorTrunk: '#3A6A28',
+    colorFoliage: '#4A8A30',
+    colorAccent: '#E04030',
   },
 }
 
@@ -421,14 +571,14 @@ export const MINERALS: Record<MineralKind, MineralDef> = {
   },
   carbon: {
     kind: 'carbon',
-    label: 'Veta de carbón',
+    label: 'Carbón (mina)',
     radius: 0.45,
     height: 0.55,
     hp: 4,
     yield: 'carbon',
     yieldAmount: 3,
     buried: true,
-    biomes: ['rocoso', 'bosque'],
+    biomes: ['montana', 'rocoso'],
     color: '#2A2A2C',
     colorVein: '#4A4A4C',
   },
@@ -441,20 +591,20 @@ export const MINERALS: Record<MineralKind, MineralDef> = {
     yield: 'hierro',
     yieldAmount: 2,
     buried: true,
-    biomes: ['rocoso'],
+    biomes: ['montana', 'rocoso'],
     color: '#5A4038',
     colorVein: '#8A5A48',
   },
   cobre: {
     kind: 'cobre',
-    label: 'Veta de cobre',
+    label: 'Cobre',
     radius: 0.45,
     height: 0.6,
     hp: 4,
     yield: 'cobre',
     yieldAmount: 2,
     buried: true,
-    biomes: ['rocoso'],
+    biomes: ['montana', 'rocoso'],
     color: '#4A5560',
     colorVein: '#B87333',
   },
@@ -467,7 +617,7 @@ export const MINERALS: Record<MineralKind, MineralDef> = {
     yield: 'oro',
     yieldAmount: 1,
     buried: true,
-    biomes: ['rocoso'],
+    biomes: ['montana', 'rocoso'],
     color: '#5A5A5A',
     colorVein: '#E8C84A',
   },
@@ -483,6 +633,64 @@ export const MINERALS: Record<MineralKind, MineralDef> = {
     biomes: ['lago', 'pradera'],
     color: '#F4F0E4',
     colorVein: '#D8D0C0',
+  },
+  diamante: {
+    kind: 'diamante',
+    label: 'Diamante (profundo)',
+    radius: 0.35,
+    height: 0.4,
+    hp: 8,
+    yield: 'diamante',
+    yieldAmount: 1,
+    buried: true,
+    biomes: ['montana'],
+    color: '#1A2A3A',
+    colorVein: '#A8E8FF',
+  },
+}
+
+export type MineDef = {
+  kind: MineKind
+  label: string
+  /** Minerals spawned inside this mine. */
+  yields: MineralKind[]
+  openPit: boolean
+  radius: number
+  color: string
+}
+
+export const MINES: Record<MineKind, MineDef> = {
+  carbon_subterranea: {
+    kind: 'carbon_subterranea',
+    label: 'Mina de carbón',
+    yields: ['carbon'],
+    openPit: false,
+    radius: 8,
+    color: '#2A2A28',
+  },
+  cobre_cielo_abierto: {
+    kind: 'cobre_cielo_abierto',
+    label: 'Mina a cielo abierto (cobre)',
+    yields: ['cobre', 'piedra'],
+    openPit: true,
+    radius: 14,
+    color: '#8A6A40',
+  },
+  cobre_interior: {
+    kind: 'cobre_interior',
+    label: 'Mina interior de cobre',
+    yields: ['cobre', 'hierro'],
+    openPit: false,
+    radius: 7,
+    color: '#3A4038',
+  },
+  diamante_profunda: {
+    kind: 'diamante_profunda',
+    label: 'Mina profunda de diamante',
+    yields: ['diamante', 'carbon'],
+    openPit: false,
+    radius: 6,
+    color: '#1A2430',
   },
 }
 
@@ -742,10 +950,11 @@ export const WORLD = {
   interactRange: 2.8,
   scanRange: 32,
   digRange: 2.4,
-  floraCount: 720,
+  floraCount: 780,
   faunaCount: 160,
-  mineralCount: 320,
-  lakeCount: 18,
+  mineralCount: 220,
+  lakeCount: 16,
+  orchardCount: 8,
   lifeTickSec: 0.05,
 } as const
 

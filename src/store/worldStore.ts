@@ -21,6 +21,8 @@ import {
   type FaunaInstance,
   type FloraInstance,
   type MineralInstance,
+  type MineInstance,
+  type OrchardZone,
 } from '../world/generate'
 
 export type Equipment = Partial<Record<EquipSlot, ResourceId>>
@@ -63,6 +65,8 @@ type WorldStore = {
   minerals: MineralState[]
   fauna: FaunaState[]
   lakes: LakeDef[]
+  orchards: OrchardZone[]
+  mines: MineInstance[]
   buildings: BuildingState[]
   inventory: Inventory
   equipped: Equipment
@@ -106,7 +110,8 @@ type WorldStore = {
 
 let toastSeq = 0
 let buildingSeq = 0
-const generated = generateWorld()
+// Bump seed when world layout changes so clients get fresh mines/orchards/height.
+const generated = generateWorld(20260807)
 
 function emptyInventory(): Inventory {
   return {
@@ -124,6 +129,8 @@ const BIOME_LABELS = {
   lago: 'Lago',
   rocoso: 'Cerros rocosos',
   humedal: 'Humedal',
+  huerto: 'Huerto',
+  montana: 'Montaña',
 } as const
 
 export const useWorldStore = create<WorldStore>((set, get) => ({
@@ -132,6 +139,8 @@ export const useWorldStore = create<WorldStore>((set, get) => ({
   minerals: [],
   fauna: [],
   lakes: [],
+  orchards: [],
+  mines: [],
   buildings: [],
   inventory: emptyInventory(),
   equipped: {},
@@ -149,6 +158,8 @@ export const useWorldStore = create<WorldStore>((set, get) => ({
     set({
       ready: true,
       lakes: generated.lakes,
+      orchards: generated.orchards,
+      mines: generated.mines,
       flora: generated.flora.map((f) => ({
         ...f,
         hp: FLORA[f.kind].hp,
@@ -302,16 +313,16 @@ export const useWorldStore = create<WorldStore>((set, get) => ({
       set({ toast: { id: ++toastSeq, text: 'No puedes cavar en el agua' } })
       return false
     }
-    const biome = biomeAt(px, pz, get().lakes)
+    const biome = biomeAt(px, pz, get().lakes, get().orchards, get().mines)
     let yieldId: ResourceId = 'tierra'
     let amount = 2
     if (biome === 'lago' || biome === 'humedal') {
       yieldId = Math.random() > 0.45 ? 'arcilla' : 'tierra'
       amount = 2
-    } else if (biome === 'pradera') {
+    } else if (biome === 'pradera' || biome === 'huerto') {
       yieldId = Math.random() > 0.65 ? 'arena' : 'tierra'
-    } else if (biome === 'rocoso') {
-      yieldId = Math.random() > 0.5 ? 'piedra' : 'tierra'
+    } else if (biome === 'rocoso' || biome === 'montana') {
+      yieldId = Math.random() > 0.45 ? 'piedra' : 'tierra'
       amount = 1
     }
     set({ lastDigAt: now })
@@ -336,7 +347,10 @@ export const useWorldStore = create<WorldStore>((set, get) => ({
     const inv = get().inventory
     if ((inv[id] ?? 0) < 1) return null
     get().spendResources([{ id, amount: 1 }])
-    if (id === 'bayas') return { hunger: NEEDS.eatBerries, thirst: 8, hygiene: 0 }
+    if (id === 'bayas' || id === 'manzana' || id === 'tomate') {
+      return { hunger: NEEDS.eatBerries, thirst: 8, hygiene: 0 }
+    }
+    if (id === 'trigo' || id === 'maiz') return { hunger: 20, thirst: 0, hygiene: 0 }
     if (id === 'comida_cocida') return { hunger: NEEDS.eatCooked, thirst: 5, hygiene: 0 }
     if (id === 'carne' || id === 'pez') return { hunger: NEEDS.eatRawMeat, thirst: 0, hygiene: -5 }
     if (id === 'agua') return { hunger: 0, thirst: NEEDS.drinkWater, hygiene: 0 }
@@ -550,5 +564,5 @@ export const useWorldStore = create<WorldStore>((set, get) => ({
     if (dirty) set({ flora: next })
   },
 
-  biomeLabelAt: (x, z) => BIOME_LABELS[biomeAt(x, z, get().lakes)],
+  biomeLabelAt: (x, z) => BIOME_LABELS[biomeAt(x, z, get().lakes, get().orchards, get().mines)],
 }))
