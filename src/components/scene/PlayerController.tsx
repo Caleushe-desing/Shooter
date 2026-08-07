@@ -5,6 +5,7 @@ import * as THREE from 'three'
 import {
   PLAYER,
   CAMERA,
+  LOCOMOTION,
   resolveCircleBoxCollision,
   COMBAT,
   SCOPE,
@@ -58,6 +59,9 @@ export function PlayerController() {
     new THREE.Vector3(PLAYER.spawn.x, sampleHeight(PLAYER.spawn.x, PLAYER.spawn.z), PLAYER.spawn.z),
   )
   const smoothedY = useRef(sampleHeight(PLAYER.spawn.x, PLAYER.spawn.z))
+  const velY = useRef(0)
+  const grounded = useRef(true)
+  const camHeightSmooth = useRef<number>(LOCOMOTION.camHeight.stand)
   const moving = useRef(false)
   const lastFire = useRef(0)
   const forward = useRef(new THREE.Vector3())
@@ -137,17 +141,35 @@ export function PlayerController() {
       ) {
         return
       }
-      if (e.code === 'Space' || e.code === 'KeyF') {
+      const game = useGameStore.getState()
+      if (e.code === 'Space') {
         e.preventDefault()
         if (world.buildMode) {
           world.placeBuilding(world.buildMode, p.x, p.z, 0)
           return
         }
-        useGameStore.getState().queueFire()
+        game.queueJump()
+        return
+      }
+      if (e.code === 'KeyF') {
+        e.preventDefault()
+        if (world.buildMode) {
+          world.placeBuilding(world.buildMode, p.x, p.z, 0)
+          return
+        }
+        game.queueFire()
+      }
+      if (e.code === 'ControlLeft' || e.code === 'ControlRight') {
+        e.preventDefault()
+        game.toggleCrouch()
+      }
+      if (e.code === 'KeyX') {
+        e.preventDefault()
+        game.toggleProne()
       }
       if (e.code === 'KeyZ') {
         e.preventDefault()
-        useGameStore.getState().toggleScope()
+        game.toggleScope()
       }
       if (e.code === 'KeyE') {
         e.preventDefault()
@@ -165,7 +187,7 @@ export function PlayerController() {
       if (e.code === 'KeyQ') {
         e.preventDefault()
         if (world.bathe(p.x, p.z)) {
-          useGameStore.getState().applyNeeds({ hygiene: 50 })
+          game.applyNeeds({ hygiene: 50 })
         }
       }
       if (e.code === 'KeyR') {
@@ -214,14 +236,35 @@ export function PlayerController() {
         x /= len
         z /= len
       }
-      if (!isTouch) useGameStore.getState().setMove(x, z)
+      if (!isTouch) {
+        const game = useGameStore.getState()
+        game.setMove(x, z)
+        game.setSprint(keys.has('ShiftLeft') || keys.has('ShiftRight'))
+        game.setSlow(keys.has('AltLeft') || keys.has('AltRight'))
+      }
     }
 
     const down = (e: KeyboardEvent) => {
+      if (
+        e.code === 'AltLeft' ||
+        e.code === 'AltRight' ||
+        e.code === 'ShiftLeft' ||
+        e.code === 'ShiftRight'
+      ) {
+        e.preventDefault()
+      }
       keys.add(e.code)
       syncMove()
     }
     const up = (e: KeyboardEvent) => {
+      if (
+        e.code === 'AltLeft' ||
+        e.code === 'AltRight' ||
+        e.code === 'ShiftLeft' ||
+        e.code === 'ShiftRight'
+      ) {
+        e.preventDefault()
+      }
       keys.delete(e.code)
       syncMove()
     }
@@ -285,7 +328,8 @@ export function PlayerController() {
     forward.current.set(-Math.sin(camYaw.current), 0, -Math.cos(camYaw.current))
     right.current.set(Math.cos(camYaw.current), 0, -Math.sin(camYaw.current))
 
-    const { moveX, moveZ } = store.input
+    const { moveX, moveZ, sprint, slow } = store.input
+    const stance = store.stance
     wish.current
       .set(0, 0, 0)
       .addScaledVector(right.current, moveX)
@@ -293,16 +337,25 @@ export function PlayerController() {
 
     moving.current = wish.current.lengthSq() > 1e-6
 
+    let gait: number = LOCOMOTION.walk
+    if (stance === 'prone') gait = LOCOMOTION.prone
+    else if (stance === 'crouch') gait = LOCOMOTION.crouch
+    else if (sprint) gait = LOCOMOTION.run
+    else if (slow) gait = LOCOMOTION.slow
+
     if (moving.current) {
       const scopePenalty = store.scoped ? SCOPE.moveScale : 1
-      const speed = PLAYER.speed * useSettingsStore.getState().moveSpeed * scopePenalty
+      const air = grounded.current ? 1 : LOCOMOTION.airControl
+      const speed =
+        PLAYER.speed * useSettingsStore.getState().moveSpeed * scopePenalty * gait * air
       wish.current.normalize().multiplyScalar(speed * dt)
       const nextX = pos.current.x + wish.current.x
       const nextZ = pos.current.z + wish.current.z
       const nextGround = sampleHeight(nextX, nextZ)
-      const stepUp = nextGround - smoothedY.current
-      // Block cliff climbs / freefall ledges that feel broken.
-      if (stepUp <= 1.35 && stepUp >= -2.8) {
+      const stepUp = nextGround - (grounded.current ? smoothedY.current : pos.current.y)
+      // Block cliff climbs / freefall ledges that feel broken (airborne can fall farther).
+      const maxDrop = grounded.current ? 2.8 : 40
+      if (stepUp <= 1.35 && stepUp >= -maxDrop) {
         const worldCols = useWorldStore.getState().getTreeColliders()
         const resolved = resolveCircleBoxCollision(
           nextX,
@@ -323,11 +376,48 @@ export function PlayerController() {
     useWorldStore.getState().setPlayerYaw(lookYaw.current)
 
     const groundY = sampleHeight(pos.current.x, pos.current.z)
-    // Smooth vertical follow so hills don't yank the camera/mira.
-    smoothedY.current = THREE.MathUtils.damp(smoothedY.current, groundY, 14, dt)
-    pos.current.y = smoothedY.current
-    rig.current.position.set(pos.current.x, smoothedY.current, pos.current.z)
-    setPlayerPosition(pos.current.x, smoothedY.current + PLAYER.eyeHeight, pos.current.z)
+
+    // Jump / gravity
+    if (store.consumeJump() && grounded.current && stance !== 'prone') {
+      velY.current =
+        stance === 'crouch' ? LOCOMOTION.crouchJumpSpeed : LOCOMOTION.jumpSpeed
+      grounded.current = false
+      if (stance === 'crouch') store.setStance('stand')
+    }
+
+    if (grounded.current) {
+      // Stepped off a ledge — leave ground stick and fall.
+      if (smoothedY.current - groundY > 0.45) {
+        grounded.current = false
+        pos.current.y = smoothedY.current
+        velY.current = 0
+      } else {
+        smoothedY.current = THREE.MathUtils.damp(smoothedY.current, groundY, 14, dt)
+        pos.current.y = smoothedY.current
+        velY.current = 0
+      }
+    }
+    if (!grounded.current) {
+      velY.current -= LOCOMOTION.gravity * dt
+      pos.current.y += velY.current * dt
+      if (pos.current.y <= groundY && velY.current <= 0) {
+        pos.current.y = groundY
+        smoothedY.current = groundY
+        velY.current = 0
+        grounded.current = true
+      } else {
+        smoothedY.current = pos.current.y
+      }
+    }
+    store.setAirborne(!grounded.current)
+
+    const eyeH = LOCOMOTION.eyeHeight[stance]
+    const camH = LOCOMOTION.camHeight[stance]
+    camHeightSmooth.current = THREE.MathUtils.damp(camHeightSmooth.current, camH, 10, dt)
+    yawPivot.current.position.y = camHeightSmooth.current
+
+    rig.current.position.set(pos.current.x, pos.current.y, pos.current.z)
+    setPlayerPosition(pos.current.x, pos.current.y + eyeH, pos.current.z)
 
     // Proximity hint for harvest, lakes, minerals.
     {
@@ -364,8 +454,9 @@ export function PlayerController() {
     }
 
     // --- Rear-right boom + wall collision ---
-    const desiredZ = store.scoped ? CAMERA.scopedDistance : CAMERA.distance
-    const shoulder = store.scoped ? CAMERA.shoulder * 0.4 : CAMERA.shoulder
+    const boomMul = LOCOMOTION.boomScale[stance]
+    const desiredZ = (store.scoped ? CAMERA.scopedDistance : CAMERA.distance) * boomMul
+    const shoulder = (store.scoped ? CAMERA.shoulder * 0.4 : CAMERA.shoulder) * boomMul
     const lift = store.scoped ? CAMERA.lift * 0.4 : CAMERA.lift
 
     rig.current.updateWorldMatrix(true, true)

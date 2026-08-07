@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import * as THREE from 'three'
-import { COLORS, COMBAT, PLAYER } from '../constants'
+import { COLORS, COMBAT, PLAYER, type Stance } from '../constants'
 import { NEEDS, MINERALS } from '../world/catalog'
 import { findCratePierces } from './combat'
 import { findClosestFaunaHit, findClosestWorldPropHit } from './faunaRuntime'
@@ -45,6 +45,9 @@ type InputState = {
   lookDx: number
   lookDy: number
   fireQueued: boolean
+  sprint: boolean
+  slow: boolean
+  jumpQueued: boolean
 }
 
 type GameState = {
@@ -58,11 +61,21 @@ type GameState = {
   caught: boolean
   sectorCleared: boolean
   scoped: boolean
+  stance: Stance
+  airborne: boolean
   startedAt: number
   input: InputState
   recoilNonce: number
   damageNonce: number
   setMove: (x: number, z: number) => void
+  setSprint: (on: boolean) => void
+  setSlow: (on: boolean) => void
+  setStance: (stance: Stance) => void
+  toggleCrouch: () => void
+  toggleProne: () => void
+  queueJump: () => void
+  consumeJump: () => boolean
+  setAirborne: (on: boolean) => void
   addLook: (dx: number, dy: number) => void
   consumeLook: () => { dx: number; dy: number }
   queueFire: () => void
@@ -137,6 +150,9 @@ const initialInput: InputState = {
   lookDx: 0,
   lookDy: 0,
   fireQueued: false,
+  sprint: false,
+  slow: false,
+  jumpQueued: false,
 }
 
 const clampNeed = (v: number) => Math.max(0, Math.min(NEEDS.max, v))
@@ -152,12 +168,64 @@ export const useGameStore = create<GameState>((set, get) => ({
   caught: false,
   sectorCleared: false,
   scoped: false,
+  stance: 'stand',
+  airborne: false,
   startedAt: performance.now(),
   input: { ...initialInput },
   recoilNonce: 0,
   damageNonce: 0,
 
   setMove: (x, z) => set((s) => ({ input: { ...s.input, moveX: x, moveZ: z } })),
+
+  setSprint: (on) =>
+    set((s) => ({
+      input: { ...s.input, sprint: on },
+      stance: on && s.stance !== 'stand' ? 'stand' : s.stance,
+    })),
+
+  setSlow: (on) => set((s) => ({ input: { ...s.input, slow: on } })),
+
+  setStance: (stance) =>
+    set((s) => ({
+      stance,
+      input: {
+        ...s.input,
+        sprint: stance === 'stand' ? s.input.sprint : false,
+      },
+    })),
+
+  toggleCrouch: () => {
+    const s = get()
+    if (s.stance === 'crouch') set({ stance: 'stand' })
+    else
+      set({
+        stance: 'crouch',
+        input: { ...s.input, sprint: false },
+      })
+  },
+
+  toggleProne: () => {
+    const s = get()
+    if (s.stance === 'prone') set({ stance: 'stand' })
+    else
+      set({
+        stance: 'prone',
+        input: { ...s.input, sprint: false },
+      })
+  },
+
+  queueJump: () => set((s) => ({ input: { ...s.input, jumpQueued: true } })),
+
+  consumeJump: () => {
+    if (!get().input.jumpQueued) return false
+    set((s) => ({ input: { ...s.input, jumpQueued: false } }))
+    return true
+  },
+
+  setAirborne: (on) => {
+    if (get().airborne === on) return
+    set({ airborne: on })
+  },
 
   addLook: (dx, dy) =>
     set((s) => ({
@@ -377,6 +445,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       caught: false,
       sectorCleared: false,
       scoped: false,
+      stance: 'stand',
+      airborne: false,
       startedAt: performance.now(),
       input: { ...initialInput },
     })

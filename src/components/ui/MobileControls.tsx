@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useGameStore } from '../../store/gameStore'
 import { useSettingsStore } from '../../store/settings'
+import { useWorldStore } from '../../store/worldStore'
 import { PLAYER, TOUCH_FIRE } from '../../constants'
 
 /**
@@ -16,6 +17,8 @@ export function MobileControls() {
   const queueFire = useGameStore((s) => s.queueFire)
   const caught = useGameStore((s) => s.caught)
   const settingsOpen = useSettingsStore((s) => s.open)
+  const mapOpen = useWorldStore((s) => s.mapOpen)
+  const inventoryOpen = useWorldStore((s) => s.inventoryOpen)
 
   useEffect(() => {
     const touch =
@@ -25,14 +28,95 @@ export function MobileControls() {
     setIsTouch(touch)
   }, [])
 
-  if (!isTouch || caught || settingsOpen) return null
+  if (!isTouch || caught || settingsOpen || mapOpen || inventoryOpen) return null
 
   return (
     <div className="absolute inset-0 z-30">
       <Joystick setMove={setMove} />
+      <LocomotionPad />
       <LookAndFireZone addLook={addLook} onFire={queueFire} />
       <div className="pointer-events-none absolute bottom-3 right-4 rounded-full bg-black/25 px-3 py-1 text-[9px] font-bold tracking-[0.22em] text-white/75">
         PRESS HARD TO FIRE · DRAG TO LOOK
+      </div>
+    </div>
+  )
+}
+
+function LocomotionPad() {
+  const stance = useGameStore((s) => s.stance)
+  const sprint = useGameStore((s) => s.input.sprint)
+  const slow = useGameStore((s) => s.input.slow)
+  const setSprint = useGameStore((s) => s.setSprint)
+  const setSlow = useGameStore((s) => s.setSlow)
+  const toggleCrouch = useGameStore((s) => s.toggleCrouch)
+  const toggleProne = useGameStore((s) => s.toggleProne)
+  const queueJump = useGameStore((s) => s.queueJump)
+
+  const btn =
+    'pointer-events-auto min-h-11 min-w-11 rounded-md border border-white/25 bg-black/55 px-2 text-[10px] font-bold uppercase tracking-wider text-white active:bg-[#6FE04A]/35'
+  const on = 'border-[#6FE04A]/70 bg-[#6FE04A]/25 text-[#d8ffc8]'
+
+  return (
+    <div className="absolute bottom-36 left-3 z-40 flex flex-col gap-2 sm:bottom-40 sm:left-8">
+      <div className="flex gap-2">
+        <button
+          type="button"
+          className={`${btn} ${sprint ? on : ''}`}
+          onPointerDown={(e) => {
+            e.preventDefault()
+            setSprint(true)
+          }}
+          onPointerUp={() => setSprint(false)}
+          onPointerCancel={() => setSprint(false)}
+          onPointerLeave={() => setSprint(false)}
+        >
+          Correr
+        </button>
+        <button
+          type="button"
+          className={`${btn} ${slow ? on : ''}`}
+          onPointerDown={(e) => {
+            e.preventDefault()
+            setSlow(true)
+          }}
+          onPointerUp={() => setSlow(false)}
+          onPointerCancel={() => setSlow(false)}
+          onPointerLeave={() => setSlow(false)}
+        >
+          Lento
+        </button>
+      </div>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          className={`${btn} ${stance === 'crouch' ? on : ''}`}
+          onClick={(e) => {
+            e.preventDefault()
+            toggleCrouch()
+          }}
+        >
+          Agachar
+        </button>
+        <button
+          type="button"
+          className={`${btn} ${stance === 'prone' ? on : ''}`}
+          onClick={(e) => {
+            e.preventDefault()
+            toggleProne()
+          }}
+        >
+          Acostar
+        </button>
+        <button
+          type="button"
+          className={btn}
+          onPointerDown={(e) => {
+            e.preventDefault()
+            queueJump()
+          }}
+        >
+          Saltar
+        </button>
       </div>
     </div>
   )

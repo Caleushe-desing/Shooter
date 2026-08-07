@@ -49,7 +49,8 @@ export const PLAYER = {
   /** Body height scale for the nude human colonist. */
   height: 1.0,
   radius: 0.4,
-  speed: 6.8,
+  /** Base walk speed (m/s). Gait multipliers live in LOCOMOTION. */
+  speed: 5.4,
   lookSensitivityDesktop: 0.0022,
   lookSensitivityMobile: 0.0034,
   /** Negative = look up, positive = look down. Soft look-up so boom stays above terrain. */
@@ -61,6 +62,27 @@ export const PLAYER = {
   skinLight: '#D8A882',
   skinShadow: '#A87452',
   hair: '#2A1E16',
+} as const
+
+export type Stance = 'stand' | 'crouch' | 'prone'
+
+/** Run / walk / crouch / prone / jump tuning. */
+export const LOCOMOTION = {
+  walk: 1,
+  slow: 0.42,
+  run: 1.65,
+  crouch: 0.38,
+  prone: 0.22,
+  airControl: 0.72,
+  jumpSpeed: 7.2,
+  crouchJumpSpeed: 5.6,
+  gravity: 18,
+  /** Camera pivot heights by stance. */
+  camHeight: { stand: 1.85, crouch: 1.15, prone: 0.55 } as const,
+  /** Eye / aim height by stance. */
+  eyeHeight: { stand: 1.62, crouch: 1.05, prone: 0.38 } as const,
+  /** Boom distance scale when crouched / prone (closer). */
+  boomScale: { stand: 1, crouch: 0.88, prone: 0.72 } as const,
 } as const
 
 /**

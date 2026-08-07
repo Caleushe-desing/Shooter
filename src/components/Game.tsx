@@ -75,10 +75,10 @@ export function Game() {
       <LandscapeGate />
 
       <div className="pointer-events-none absolute bottom-3 left-1/2 z-30 hidden -translate-x-1/2 rounded-md bg-black/35 px-3 py-1 text-[10px] tracking-[0.12em] text-white/80 sm:block">
-        WASD · E RECOGER · V CAVAR · C ESCANEAR · I INVENTARIO · M MAPA · Q DUCHA · R PESCAR
+        WASD · SHIFT CORRER · ALT LENTO · CTRL AGACHAR · X ACOSTAR · ESPACIO SALTAR · F DISPARAR · I INV · M MAPA
       </div>
       <div className="pointer-events-none absolute bottom-3 left-1/2 z-30 -translate-x-1/2 rounded-md bg-black/35 px-3 py-1 text-[9px] tracking-[0.1em] text-white/75 sm:hidden">
-        MOVER · I INVENTARIO · M MAPA · E RECOGER · V CAVAR
+        JOYSTICK · CORRER / LENTO / AGACHAR / ACOSTAR / SALTAR · I INV · M MAPA
       </div>
     </div>
   )
