@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { PerspectiveCamera } from '@react-three/drei'
 import * as THREE from 'three'
@@ -9,12 +9,19 @@ import { WeaponSystem } from './WeaponSystem'
 import { buildHavenInspiredMap } from '../../map/havenLayout'
 import { unlockAudio } from '../../audio/gunshot'
 import { mobileLookStick } from '../../input/mobileLookStick'
+import { nearestAabbHit, type Aabb3 } from '../../math/aabbRay'
 
 const MAP_SOLIDS = buildHavenInspiredMap().solids
 
+const _pivot = new THREE.Vector3()
+const _idealLocal = new THREE.Vector3()
+const _boomDirLocal = new THREE.Vector3()
+const _worldDir = new THREE.Vector3()
+const _quat = new THREE.Quaternion()
+
 /**
  * Player controller with TPS / FPS camera toggle (store.cameraMode).
- * WASD · Shift · Space · V (view) · mouse look · chase or eye cam.
+ * Third-person boom shortens against walls so the character stays in view.
  */
 export function PlayerController() {
   const rig = useRef<THREE.Group>(null)
@@ -33,9 +40,24 @@ export function PlayerController() {
   const wish = useRef(new THREE.Vector3())
   const runId = useRef(useGameStore.getState().runId)
   const lastCamMode = useRef(useGameStore.getState().cameraMode)
+  /** Current third-person boom length (meters along ideal boom vector). */
+  const boomLen = useRef(Math.hypot(CAMERA.shoulder, CAMERA.lift, CAMERA.distance))
   const { gl, camera } = useThree()
 
-  // Desktop mouse look + fire.
+  const camBoxes = useMemo<Aabb3[]>(() => {
+    const { props } = buildHavenInspiredMap()
+    return props
+      .filter((p) => p.solid)
+      .map((p) => ({
+        minX: p.x - p.w / 2,
+        minY: p.y - p.h / 2,
+        minZ: p.z - p.d / 2,
+        maxX: p.x + p.w / 2,
+        maxY: p.y + p.h / 2,
+        maxZ: p.z + p.d / 2,
+      }))
+  }, [])
+
   useEffect(() => {
     const el = gl.domElement
     const isCoarse = () => window.matchMedia('(pointer: coarse)').matches
@@ -67,7 +89,6 @@ export function PlayerController() {
     }
   }, [gl])
 
-  // WASD / Shift / Space / V (camera mode).
   useEffect(() => {
     const keys = new Set<string>()
 
@@ -122,7 +143,6 @@ export function PlayerController() {
     }
   }, [])
 
-  // Priority -1: update look + camera before WeaponSystem (default 0).
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05)
     if (!rig.current || !yawPivot.current || !pitchObj.current) return
@@ -132,9 +152,9 @@ export function PlayerController() {
 
     if (lastCamMode.current !== game.cameraMode) {
       lastCamMode.current = game.cameraMode
-      // Soft pitch reset when switching view so FPS is not stuck looking down.
       if (firstPerson) lookPitch.current = THREE.MathUtils.lerp(lookPitch.current, 0, 0.85)
       else lookPitch.current = THREE.MathUtils.lerp(lookPitch.current, PLAYER.pitchDefault, 0.65)
+      boomLen.current = Math.hypot(CAMERA.shoulder, CAMERA.lift, CAMERA.distance)
     }
     if (game.runId !== runId.current) {
       runId.current = game.runId
@@ -144,6 +164,7 @@ export function PlayerController() {
       lookYaw.current = 0
       lookPitch.current = firstPerson ? 0 : PLAYER.pitchDefault
       bodyYaw.current = 0
+      boomLen.current = Math.hypot(CAMERA.shoulder, CAMERA.lift, CAMERA.distance)
     }
 
     const { dx, dy } = game.consumeLook()
@@ -168,9 +189,11 @@ export function PlayerController() {
     pitchObj.current.rotation.x = lookPitch.current
     yawPivot.current.position.y = firstPerson ? CAMERA.fpHeight : CAMERA.height
 
+    // Keep rig transform current before camera world probes.
+    rig.current.position.set(pos.current.x, pos.current.y, pos.current.z)
+
     const persp = camera as THREE.PerspectiveCamera
     if (firstPerson) {
-      // Eye cam: at head, looking along local −Z (world forward).
       camera.position.set(0, 0, -CAMERA.fpForward)
       camera.rotation.set(0, 0, 0)
       if (persp.isPerspectiveCamera) {
@@ -179,8 +202,40 @@ export function PlayerController() {
         persp.updateProjectionMatrix()
       }
     } else {
-      // Chase boom behind the shoulder.
-      camera.position.set(CAMERA.shoulder, CAMERA.lift, CAMERA.distance)
+      // Ideal chase boom in pitch-local space (camera looks local −Z at the pivot).
+      _idealLocal.set(CAMERA.shoulder, CAMERA.lift, CAMERA.distance)
+      const idealLen = _idealLocal.length()
+      _boomDirLocal.copy(_idealLocal).multiplyScalar(1 / idealLen)
+
+      yawPivot.current.updateWorldMatrix(true, true)
+      pitchObj.current.getWorldPosition(_pivot)
+      pitchObj.current.getWorldQuaternion(_quat)
+      _worldDir.copy(_boomDirLocal).applyQuaternion(_quat)
+
+      const hitDist = nearestAabbHit(
+        _pivot.x,
+        _pivot.y,
+        _pivot.z,
+        _worldDir.x,
+        _worldDir.y,
+        _worldDir.z,
+        idealLen,
+        camBoxes,
+      )
+      let targetLen = idealLen
+      if (hitDist < idealLen) {
+        targetLen = Math.max(CAMERA.minBoomLength, hitDist - CAMERA.collidePadding)
+      }
+
+      // Snap in when blocked; ease out when clear so framing stays stable.
+      if (targetLen < boomLen.current) {
+        boomLen.current = targetLen
+      } else {
+        const k = 1 - Math.exp(-CAMERA.collideOutSmooth * dt)
+        boomLen.current += (targetLen - boomLen.current) * k
+      }
+
+      camera.position.copy(_boomDirLocal).multiplyScalar(boomLen.current)
       camera.rotation.set(0, 0, 0)
       if (persp.isPerspectiveCamera) {
         persp.fov = CAMERA.fov
@@ -189,7 +244,6 @@ export function PlayerController() {
       }
     }
 
-    // Hide own body in first person so it does not clip the view.
     if (avatarRoot.current) avatarRoot.current.visible = !firstPerson
 
     forward.current.set(-Math.sin(lookYaw.current), 0, -Math.cos(lookYaw.current))

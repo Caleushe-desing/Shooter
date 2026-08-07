@@ -53,6 +53,12 @@ export const CAMERA = {
   near: 0.1,
   far: 220,
   fov: 58,
+  /** Pull cam in before wall contact so the character stays visible. */
+  collidePadding: 0.28,
+  /** Never collapse the boom closer than this (meters along boom). */
+  minBoomLength: 0.65,
+  /** How fast the boom eases back out after clearing a wall. */
+  collideOutSmooth: 12,
   /** First-person eye cam. */
   fpHeight: 1.58,
   fpNear: 0.05,
