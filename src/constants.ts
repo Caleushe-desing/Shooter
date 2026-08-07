@@ -52,8 +52,9 @@ export const PLAYER = {
   speed: 6.8,
   lookSensitivityDesktop: 0.0022,
   lookSensitivityMobile: 0.0034,
-  pitchMin: -1.05,
-  pitchMax: 0.85,
+  /** Negative = look up, positive = look down. */
+  pitchMin: -0.85,
+  pitchMax: 0.72,
   spawn: { x: 0, y: 0, z: 8 },
   maxHealth: 100,
   skin: '#C9956E',
@@ -74,8 +75,8 @@ export const CAMERA = {
   lift: 0.35,
   distance: 5.1,
   scopedDistance: 2.4,
-  /** Look-down bias on the boom (radians). */
-  pitchBias: 0.22,
+  /** Mild look-down bias on the boom (radians). */
+  pitchBias: 0.12,
   /** How far ahead of the pivots the camera looks (¾ framing). */
   lookAhead: 1.15,
   /** Soft chase lag — higher = snappier, lower = more cinematic. */
@@ -93,7 +94,7 @@ export const CAMERA = {
    * Hip-fire reticle (% of viewport). Centered so shots match the mira.
    */
   aimLeftPct: 50,
-  aimTopPct: 48,
+  aimTopPct: 50,
 } as const
 
 /** NDC coords matching `CAMERA.aimLeftPct` / `aimTopPct` for hitscan. */

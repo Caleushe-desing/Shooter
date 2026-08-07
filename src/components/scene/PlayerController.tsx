@@ -27,6 +27,7 @@ const _idealLocal = new THREE.Vector3()
 const _idealWorld = new THREE.Vector3()
 const _camDir = new THREE.Vector3()
 const _focusWorld = new THREE.Vector3()
+const _focusLocal = new THREE.Vector3()
 
 function dampAngle(current: number, target: number, speed: number, dt: number) {
   let diff = target - current
@@ -52,7 +53,10 @@ export function PlayerController() {
   const bodyYaw = useRef(0)
   /** 0–1 of the ideal shoulder boom; pulled in when walls block the view. */
   const camScale = useRef(1)
-  const pos = useRef(new THREE.Vector3(PLAYER.spawn.x, 0, PLAYER.spawn.z))
+  const pos = useRef(
+    new THREE.Vector3(PLAYER.spawn.x, sampleHeight(PLAYER.spawn.x, PLAYER.spawn.z), PLAYER.spawn.z),
+  )
+  const smoothedY = useRef(sampleHeight(PLAYER.spawn.x, PLAYER.spawn.z))
   const moving = useRef(false)
   const lastFire = useRef(0)
   const forward = useRef(new THREE.Vector3())
@@ -237,17 +241,19 @@ export function PlayerController() {
 
     const { dx, dy } = store.consumeLook()
     lookYaw.current -= dx * zoomFactor
+    // Mouse up (negative dy) → look up (more negative pitch).
     lookPitch.current = THREE.MathUtils.clamp(
-      lookPitch.current - dy * zoomFactor,
+      lookPitch.current + dy * zoomFactor,
       PLAYER.pitchMin,
       PLAYER.pitchMax,
     )
 
-    // Soft orbit lag — while turning you briefly see the pup de costado.
+    // Soft orbit lag — while turning you briefly see the body de costado.
     const yawFollow = store.scoped ? CAMERA.followYaw * 2.2 : CAMERA.followYaw
     const pitchFollow = store.scoped ? CAMERA.followPitch * 2.2 : CAMERA.followPitch
     camYaw.current = dampAngle(camYaw.current, lookYaw.current, yawFollow, dt)
     camPitch.current = dampAngle(camPitch.current, lookPitch.current, pitchFollow, dt)
+    camPitch.current = THREE.MathUtils.clamp(camPitch.current, PLAYER.pitchMin, PLAYER.pitchMax)
 
     yawPivot.current.rotation.y = camYaw.current
     pitchObj.current.rotation.x = camPitch.current + CAMERA.pitchBias
@@ -270,26 +276,33 @@ export function PlayerController() {
       wish.current.normalize().multiplyScalar(speed * dt)
       const nextX = pos.current.x + wish.current.x
       const nextZ = pos.current.z + wish.current.z
-      const worldCols = useWorldStore.getState().getTreeColliders()
-      const resolved = resolveCircleBoxCollision(
-        nextX,
-        nextZ,
-        PLAYER.radius,
-        mergeColliders(worldCols),
-      )
-      pos.current.x = resolved.x
-      pos.current.z = resolved.z
+      const nextGround = sampleHeight(nextX, nextZ)
+      const stepUp = nextGround - smoothedY.current
+      // Block cliff climbs / freefall ledges that feel broken.
+      if (stepUp <= 1.35 && stepUp >= -2.8) {
+        const worldCols = useWorldStore.getState().getTreeColliders()
+        const resolved = resolveCircleBoxCollision(
+          nextX,
+          nextZ,
+          PLAYER.radius,
+          mergeColliders(worldCols),
+        )
+        pos.current.x = resolved.x
+        pos.current.z = resolved.z
 
-      const moveYaw = Math.atan2(-wish.current.x, -wish.current.z)
-      bodyYaw.current = dampAngle(bodyYaw.current, moveYaw, CAMERA.bodyTurn, dt)
+        const moveYaw = Math.atan2(-wish.current.x, -wish.current.z)
+        bodyYaw.current = dampAngle(bodyYaw.current, moveYaw, CAMERA.bodyTurn, dt)
+      }
     } else {
       bodyYaw.current = dampAngle(bodyYaw.current, lookYaw.current, CAMERA.bodyTurn, dt)
     }
 
     const groundY = sampleHeight(pos.current.x, pos.current.z)
-    pos.current.y = groundY
-    rig.current.position.set(pos.current.x, groundY, pos.current.z)
-    setPlayerPosition(pos.current.x, groundY + PLAYER.eyeHeight, pos.current.z)
+    // Smooth vertical follow so hills don't yank the camera/mira.
+    smoothedY.current = THREE.MathUtils.damp(smoothedY.current, groundY, 14, dt)
+    pos.current.y = smoothedY.current
+    rig.current.position.set(pos.current.x, smoothedY.current, pos.current.z)
+    setPlayerPosition(pos.current.x, smoothedY.current + PLAYER.eyeHeight, pos.current.z)
 
     // Proximity hint for harvest, lakes, minerals.
     {
@@ -358,27 +371,22 @@ export function PlayerController() {
 
     camera.position.copy(_idealLocal).multiplyScalar(camScale.current)
 
-    // Aim through screen center / mira so look and hitscan share one ray.
-    camera.updateMatrixWorld(true)
-    const aimNdc = store.scoped ? SCOPE_AIM : hipAim
-    aimRaycaster.setFromCamera(aimNdc, camera)
-    _focusWorld
-      .copy(aimRaycaster.ray.origin)
-      .addScaledVector(aimRaycaster.ray.direction, 80)
+    // Stable look-at from boom (no setFromCamera feedback — that yanked pitch to the sky).
+    _focusLocal.set(-shoulder * 0.2, -lift * 0.35, -CAMERA.lookAhead)
+    _focusWorld.copy(_focusLocal).applyMatrix4(pitchObj.current.matrixWorld)
     camera.lookAt(_focusWorld)
+    camera.updateMatrixWorld(true)
 
     const now = performance.now()
     if (store.consumeFire() && now - lastFire.current >= COMBAT.fireCooldownMs) {
       lastFire.current = now
       camera.updateMatrixWorld(true)
+      // Hitscan through the on-screen mira after the camera is settled.
+      const aimNdc = store.scoped ? SCOPE_AIM : hipAim
       aimRaycaster.setFromCamera(aimNdc, camera)
       aimOrigin.current.copy(aimRaycaster.ray.origin)
       aimDir.current.copy(aimRaycaster.ray.direction)
-
-      // Tracer starts a short distance along the aim ray (matches mira).
-      muzzlePos.current
-        .copy(aimOrigin.current)
-        .addScaledVector(aimDir.current, 0.85)
+      muzzlePos.current.copy(aimOrigin.current).addScaledVector(aimDir.current, 0.85)
       store.spawnTracer(aimOrigin.current, aimDir.current, muzzlePos.current)
     }
   })
