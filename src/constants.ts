@@ -28,42 +28,44 @@ export const PLAYER = {
   lookSensitivity: 0.0022,
   /** Touch look drag — slightly snappier than mouse. */
   lookSensitivityMobile: 0.0032,
-  pitchMin: -0.55,
-  pitchMax: 0.4,
-  pitchDefault: -0.28,
+  pitchMin: -0.72,
+  pitchMax: 0.38,
+  pitchDefault: -0.22,
   /** Mid lane spawn facing north toward sites. */
   spawn: { x: 0, y: 0, z: 10 },
   skin: '#C9956E',
 } as const
 
-/** Chase cam locked on the character's back. */
+/** Chase cam — tight over-the-shoulder TPS (character fills frame). */
 export const CAMERA = {
-  shoulder: 0.35,
-  height: 1.7,
-  lift: 0.22,
-  distance: 3.6,
-  near: 0.1,
+  shoulder: 0.42,
+  height: 1.42,
+  lift: 0.14,
+  distance: 1.72,
+  near: 0.05,
   far: 220,
-  fov: 60,
+  fov: 62,
 } as const
 
 /**
- * Third-person aim: crosshair sits off-center (over-the-shoulder),
- * shots follow a ray through that screen point.
+ * Third-person aim: tiny off-center point; shots leave the character
+ * toward the world point under that reticle (NDC derived from px + viewport).
  */
 export const WEAPON = {
-  /** Screen offset from center (px) — right / slightly up. */
-  crosshairOffsetX: 56,
-  crosshairOffsetY: -10,
-  /** Matching NDC for unproject (−1…1). Tuned with the HUD offsets. */
-  ndcX: 0.15,
-  ndcY: 0.05,
+  /** Screen offset from center (px) — slight right bias for shoulder cam. */
+  crosshairOffsetX: 28,
+  crosshairOffsetY: -4,
+  /** How far along the look ray we place the aim target. */
+  aimDistance: 90,
+  /** Muzzle on the character (local to facing). */
+  muzzleHeight: 1.22,
+  muzzleShoulder: 0.22,
+  muzzleForward: 0.38,
   cooldown: 0.14,
-  speed: 92,
+  speed: 95,
   range: 90,
-  muzzleForward: 0.85,
-  tracerRadius: 0.045,
-  tracerLength: 1.35,
+  tracerRadius: 0.03,
+  tracerLength: 0.95,
 } as const
 
 export const ARENA = {

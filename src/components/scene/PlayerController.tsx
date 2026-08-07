@@ -189,7 +189,7 @@ export function PlayerController() {
   return (
     <group ref={rig} position={[PLAYER.spawn.x, 0, PLAYER.spawn.z]}>
       <PlayerAvatar yawRef={bodyYaw} movingRef={moving} />
-      <WeaponSystem />
+      <WeaponSystem rigRef={rig} />
       <group ref={yawPivot} position={[0, CAMERA.height, 0]}>
         <group ref={pitchObj}>
           <PerspectiveCamera

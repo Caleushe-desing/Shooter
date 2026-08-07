@@ -29,10 +29,15 @@ type HitBox = { minX: number; minY: number; minZ: number; maxX: number; maxY: nu
 
 const _ndc = new THREE.Vector3()
 const _world = new THREE.Vector3()
-const _origin = new THREE.Vector3()
+const _aimPoint = new THREE.Vector3()
+const _muzzle = new THREE.Vector3()
 const _dir = new THREE.Vector3()
+const _camForward = new THREE.Vector3()
+const _forward = new THREE.Vector3()
+const _right = new THREE.Vector3()
 const _up = new THREE.Vector3(0, 1, 0)
 const _quat = new THREE.Quaternion()
+const _char = new THREE.Vector3()
 
 function rayHitsAabb(
   ox: number,
@@ -71,12 +76,17 @@ function orientTracer(mesh: THREE.Mesh, dir: THREE.Vector3) {
   mesh.quaternion.copy(_quat)
 }
 
+type Props = {
+  /** Player root (rig) — used for muzzle world position. */
+  rigRef: React.RefObject<THREE.Group | null>
+}
+
 /**
- * Visible tracers + muzzle flash + gunshot/impact audio.
- * Aimed through the off-center TPS crosshair (WEAPON.ndc*).
+ * Shots leave the character shoulder and fly toward the world point
+ * under the off-center TPS crosshair.
  */
-export function WeaponSystem() {
-  const { camera } = useThree()
+export function WeaponSystem({ rigRef }: Props) {
+  const { camera, scene, size } = useThree()
   const group = useRef<THREE.Group>(null)
   const bullets = useRef<Bullet[]>([])
   const flashes = useRef<Flash[]>([])
@@ -84,7 +94,7 @@ export function WeaponSystem() {
   const cooldown = useRef(0)
   const nextId = useRef(1)
 
-  const tracerGeo = useMemo(() => new THREE.CylinderGeometry(0.04, 0.018, 1.35, 6), [])
+  const tracerGeo = useMemo(() => new THREE.CylinderGeometry(0.028, 0.012, WEAPON.tracerLength, 6), [])
   const tracerMat = useMemo(
     () =>
       new THREE.MeshBasicMaterial({
@@ -95,7 +105,7 @@ export function WeaponSystem() {
       }),
     [],
   )
-  const flashGeo = useMemo(() => new THREE.SphereGeometry(0.16, 8, 8), [])
+  const flashGeo = useMemo(() => new THREE.SphereGeometry(0.14, 8, 8), [])
   const flashMat = useMemo(
     () =>
       new THREE.MeshBasicMaterial({
@@ -106,7 +116,7 @@ export function WeaponSystem() {
       }),
     [],
   )
-  const sparkGeo = useMemo(() => new THREE.SphereGeometry(0.12, 6, 6), [])
+  const sparkGeo = useMemo(() => new THREE.SphereGeometry(0.11, 6, 6), [])
   const sparkMat = useMemo(
     () =>
       new THREE.MeshBasicMaterial({
@@ -135,7 +145,10 @@ export function WeaponSystem() {
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05)
     cooldown.current = Math.max(0, cooldown.current - dt)
-    if (!group.current) return
+    const root = group.current
+    // Prefer the R3F scene so tracers stay in world space (not parented to the moving rig).
+    const parent = scene
+    if (!root) return
 
     const game = useGameStore.getState()
     while (game.consumeFire()) {
@@ -144,35 +157,58 @@ export function WeaponSystem() {
       unlockAudio()
       playGunshot()
 
-      _ndc.set(WEAPON.ndcX, WEAPON.ndcY, 0.5)
+      // 1) World point under the crosshair (same px offsets → NDC for this viewport).
+      const ndcX = (2 * WEAPON.crosshairOffsetX) / Math.max(1, size.width)
+      const ndcY = (-2 * WEAPON.crosshairOffsetY) / Math.max(1, size.height)
+      _ndc.set(ndcX, ndcY, 0.5)
       _world.copy(_ndc).unproject(camera)
-      _dir.copy(_world).sub(camera.position).normalize()
-      _origin.copy(camera.position).addScaledVector(_dir, WEAPON.muzzleForward)
+      _camForward.copy(_world).sub(camera.position).normalize()
+      _aimPoint.copy(camera.position).addScaledVector(_camForward, WEAPON.aimDistance)
 
-      // Bright elongated tracer
+      // 2) Muzzle on the character (shoulder), not on the camera.
+      if (rigRef.current) {
+        rigRef.current.getWorldPosition(_char)
+      } else {
+        _char.set(0, 0, 0)
+      }
+      camera.getWorldDirection(_camForward)
+      _forward.set(_camForward.x, 0, _camForward.z)
+      if (_forward.lengthSq() < 1e-6) _forward.set(0, 0, -1)
+      else _forward.normalize()
+      _right.crossVectors(_up, _forward).normalize()
+
+      _muzzle
+        .copy(_char)
+        .addScaledVector(_up, WEAPON.muzzleHeight)
+        .addScaledVector(_right, WEAPON.muzzleShoulder)
+        .addScaledVector(_forward, WEAPON.muzzleForward)
+
+      // 3) Shot direction: character → aim point (follows the mirilla).
+      _dir.copy(_aimPoint).sub(_muzzle)
+      if (_dir.lengthSq() < 1e-6) _dir.copy(_camForward)
+      else _dir.normalize()
+
       const mesh = new THREE.Mesh(tracerGeo, tracerMat.clone())
-      mesh.position.copy(_origin)
+      mesh.position.copy(_muzzle)
       orientTracer(mesh, _dir)
-      group.current.add(mesh)
+      parent.add(mesh)
       bullets.current.push({
         id: nextId.current++,
-        pos: _origin.clone(),
+        pos: _muzzle.clone(),
         dir: _dir.clone(),
         traveled: 0,
         mesh,
       })
 
-      // Muzzle flash at shot origin
       const flashMesh = new THREE.Mesh(flashGeo, flashMat.clone())
-      flashMesh.position.copy(_origin)
-      const light = new THREE.PointLight('#FFE8A0', 4.5, 8, 2)
-      light.position.copy(_origin)
-      group.current.add(flashMesh)
-      group.current.add(light)
+      flashMesh.position.copy(_muzzle)
+      const light = new THREE.PointLight('#FFE8A0', 5, 7, 2)
+      light.position.copy(_muzzle)
+      parent.add(flashMesh)
+      parent.add(light)
       flashes.current.push({ mesh: flashMesh, light, age: 0 })
     }
 
-    // Update flashes
     const liveFlashes: Flash[] = []
     for (const f of flashes.current) {
       f.age += dt
@@ -180,10 +216,10 @@ export function WeaponSystem() {
       const mat = f.mesh.material as THREE.MeshBasicMaterial
       mat.opacity = Math.max(0, 1 - t)
       f.mesh.scale.setScalar(1 + t * 2.2)
-      f.light.intensity = Math.max(0, 4.5 * (1 - t))
+      f.light.intensity = Math.max(0, 5 * (1 - t))
       if (t >= 1) {
-        group.current.remove(f.mesh)
-        group.current.remove(f.light)
+        parent.remove(f.mesh)
+        parent.remove(f.light)
         mat.dispose()
       } else {
         liveFlashes.push(f)
@@ -191,7 +227,6 @@ export function WeaponSystem() {
     }
     flashes.current = liveFlashes
 
-    // Update sparks
     const liveSparks: HitSpark[] = []
     for (const s of sparks.current) {
       s.age += dt
@@ -200,7 +235,7 @@ export function WeaponSystem() {
       mat.opacity = Math.max(0, 1 - t)
       s.mesh.scale.setScalar(1 + t * 1.8)
       if (t >= 1) {
-        group.current.remove(s.mesh)
+        parent.remove(s.mesh)
         mat.dispose()
       } else {
         liveSparks.push(s)
@@ -208,7 +243,6 @@ export function WeaponSystem() {
     }
     sparks.current = liveSparks
 
-    // Update bullets
     const remain: Bullet[] = []
     for (const b of bullets.current) {
       const step = WEAPON.speed * dt
@@ -231,10 +265,10 @@ export function WeaponSystem() {
           const spark = new THREE.Mesh(sparkGeo, sparkMat.clone())
           spark.position.copy(b.pos)
           if (hitFloor) spark.position.y = 0.08
-          group.current.add(spark)
+          parent.add(spark)
           sparks.current.push({ mesh: spark, age: 0 })
         }
-        group.current.remove(b.mesh)
+        parent.remove(b.mesh)
         ;(b.mesh.material as THREE.Material).dispose()
       } else {
         remain.push(b)
