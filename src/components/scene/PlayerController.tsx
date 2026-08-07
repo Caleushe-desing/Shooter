@@ -2,13 +2,13 @@ import { useEffect, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { PerspectiveCamera } from '@react-three/drei'
 import * as THREE from 'three'
-import { PLAYER, CAMERA, LOCOMOTION, clampToArena } from '../../constants'
+import { PLAYER, CAMERA, clampToArena } from '../../constants'
 import { useGameStore } from '../../store/gameStore'
 import { PlayerAvatar } from './PlayerAvatar'
 
 /**
- * Third-person human locomotion:
- * WASD · Shift run · Ctrl crouch · Space jump · mouse look
+ * Minimal third-person controller:
+ * WASD move · Shift run · mouse look · chase cam on the back.
  */
 export function PlayerController() {
   const rig = useRef<THREE.Group>(null)
@@ -19,14 +19,13 @@ export function PlayerController() {
   const bodyYaw = useRef(0)
   const moving = useRef(false)
   const pos = useRef(new THREE.Vector3(PLAYER.spawn.x, 0, PLAYER.spawn.z))
-  const velY = useRef(0)
-  const grounded = useRef(true)
-  const camH = useRef<number>(LOCOMOTION.camHeight.stand)
+  const camH = useRef<number>(CAMERA.height)
   const forward = useRef(new THREE.Vector3())
   const right = useRef(new THREE.Vector3())
   const wish = useRef(new THREE.Vector3())
   const { gl, camera } = useThree()
 
+  // Pointer look
   useEffect(() => {
     const el = gl.domElement
 
@@ -49,6 +48,7 @@ export function PlayerController() {
     }
   }, [gl])
 
+  // WASD — always on (never gate on touch)
   useEffect(() => {
     const keys = new Set<string>()
 
@@ -70,25 +70,15 @@ export function PlayerController() {
     }
 
     const down = (e: KeyboardEvent) => {
-      if (
-        e.code.startsWith('Arrow') ||
-        e.code === 'ShiftLeft' ||
-        e.code === 'ShiftRight' ||
-        e.code === 'Space' ||
-        e.code === 'ControlLeft' ||
-        e.code === 'ControlRight'
-      ) {
-        e.preventDefault()
-      }
-      if (e.code === 'Space') {
-        useGameStore.getState().queueJump()
-        return
-      }
       if (e.code === 'ControlLeft' || e.code === 'ControlRight') {
+        e.preventDefault()
         if (!e.repeat) useGameStore.getState().toggleCrouch()
         return
       }
       keys.add(e.code)
+      if (e.code.startsWith('Arrow') || e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+        e.preventDefault()
+      }
       sync()
     }
     const up = (e: KeyboardEvent) => {
@@ -108,8 +98,7 @@ export function PlayerController() {
     const dt = Math.min(delta, 0.05)
     if (!rig.current || !yawPivot.current || !pitchObj.current) return
 
-    const store = useGameStore.getState()
-    const { dx, dy } = store.consumeLook()
+    const { dx, dy } = useGameStore.getState().consumeLook()
     lookYaw.current -= dx
     lookPitch.current = THREE.MathUtils.clamp(
       lookPitch.current - dy,
@@ -117,17 +106,18 @@ export function PlayerController() {
       PLAYER.pitchMax,
     )
 
+    const store = useGameStore.getState()
+    const crouched = store.crouched
+
     bodyYaw.current = lookYaw.current
     yawPivot.current.rotation.y = lookYaw.current
     pitchObj.current.rotation.x = lookPitch.current
-
-    const stance = store.stance
-    const targetCam = LOCOMOTION.camHeight[stance]
+    const targetCam = crouched ? CAMERA.crouchHeight : CAMERA.height
     camH.current = THREE.MathUtils.damp(camH.current, targetCam, 12, dt)
     yawPivot.current.position.y = camH.current
 
-    const boom = LOCOMOTION.boomScale[stance]
-    camera.position.set(CAMERA.shoulder * boom, CAMERA.lift * boom, CAMERA.distance * boom)
+    // Hierarchical boom: camera on +Z looks local −Z at the character.
+    camera.position.set(CAMERA.shoulder, CAMERA.lift, CAMERA.distance)
     camera.rotation.set(0, 0, 0)
 
     forward.current.set(-Math.sin(lookYaw.current), 0, -Math.cos(lookYaw.current))
@@ -142,10 +132,9 @@ export function PlayerController() {
     moving.current = wish.current.lengthSq() > 1e-6
     if (moving.current) {
       let gait = 1
-      if (stance === 'crouch') gait = PLAYER.crouchMul
+      if (crouched) gait = PLAYER.crouchMul
       else if (sprint) gait = PLAYER.runMul
-      const air = grounded.current ? 1 : LOCOMOTION.airControl
-      const speed = PLAYER.speed * gait * air
+      const speed = PLAYER.speed * gait
       wish.current.normalize().multiplyScalar(speed * dt)
       const next = clampToArena(
         pos.current.x + wish.current.x,
@@ -156,28 +145,7 @@ export function PlayerController() {
       pos.current.z = next.z
     }
 
-    if (store.consumeJump() && grounded.current) {
-      velY.current =
-        stance === 'crouch' ? LOCOMOTION.crouchJumpSpeed : LOCOMOTION.jumpSpeed
-      grounded.current = false
-      if (stance === 'crouch') store.setStance('stand')
-    }
-
-    if (!grounded.current) {
-      velY.current -= LOCOMOTION.gravity * dt
-      pos.current.y += velY.current * dt
-      if (pos.current.y <= 0 && velY.current <= 0) {
-        pos.current.y = 0
-        velY.current = 0
-        grounded.current = true
-      }
-    } else {
-      pos.current.y = 0
-      velY.current = 0
-    }
-
-    store.setAirborne(!grounded.current)
-    rig.current.position.set(pos.current.x, pos.current.y, pos.current.z)
+    rig.current.position.set(pos.current.x, 0, pos.current.z)
   })
 
   return (

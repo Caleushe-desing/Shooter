@@ -32,7 +32,7 @@ export function Game() {
       </Canvas>
 
       <div className="pointer-events-none absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded-md bg-black/40 px-3 py-1.5 text-[11px] tracking-[0.12em] text-white/85">
-        CLIC · WASD · SHIFT CORRER · CTRL AGACHAR · ESPACIO SALTAR
+        CLIC · WASD · SHIFT CORRER · CTRL AGACHAR
       </div>
     </div>
   )

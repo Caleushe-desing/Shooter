@@ -12,7 +12,7 @@ export const PLAYER = {
   radius: 0.35,
   speed: 4.2,
   runMul: 1.7,
-  crouchMul: 0.42,
+  crouchMul: 0.45,
   lookSensitivity: 0.0022,
   pitchMin: -0.55,
   pitchMax: 0.4,
@@ -21,20 +21,11 @@ export const PLAYER = {
   skin: '#C9956E',
 } as const
 
-/** Jump / crouch physics tuned for a ~1.72 m human. */
-export const LOCOMOTION = {
-  jumpSpeed: 6.4,
-  crouchJumpSpeed: 5.0,
-  gravity: 18,
-  airControl: 0.75,
-  camHeight: { stand: 1.7, crouch: 1.15 } as const,
-  boomScale: { stand: 1, crouch: 0.9 } as const,
-} as const
-
 /** Chase cam locked on the character's back. */
 export const CAMERA = {
   shoulder: 0.35,
   height: 1.7,
+  crouchHeight: 1.15,
   lift: 0.22,
   distance: 3.6,
   near: 0.1,
