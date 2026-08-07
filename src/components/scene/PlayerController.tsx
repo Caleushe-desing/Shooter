@@ -31,13 +31,6 @@ const _focusWorld = new THREE.Vector3()
 const _focusLocal = new THREE.Vector3()
 const _camWorld = new THREE.Vector3()
 
-function dampAngle(current: number, target: number, speed: number, dt: number) {
-  let diff = target - current
-  while (diff > Math.PI) diff -= Math.PI * 2
-  while (diff < -Math.PI) diff += Math.PI * 2
-  return current + diff * (1 - Math.exp(-speed * dt))
-}
-
 /**
  * Classic third-person chase cam (GTA / San Andreas feel):
  * - Camera-relative move, soft orbit lag
@@ -49,9 +42,9 @@ export function PlayerController() {
   const yawPivot = useRef<THREE.Group>(null)
   const pitchObj = useRef<THREE.Group>(null)
   const lookYaw = useRef(0)
-  const lookPitch = useRef(0)
+  const lookPitch = useRef<number>(PLAYER.pitchDefault)
   const camYaw = useRef(0)
-  const camPitch = useRef(0)
+  const camPitch = useRef<number>(PLAYER.pitchDefault)
   const bodyYaw = useRef(0)
   /** 0–1 of the ideal shoulder boom; pulled in when walls block the view. */
   const camScale = useRef(1)
@@ -301,7 +294,7 @@ export function PlayerController() {
 
     const { dx, dy } = store.consumeLook()
     lookYaw.current -= dx * zoomFactor
-    // Mouse/touch up (negative dy) → look up (negative pitch on this boom rig).
+    // Boom at +Z: mouse up (dy < 0) → pitch ↑ → look up; mouse down → look down.
     lookPitch.current = THREE.MathUtils.clamp(
       lookPitch.current - dy * zoomFactor,
       PLAYER.pitchMin,
@@ -312,7 +305,13 @@ export function PlayerController() {
     camYaw.current = lookYaw.current
     bodyYaw.current = lookYaw.current
     const pitchFollow = store.scoped ? CAMERA.followPitch * 2.2 : CAMERA.followPitch
-    camPitch.current = dampAngle(camPitch.current, lookPitch.current, pitchFollow, dt)
+    // Pitch must not wrap like yaw — use linear damp.
+    camPitch.current = THREE.MathUtils.damp(
+      camPitch.current,
+      lookPitch.current,
+      pitchFollow,
+      dt,
+    )
     camPitch.current = THREE.MathUtils.clamp(camPitch.current, PLAYER.pitchMin, PLAYER.pitchMax)
 
     yawPivot.current.rotation.y = camYaw.current
@@ -445,18 +444,17 @@ export function PlayerController() {
 
     camera.position.copy(_idealLocal).multiplyScalar(camScale.current)
 
-    // Final ground clamp — boom pull-in can still leave the lens under steep hills / look-up.
+    // Soft floor clamp — pull boom in instead of yanking local Y (that aimed the mira at the sky).
     camera.updateMatrixWorld(true)
     camera.getWorldPosition(_camWorld)
     const floorY = sampleHeight(_camWorld.x, _camWorld.z) + CAMERA.groundClearance
-    if (_camWorld.y < floorY) {
-      _camWorld.y = floorY
-      pitchObj.current.worldToLocal(_camWorld)
-      camera.position.copy(_camWorld)
+    if (_camWorld.y < floorY && camScale.current > 0.35) {
+      camScale.current = Math.max(0.35, camScale.current * 0.85)
+      camera.position.copy(_idealLocal).multiplyScalar(camScale.current)
     }
 
-    // Look slightly ahead of the back — keep framing on the espalda.
-    _focusLocal.set(-shoulder * 0.15, -lift * 0.2, -CAMERA.lookAhead)
+    // Aim focus at torso height ahead — keeps the mira on the patio, not the sky.
+    _focusLocal.set(-shoulder * 0.1, -0.65, -CAMERA.lookAhead)
     _focusWorld.copy(_focusLocal).applyMatrix4(pitchObj.current.matrixWorld)
     camera.lookAt(_focusWorld)
     camera.updateMatrixWorld(true)

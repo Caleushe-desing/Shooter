@@ -53,9 +53,13 @@ export const PLAYER = {
   speed: 5.4,
   lookSensitivityDesktop: 0.0022,
   lookSensitivityMobile: 0.0034,
-  /** Negative = look up, positive = look down. Soft look-up so boom stays above terrain. */
-  pitchMin: -0.62,
-  pitchMax: 0.72,
+  /**
+   * Boom cam at +Z: negative pitch = lens above (look down), positive = lens below (look up).
+   */
+  pitchMin: -0.72,
+  pitchMax: 0.42,
+  /** Default look-down so the mira starts on the patio, not the sky. */
+  pitchDefault: -0.22,
   spawn: { x: 0, y: 0, z: 5 },
   maxHealth: 100,
   skin: '#C9956E',
@@ -94,13 +98,13 @@ export const CAMERA = {
   shoulder: 0.42,
   height: 1.85,
   /** Slight lift on the lens so we look down onto the body. */
-  lift: 0.32,
+  lift: 0.28,
   distance: 4.6,
   scopedDistance: 2.2,
-  /** Mild look-down bias on the boom (radians). */
-  pitchBias: 0.1,
-  /** Look ahead along the facing so framing stays on the back. */
-  lookAhead: 0.85,
+  /** Extra look-down on the boom (negative = camera higher, mira on the ground/character). */
+  pitchBias: -0.08,
+  /** Look ahead along the facing so framing stays on the back / horizon. */
+  lookAhead: 1.35,
   /** Snappy follow — less lag means less time seeing the side. */
   followYaw: 16,
   followPitch: 12,
@@ -110,8 +114,8 @@ export const CAMERA = {
   collisionPullSpeed: 28,
   minDistance: 1.1,
   collisionSkin: 0.55,
-  /** Keep lens above heightmap when orbiting / looking up. */
-  groundClearance: 0.65,
+  /** Keep lens above the patio floor (low — flat arena, avoid lookAt sky yank). */
+  groundClearance: 0.28,
   near: 0.12,
   far: 120,
   /**
