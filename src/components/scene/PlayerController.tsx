@@ -91,9 +91,51 @@ export function PlayerController() {
 
     el.addEventListener('pointerdown', onPointerDown)
     document.addEventListener('mousemove', onMouseMove)
+
+    const onWheel = (e: WheelEvent) => {
+      if (useGameStore.getState().cameraMode !== 'top') return
+      e.preventDefault()
+      // Scroll up → zoom in (lower camera).
+      useGameStore.getState().adjustTopZoom(e.deltaY * CAMERA.topZoomWheel)
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+
+    // Pinch-to-zoom (mobile / trackpad gestures via two touches).
+    let pinchDist = 0
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        const a = e.touches[0]
+        const b = e.touches[1]
+        pinchDist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY)
+      }
+    }
+    const onTouchMove = (e: TouchEvent) => {
+      if (useGameStore.getState().cameraMode !== 'top') return
+      if (e.touches.length !== 2 || pinchDist <= 0) return
+      const a = e.touches[0]
+      const b = e.touches[1]
+      const d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY)
+      const delta = pinchDist - d
+      pinchDist = d
+      // Pinch out → zoom in.
+      useGameStore.getState().adjustTopZoom(delta * 0.04)
+    }
+    const onTouchEnd = () => {
+      pinchDist = 0
+    }
+    el.addEventListener('touchstart', onTouchStart, { passive: true })
+    el.addEventListener('touchmove', onTouchMove, { passive: true })
+    el.addEventListener('touchend', onTouchEnd)
+    el.addEventListener('touchcancel', onTouchEnd)
+
     return () => {
       el.removeEventListener('pointerdown', onPointerDown)
       document.removeEventListener('mousemove', onMouseMove)
+      el.removeEventListener('wheel', onWheel)
+      el.removeEventListener('touchstart', onTouchStart)
+      el.removeEventListener('touchmove', onTouchMove)
+      el.removeEventListener('touchend', onTouchEnd)
+      el.removeEventListener('touchcancel', onTouchEnd)
     }
   }, [gl])
 
@@ -126,6 +168,16 @@ export function PlayerController() {
       if (e.code === 'KeyV' && !e.repeat) {
         e.preventDefault()
         useGameStore.getState().toggleCameraMode()
+        return
+      }
+      if (e.code === 'Equal' || e.code === 'NumpadAdd') {
+        e.preventDefault()
+        useGameStore.getState().adjustTopZoom(-CAMERA.topZoomStep)
+        return
+      }
+      if (e.code === 'Minus' || e.code === 'NumpadSubtract') {
+        e.preventDefault()
+        useGameStore.getState().adjustTopZoom(CAMERA.topZoomStep)
         return
       }
       keys.add(e.code)
@@ -210,7 +262,7 @@ export function PlayerController() {
       // Fixed north-up bird's-eye: pivot high above player, pitch straight down.
       yawPivot.current.rotation.y = 0
       pitchObj.current.rotation.x = -Math.PI / 2
-      yawPivot.current.position.y = CAMERA.topHeight
+      yawPivot.current.position.y = game.topCamHeight
       camera.position.set(0, 0, 0)
       camera.rotation.set(0, 0, 0)
       if (persp.isPerspectiveCamera) {

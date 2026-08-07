@@ -67,6 +67,12 @@ export const CAMERA = {
   fpForward: 0.12,
   /** Top-down / 2D Pac-Man style — closer = larger on screen. */
   topHeight: 18,
+  topHeightMin: 8,
+  topHeightMax: 48,
+  /** World meters of height change per wheel notch (≈100 deltaY). */
+  topZoomWheel: 0.045,
+  /** Buttons / keys step (meters). */
+  topZoomStep: 2.2,
   topFov: 42,
   topNear: 1,
   topFar: 120,

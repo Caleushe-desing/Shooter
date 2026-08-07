@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import {
   PLAYER,
+  CAMERA,
   WEAPON_AMMO,
   PICKUPS,
   type CameraMode,
@@ -28,6 +29,8 @@ type GameState = {
   playerZ: number
   runId: number
   cameraMode: CameraMode
+  /** Bird's-eye camera height (meters). User-adjustable zoom. */
+  topCamHeight: number
 
   status: GameStatus
   score: number
@@ -55,6 +58,8 @@ type GameState = {
   restartRun: () => void
   setCameraMode: (mode: CameraMode) => void
   toggleCameraMode: () => void
+  /** Positive delta = zoom out (higher cam). */
+  adjustTopZoom: (deltaMeters: number) => void
 }
 
 const totalOrbs = ORB_SPAWNS.length
@@ -72,6 +77,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   playerZ: PLAYER.spawn.z,
   runId: 1,
   cameraMode: 'top',
+  topCamHeight: CAMERA.topHeight,
 
   status: 'playing',
   score: 0,
@@ -175,4 +181,12 @@ export const useGameStore = create<GameState>((set, get) => ({
       cameraMode:
         s.cameraMode === 'third' ? 'top' : s.cameraMode === 'top' ? 'first' : 'third',
     })),
+  adjustTopZoom: (deltaMeters) => {
+    const s = get()
+    const next = Math.min(
+      CAMERA.topHeightMax,
+      Math.max(CAMERA.topHeightMin, s.topCamHeight + deltaMeters),
+    )
+    if (next !== s.topCamHeight) set({ topCamHeight: next })
+  },
 }))
