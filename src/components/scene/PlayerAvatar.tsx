@@ -1,11 +1,4 @@
-import {
-  Suspense,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  type MutableRefObject,
-} from 'react'
+import { Suspense, useEffect, useMemo, useRef, type MutableRefObject } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useAnimations, useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
@@ -25,36 +18,14 @@ useGLTF.preload(MODEL_URL)
 
 type ClipName = 'idle' | 'walk' | 'run'
 
-type BoneMap = {
-  hips: THREE.Object3D | null
-  spine: THREE.Object3D | null
-  spine1: THREE.Object3D | null
-  leftUpLeg: THREE.Object3D | null
-  rightUpLeg: THREE.Object3D | null
-  leftLeg: THREE.Object3D | null
-  rightLeg: THREE.Object3D | null
-  leftArm: THREE.Object3D | null
-  rightArm: THREE.Object3D | null
-}
-
-function findBone(root: THREE.Object3D, names: string[]): THREE.Object3D | null {
-  let found: THREE.Object3D | null = null
-  root.traverse((obj) => {
-    if (found) return
-    if (names.includes(obj.name)) found = obj
-  })
-  return found
-}
-
 /**
- * Same Mixamo wiring that worked for walk/run (clone + modelRef + clips),
- * plus a squat crouch layered on the bones after the mixer.
+ * Mixamo human — same wiring that worked for walk/run.
+ * Crouch = lower body + slower walk (no whole-body tip).
  */
 function MixamoHuman({ yawRef, movingRef }: Props) {
   const root = useRef<THREE.Group>(null)
   const modelRef = useRef<THREE.Group>(null)
   const currentClip = useRef<ClipName | null>(null)
-  const bonesRef = useRef<BoneMap | null>(null)
   const crouchAmt = useRef(0)
   const { scene, animations } = useGLTF(MODEL_URL)
 
@@ -67,20 +38,20 @@ function MixamoHuman({ yawRef, movingRef }: Props) {
     const footOffset = -box.min.y * fitScale
 
     c.traverse((obj) => {
-      const mesh = obj as THREE.Mesh
+      const mesh = obj as THREE.SkinnedMesh
       if (!mesh.isMesh) return
+      // Skinned meshes often cull incorrectly after scale — keep them drawn.
+      mesh.frustumCulled = false
       mesh.castShadow = true
       mesh.receiveShadow = true
+
       const n = (mesh.name || '').toLowerCase()
-      const matName = (
-        Array.isArray(mesh.material)
-          ? mesh.material.map((m) => m.name).join(' ')
-          : mesh.material?.name || ''
-      ).toLowerCase()
-      if (n.includes('joint') || matName.includes('joint')) {
+      // Only hide the joint helper mesh by exact name, not by material substrings.
+      if (n === 'beta_joints' || n.endsWith('_joints')) {
         mesh.visible = false
         return
       }
+
       const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
       for (const mat of mats) {
         const std = mat as THREE.MeshStandardMaterial
@@ -88,25 +59,15 @@ function MixamoHuman({ yawRef, movingRef }: Props) {
         std.color.set(PLAYER.skin)
         std.metalness = 0.02
         std.roughness = 0.72
+        std.side = THREE.DoubleSide
+        std.transparent = false
+        std.opacity = 1
+        std.depthWrite = true
         std.needsUpdate = true
       }
     })
     return { clone: c, fitScale, footOffset }
   }, [scene])
-
-  useLayoutEffect(() => {
-    bonesRef.current = {
-      hips: findBone(clone, ['mixamorigHips', 'mixamorig:Hips']),
-      spine: findBone(clone, ['mixamorigSpine', 'mixamorig:Spine']),
-      spine1: findBone(clone, ['mixamorigSpine1', 'mixamorig:Spine1']),
-      leftUpLeg: findBone(clone, ['mixamorigLeftUpLeg', 'mixamorig:LeftUpLeg']),
-      rightUpLeg: findBone(clone, ['mixamorigRightUpLeg', 'mixamorig:RightUpLeg']),
-      leftLeg: findBone(clone, ['mixamorigLeftLeg', 'mixamorig:LeftLeg']),
-      rightLeg: findBone(clone, ['mixamorigRightLeg', 'mixamorig:RightLeg']),
-      leftArm: findBone(clone, ['mixamorigLeftArm', 'mixamorig:LeftArm']),
-      rightArm: findBone(clone, ['mixamorigRightArm', 'mixamorig:RightArm']),
-    }
-  }, [clone])
 
   const { actions, mixer } = useAnimations(animations, modelRef)
 
@@ -140,40 +101,28 @@ function MixamoHuman({ yawRef, movingRef }: Props) {
       const prev = currentClip.current ? actions[currentClip.current] : null
       const action = actions[next]
       if (action) {
-        action.reset().setEffectiveTimeScale(1).setEffectiveWeight(1).fadeIn(0.12).play()
+        action.reset().setEffectiveTimeScale(1).setEffectiveWeight(1).fadeIn(0.15).play()
         action.setLoop(THREE.LoopRepeat, Infinity)
-        prev?.fadeOut(0.12)
+        prev?.fadeOut(0.15)
         currentClip.current = next
       }
     }
 
     const action = currentClip.current ? actions[currentClip.current] : null
     if (action) {
-      if (crouched && next === 'walk') action.setEffectiveTimeScale(0.68)
+      if (crouched && next === 'walk') action.setEffectiveTimeScale(0.7)
       else if (sprint && next === 'run') action.setEffectiveTimeScale(1.08)
       else action.setEffectiveTimeScale(1)
     }
 
+    // Mixamo faces +Z; flip so chase cam on +Z sees the back.
     modelRef.current.rotation.y = Math.PI
     modelRef.current.rotation.x = 0
 
-    crouchAmt.current = THREE.MathUtils.damp(crouchAmt.current, crouched ? 1 : 0, 11, delta)
-    const c = crouchAmt.current
-    modelRef.current.position.y = footOffset + c * -0.2
-
-    const b = bonesRef.current
-    if (!b || c < 0.001) return
-
-    if (b.hips) b.hips.position.y += c * -0.12
-    if (b.spine) b.spine.rotation.x += c * 0.5
-    if (b.spine1) b.spine1.rotation.x += c * 0.28
-    if (b.leftUpLeg) b.leftUpLeg.rotation.x += c * 1.2
-    if (b.rightUpLeg) b.rightUpLeg.rotation.x += c * 1.2
-    if (b.leftLeg) b.leftLeg.rotation.x += c * -1.8
-    if (b.rightLeg) b.rightLeg.rotation.x += c * -1.8
-    if (b.leftArm) b.leftArm.rotation.z += c * 0.45
-    if (b.rightArm) b.rightArm.rotation.z -= c * 0.45
-  }, 1)
+    // Crouch: sink the body (no backward tip).
+    crouchAmt.current = THREE.MathUtils.damp(crouchAmt.current, crouched ? 1 : 0, 12, delta)
+    modelRef.current.position.y = footOffset + crouchAmt.current * -0.55
+  })
 
   return (
     <group ref={root}>
@@ -184,16 +133,75 @@ function MixamoHuman({ yawRef, movingRef }: Props) {
   )
 }
 
-function LoadingMark() {
+/** Always-visible stand-in so the patio never looks empty while GLB loads. */
+function FallbackHuman({ yawRef, movingRef }: Props) {
+  const root = useRef<THREE.Group>(null)
+  const body = useRef<THREE.Group>(null)
+  const legL = useRef<THREE.Group>(null)
+  const legR = useRef<THREE.Group>(null)
+  const crouchAmt = useRef(0)
+
   useEffect(() => {
     useGameStore.getState().setAvatarStatus('loading')
   }, [])
-  return null
+
+  useFrame((_, delta) => {
+    if (!root.current || !body.current) return
+    root.current.rotation.y = yawRef.current
+    const game = useGameStore.getState()
+    const { moveX, moveZ, sprint } = game.input
+    const crouched = game.crouched
+    const moving = movingRef.current || Math.hypot(moveX, moveZ) > 0.05
+
+    crouchAmt.current = THREE.MathUtils.damp(crouchAmt.current, crouched ? 1 : 0, 12, delta)
+    body.current.position.y = -crouchAmt.current * 0.45
+
+    const rate = crouched ? 6 : sprint ? 13 : 8.5
+    const amp = (crouched ? 0.35 : sprint ? 0.65 : 0.45) * (moving ? 1 : 0)
+    const swing = Math.sin(performance.now() * 0.001 * rate) * amp
+    if (legL.current) legL.current.rotation.x = swing + crouchAmt.current * 1.0
+    if (legR.current) legR.current.rotation.x = -swing + crouchAmt.current * 1.0
+  })
+
+  return (
+    <group ref={root}>
+      <group ref={body}>
+        <mesh position={[0, 1.15, 0]}>
+          <capsuleGeometry args={[0.18, 0.5, 6, 12]} />
+          <meshStandardMaterial color={PLAYER.skin} roughness={0.7} />
+        </mesh>
+        <mesh position={[0, 1.58, 0]}>
+          <sphereGeometry args={[0.13, 14, 12]} />
+          <meshStandardMaterial color={PLAYER.skin} roughness={0.7} />
+        </mesh>
+        <mesh position={[-0.24, 1.12, 0]}>
+          <capsuleGeometry args={[0.05, 0.34, 4, 8]} />
+          <meshStandardMaterial color={PLAYER.skin} roughness={0.7} />
+        </mesh>
+        <mesh position={[0.24, 1.12, 0]}>
+          <capsuleGeometry args={[0.05, 0.34, 4, 8]} />
+          <meshStandardMaterial color={PLAYER.skin} roughness={0.7} />
+        </mesh>
+        <group ref={legL} position={[-0.1, 0.82, 0]}>
+          <mesh position={[0, -0.28, 0]}>
+            <capsuleGeometry args={[0.07, 0.38, 4, 8]} />
+            <meshStandardMaterial color={PLAYER.skin} roughness={0.7} />
+          </mesh>
+        </group>
+        <group ref={legR} position={[0.1, 0.82, 0]}>
+          <mesh position={[0, -0.28, 0]}>
+            <capsuleGeometry args={[0.07, 0.38, 4, 8]} />
+            <meshStandardMaterial color={PLAYER.skin} roughness={0.7} />
+          </mesh>
+        </group>
+      </group>
+    </group>
+  )
 }
 
 export function PlayerAvatar(props: Props) {
   return (
-    <Suspense fallback={<LoadingMark />}>
+    <Suspense fallback={<FallbackHuman {...props} />}>
       <MixamoHuman {...props} />
     </Suspense>
   )
