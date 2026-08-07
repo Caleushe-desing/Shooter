@@ -100,8 +100,8 @@ function ControlsHint() {
       }`}
     >
       {mobile
-        ? 'IZQ MOVER · DER DISPARO · ARRIBA VISTA/ZOOM'
-        : 'WASD · RUEDA ZOOM · +/− · V VISTA · CLIC DISPARO'}
+        ? 'IZQ MOVER · DER MIRAR/DISPARO · ARRIBA VISTA'
+        : 'CLIC+ARRASTRAR MIRAR · WASD · V VISTA · RUEDA ZOOM'}
     </div>
   )
 }

@@ -32,7 +32,7 @@ export const PLAYER = {
    * Hold-to-turn rate (rad/s at full stick deflection).
    * Applied in PlayerController from mobileLookStick.
    */
-  lookStickRate: 2.8,
+  lookStickRate: 3.4,
   lookStickDeadzone: 10,
   /** Clamp finger offset (px) so max turn rate stays controllable. */
   lookStickMax: 120,

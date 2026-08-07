@@ -6,10 +6,11 @@ import { unlockAudio } from '../../audio/gunshot'
 import { mobileLookStick, resetMobileLookStick } from '../../input/mobileLookStick'
 
 /**
- * Mobile layout (no overlap with CombatHud):
- * - Bottom-left: move joystick
- * - Bottom-right: jump + sprint only (camera lives in top-right HUD)
- * - Right mid: look/fire (inset from top HUD and bottom buttons)
+ * Mobile controls — zones that must not overlap:
+ * - Top strip: reserved for CombatHud (no look layer there)
+ * - Bottom-left: move
+ * - Bottom-right: jump / sprint
+ * - Rest of right half: look + fire
  */
 export function MobileControls() {
   const mobile = useIsMobile()
@@ -65,6 +66,7 @@ function Joystick() {
       className="pointer-events-auto absolute bottom-5 left-4 z-40 h-28 w-28 touch-none sm:bottom-8 sm:left-8 sm:h-32 sm:w-32"
       onPointerDown={(e) => {
         e.preventDefault()
+        e.stopPropagation()
         e.currentTarget.setPointerCapture(e.pointerId)
         active.current = true
         pointerId.current = e.pointerId
@@ -92,7 +94,6 @@ function Joystick() {
   )
 }
 
-/** Jump + sprint only — camera toggle stays in the top-right HUD. */
 function RightHandButtons() {
   const sprint = useGameStore((s) => s.input.sprint)
   const toggleSprint = useGameStore((s) => s.toggleSprint)
@@ -102,7 +103,7 @@ function RightHandButtons() {
     <div className="pointer-events-auto absolute bottom-5 right-4 z-40 flex touch-none flex-col items-center gap-2.5 sm:bottom-8 sm:right-8 sm:gap-3">
       <button
         type="button"
-        className="flex h-12 w-12 select-none items-center justify-center rounded-full border-2 border-white/50 bg-[#1A2430]/55 text-[10px] font-bold tracking-[0.12em] text-white/90 shadow-md backdrop-blur-sm active:scale-95 active:border-white active:bg-[#6FE04A] active:text-[#143018] sm:h-14 sm:w-14"
+        className="flex h-12 w-12 select-none items-center justify-center rounded-full border-2 border-white/50 bg-[#1A2430]/55 text-[10px] font-bold tracking-[0.12em] text-white/90 shadow-md backdrop-blur-sm active:scale-95 sm:h-14 sm:w-14"
         onPointerDown={(e) => {
           e.preventDefault()
           e.stopPropagation()
@@ -130,10 +131,7 @@ function RightHandButtons() {
   )
 }
 
-/**
- * Look/fire zone — inset so it never covers:
- * top HUD, bottom-left joystick, bottom-right action buttons.
- */
+/** Right-half look + fire. Buttons sit above this layer (z-40). */
 function RightLookAndFire() {
   const requestFire = useGameStore((s) => s.requestFire)
   const addLook = useGameStore((s) => s.addLook)
@@ -141,10 +139,8 @@ function RightLookAndFire() {
   const origin = useRef({ x: 0, y: 0 })
   const last = useRef({ x: 0, y: 0 })
   const pointerId = useRef<number | null>(null)
-  const touchCount = useRef(0)
 
-  const end = (id?: number) => {
-    if (id !== undefined && pointerId.current !== null && pointerId.current !== id) return
+  const end = () => {
     active.current = false
     pointerId.current = null
     resetMobileLookStick()
@@ -170,17 +166,11 @@ function RightLookAndFire() {
 
   return (
     <div
-      className="pointer-events-auto absolute bottom-36 right-0 top-28 z-30 w-[46%] touch-none sm:bottom-40"
+      className="pointer-events-auto absolute bottom-0 right-0 top-24 z-30 w-1/2 touch-none"
       onPointerDown={(e) => {
         if ((e.target as HTMLElement).closest('button')) return
+        // Ignore extra fingers (pinch zoom) — do not break the primary look pointer.
         if (!e.isPrimary) return
-        if (e.pointerType === 'touch') {
-          touchCount.current += 1
-          if (touchCount.current > 1) {
-            end()
-            return
-          }
-        }
         e.preventDefault()
         e.currentTarget.setPointerCapture(e.pointerId)
         active.current = true
@@ -193,10 +183,6 @@ function RightLookAndFire() {
       }}
       onPointerMove={(e) => {
         if (!active.current || pointerId.current !== e.pointerId) return
-        if (touchCount.current > 1) {
-          end()
-          return
-        }
         const dx = e.clientX - last.current.x
         const dy = e.clientY - last.current.y
         last.current = { x: e.clientX, y: e.clientY }
@@ -204,16 +190,10 @@ function RightLookAndFire() {
         addLook(dx * PLAYER.lookSensitivityMobile, dy * PLAYER.lookSensitivityMobile)
       }}
       onPointerUp={(e) => {
-        if (e.pointerType === 'touch') {
-          touchCount.current = Math.max(0, touchCount.current - 1)
-        }
-        end(e.pointerId)
+        if (pointerId.current === e.pointerId) end()
       }}
       onPointerCancel={(e) => {
-        if (e.pointerType === 'touch') {
-          touchCount.current = Math.max(0, touchCount.current - 1)
-        }
-        end(e.pointerId)
+        if (pointerId.current === e.pointerId) end()
       }}
       onLostPointerCapture={() => end()}
     />

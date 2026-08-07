@@ -69,16 +69,47 @@ export function PlayerController() {
   useEffect(() => {
     const el = gl.domElement
     const isCoarse = () => window.matchMedia('(pointer: coarse)').matches
+    let dragLook = false
+    let lastX = 0
+    let lastY = 0
 
     const onPointerDown = (e: PointerEvent) => {
       if (isCoarse()) return
       if (e.button !== 0) return
       unlockAudio()
       if (document.pointerLockElement !== el) {
+        // Prefer pointer lock; also allow click-drag look as fallback.
         void el.requestPointerLock()
+        dragLook = true
+        lastX = e.clientX
+        lastY = e.clientY
+        el.setPointerCapture(e.pointerId)
         return
       }
       useGameStore.getState().requestFire()
+    }
+    const onPointerMove = (e: PointerEvent) => {
+      if (isCoarse()) return
+      if (document.pointerLockElement === el) return
+      if (!dragLook) return
+      const dx = e.clientX - lastX
+      const dy = e.clientY - lastY
+      lastX = e.clientX
+      lastY = e.clientY
+      useGameStore.getState().addLook(
+        dx * PLAYER.lookSensitivity,
+        dy * PLAYER.lookSensitivity,
+      )
+    }
+    const onPointerUp = (e: PointerEvent) => {
+      if (dragLook) {
+        dragLook = false
+        try {
+          el.releasePointerCapture(e.pointerId)
+        } catch {
+          /* ignore */
+        }
+      }
     }
     const onMouseMove = (e: MouseEvent) => {
       if (isCoarse()) return
@@ -90,18 +121,18 @@ export function PlayerController() {
     }
 
     el.addEventListener('pointerdown', onPointerDown)
+    el.addEventListener('pointermove', onPointerMove)
+    el.addEventListener('pointerup', onPointerUp)
+    el.addEventListener('pointercancel', onPointerUp)
     document.addEventListener('mousemove', onMouseMove)
 
     const onWheel = (e: WheelEvent) => {
       if (useGameStore.getState().cameraMode !== 'top') return
-      // Always zoom in top-down; never treat wheel as a shot.
       e.preventDefault()
       useGameStore.getState().adjustTopZoom(e.deltaY * CAMERA.topZoomWheel)
     }
-    // Window so zoom works even with pointer lock / focus quirks.
     window.addEventListener('wheel', onWheel, { passive: false })
 
-    // Pinch-to-zoom (mobile) on the canvas — does not fire.
     let pinchDist = 0
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length === 2) {
@@ -131,6 +162,9 @@ export function PlayerController() {
 
     return () => {
       el.removeEventListener('pointerdown', onPointerDown)
+      el.removeEventListener('pointermove', onPointerMove)
+      el.removeEventListener('pointerup', onPointerUp)
+      el.removeEventListener('pointercancel', onPointerUp)
       document.removeEventListener('mousemove', onMouseMove)
       window.removeEventListener('wheel', onWheel)
       el.removeEventListener('touchstart', onTouchStart)
@@ -231,7 +265,8 @@ export function PlayerController() {
     }
 
     const { dx, dy } = game.consumeLook()
-    // Top-down: mouse / stick only turns facing (camera stays north-up).
+    const hadLookDelta = Math.abs(dx) + Math.abs(dy) > 1e-8
+    // All views: yaw always responds to look. Pitch only in 1ª / 3ª.
     lookYaw.current -= dx
     if (!topDown) {
       lookPitch.current = THREE.MathUtils.clamp(
@@ -251,6 +286,7 @@ export function PlayerController() {
         )
       }
     }
+    const lookingHard = hadLookDelta || mobileLookStick.active
 
     const { moveX, moveZ, sprint } = game.input
     const canPlay = game.status === 'playing'
@@ -347,8 +383,8 @@ export function PlayerController() {
 
     moving.current = wish.current.lengthSq() > 1e-6
     if (moving.current) {
-      // In top-down, face the direction of travel (Pac-Man style).
-      if (topDown) {
+      // Top-down: only auto-face walk direction when the player isn't looking/aiming.
+      if (topDown && !lookingHard) {
         lookYaw.current = Math.atan2(-wish.current.x, -wish.current.z)
       }
       const speed = PLAYER.speed * (sprint ? PLAYER.runMul : 1)
