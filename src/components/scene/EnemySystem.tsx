@@ -1,7 +1,12 @@
 import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { ENEMY, clampToArena, resolveCircleAabb } from '../../constants'
+import {
+  ENEMY,
+  COLLISION,
+  clampToArena,
+  resolveCircleSolids,
+} from '../../constants'
 import { useGameStore } from '../../store/gameStore'
 import { buildHavenInspiredMap } from '../../map/havenLayout'
 import {
@@ -140,18 +145,17 @@ export function EnemySystem() {
         const bounded = clampToArena(nx, nz, ENEMY.radius)
         nx = bounded.x
         nz = bounded.z
-        for (const box of MAP_SOLIDS) {
-          const hit = resolveCircleAabb(nx, nz, ENEMY.radius, box)
-          nx = hit.x
-          nz = hit.z
-        }
-        for (const box of MAP_SOLIDS) {
-          const hit = resolveCircleAabb(nx, nz, ENEMY.radius, box)
-          nx = hit.x
-          nz = hit.z
-        }
-        e.x = nx
-        e.z = nz
+        const hit = resolveCircleSolids(
+          nx,
+          nz,
+          ENEMY.radius,
+          MAP_SOLIDS,
+          e.y,
+          ENEMY.height,
+          COLLISION.stepHeight,
+        )
+        e.x = hit.x
+        e.z = hit.z
       } else if (e.attackCd <= 0) {
         e.attackCd = ENEMY.attackCooldown
         useGameStore.getState().damagePlayer(ENEMY.damage)

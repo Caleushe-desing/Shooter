@@ -8,7 +8,7 @@ export type PropBox = {
   h: number
   d: number
   color: string
-  /** If true, blocks player movement on XZ. */
+  /** If true, contributes a height-aware collision volume. */
   solid?: boolean
   roughness?: number
   /** Collision-only prop (not drawn by Arena). */
@@ -108,8 +108,8 @@ export function buildHavenInspiredMap(): { props: PropBox[]; solids: SolidBox[] 
 
   // —— Site B (south “temple” plaza) ——
   props.push(
-    // Raised plaza pad (visual only — XZ collision is flat for this demo)
-    { x: 0, y: 0.28, z: 30, w: 28, h: 0.56, d: 18, color: COLORS.sand, solid: false, roughness: 0.95 },
+    // Raised plaza pad — must jump onto; blocks walking through the lip
+    { x: 0, y: 0.28, z: 30, w: 28, h: 0.56, d: 18, color: COLORS.sand, solid: true, roughness: 0.95 },
     // Temple hall
     ...building(0, 34, 14, 8, 6.5, COLORS.stoneDark, [
       roof(0, 34, 14, 8, 6.5, COLORS.roof),
@@ -146,7 +146,14 @@ export function buildHavenInspiredMap(): { props: PropBox[]; solids: SolidBox[] 
 
   const solids: SolidBox[] = props
     .filter((p) => p.solid)
-    .map((p) => ({ x: p.x, z: p.z, w: p.w, d: p.d }))
+    .map((p) => ({
+      x: p.x,
+      z: p.z,
+      w: p.w,
+      d: p.d,
+      minY: p.y - p.h / 2,
+      maxY: p.y + p.h / 2,
+    }))
 
   return { props, solids }
 }

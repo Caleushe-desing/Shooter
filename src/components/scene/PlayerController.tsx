@@ -2,7 +2,15 @@ import { useEffect, useMemo, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { PerspectiveCamera } from '@react-three/drei'
 import * as THREE from 'three'
-import { PLAYER, CAMERA, clampToArena, resolveCircleAabb } from '../../constants'
+import {
+  PLAYER,
+  CAMERA,
+  COLLISION,
+  clampToArena,
+  resolveCircleSolids,
+  findSupportY,
+  resolveCeiling,
+} from '../../constants'
 import { useGameStore } from '../../store/gameStore'
 import { PlayerAvatar } from './PlayerAvatar'
 import { WeaponSystem } from './WeaponSystem'
@@ -265,31 +273,69 @@ export function PlayerController() {
         const bounded = clampToArena(nx, nz, PLAYER.radius)
         nx = bounded.x
         nz = bounded.z
-        for (const box of MAP_SOLIDS) {
-          const hit = resolveCircleAabb(nx, nz, PLAYER.radius, box)
-          nx = hit.x
-          nz = hit.z
-        }
-        for (const box of MAP_SOLIDS) {
-          const hit = resolveCircleAabb(nx, nz, PLAYER.radius, box)
-          nx = hit.x
-          nz = hit.z
-        }
-        pos.current.x = nx
-        pos.current.z = nz
+        // Height-aware: cleared tops (jump/step) do not block XZ.
+        const hit = resolveCircleSolids(
+          nx,
+          nz,
+          PLAYER.radius,
+          MAP_SOLIDS,
+          pos.current.y,
+          PLAYER.height,
+          COLLISION.stepHeight,
+        )
+        pos.current.x = hit.x
+        pos.current.z = hit.z
       }
 
       if (game.consumeJump() && grounded.current) {
         velY.current = PLAYER.jumpSpeed
         grounded.current = false
       }
+
+      const supportR = PLAYER.radius * COLLISION.supportRadiusScale
       if (!grounded.current || velY.current !== 0) {
         velY.current -= PLAYER.gravity * dt
         pos.current.y += velY.current * dt
-        if (pos.current.y <= 0) {
-          pos.current.y = 0
+        const ceil = resolveCeiling(
+          pos.current.y,
+          velY.current,
+          PLAYER.radius,
+          pos.current.x,
+          pos.current.z,
+          PLAYER.height,
+          MAP_SOLIDS,
+        )
+        pos.current.y = ceil.feetY
+        velY.current = ceil.velY
+
+        const support = findSupportY(
+          pos.current.x,
+          pos.current.z,
+          pos.current.y,
+          supportR,
+          MAP_SOLIDS,
+          COLLISION.landSnap,
+        )
+        if (velY.current <= 0 && pos.current.y <= support) {
+          pos.current.y = support
           velY.current = 0
           grounded.current = true
+        }
+      } else {
+        // Grounded: stick to platforms / fall off edges.
+        const support = findSupportY(
+          pos.current.x,
+          pos.current.z,
+          pos.current.y + 0.08,
+          supportR,
+          MAP_SOLIDS,
+          0.4,
+        )
+        if (support < pos.current.y - 0.06) {
+          grounded.current = false
+          velY.current = 0
+        } else {
+          pos.current.y = support
         }
       }
     } else {

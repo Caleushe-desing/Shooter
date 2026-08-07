@@ -21,8 +21,8 @@ export const PLAYER = {
   radius: 0.35,
   speed: 4.2,
   runMul: 1.7,
-  /** Vertical launch speed (m/s). */
-  jumpSpeed: 5.2,
+  /** Vertical launch speed (m/s) — clears ~1.3 m pads/crates. */
+  jumpSpeed: 6.5,
   /** Gravity while airborne (m/s²). */
   gravity: 16,
   lookSensitivity: 0.0022,
@@ -142,13 +142,25 @@ export function clampToArena(x: number, z: number, radius: number) {
   }
 }
 
-/** Axis-aligned solid for horizontal collision (footprint). */
+/** Axis-aligned solid with footprint + vertical extent. */
 export type SolidBox = {
   x: number
   z: number
   w: number
   d: number
+  minY: number
+  maxY: number
 }
+
+/** Vertical collision tuning (platforms / ledges). */
+export const COLLISION = {
+  /** Max lip the player can walk onto without jumping (meters). */
+  stepHeight: 0.28,
+  /** Extra reach when snapping feet onto a surface while falling. */
+  landSnap: 0.2,
+  /** Probe radius scale vs body radius for ground support checks. */
+  supportRadiusScale: 0.72,
+} as const
 
 /**
  * Push a circle out of an AABB on XZ.
@@ -191,4 +203,105 @@ export function resolveCircleAabb(
   const dist = Math.sqrt(distSq)
   const push = (radius - dist) / dist
   return { x: x + dx * push, z: z + dz * push }
+}
+
+/** True when the solid sticks up enough to block at this body height. */
+export function solidBlocksHorizontally(
+  solid: SolidBox,
+  feetY: number,
+  bodyHeight: number,
+  stepHeight: number = COLLISION.stepHeight,
+): boolean {
+  // Cleared / standing on top / can step onto — walk over, no side push.
+  if (solid.maxY <= feetY + stepHeight) return false
+  // Entirely above the head (ceiling handled separately).
+  if (solid.minY >= feetY + bodyHeight - 0.05) return false
+  return true
+}
+
+/**
+ * Resolve circle vs solids on XZ, ignoring volumes the body has cleared
+ * by jumping/stepping above their top.
+ */
+export function resolveCircleSolids(
+  x: number,
+  z: number,
+  radius: number,
+  solids: readonly SolidBox[],
+  feetY: number,
+  bodyHeight: number,
+  stepHeight: number = COLLISION.stepHeight,
+): { x: number; z: number } {
+  let nx = x
+  let nz = z
+  for (let pass = 0; pass < 2; pass++) {
+    for (const box of solids) {
+      if (!solidBlocksHorizontally(box, feetY, bodyHeight, stepHeight)) continue
+      const hit = resolveCircleAabb(nx, nz, radius, box)
+      nx = hit.x
+      nz = hit.z
+    }
+  }
+  return { x: nx, z: nz }
+}
+
+function circleHitsSolidXZ(
+  x: number,
+  z: number,
+  radius: number,
+  box: SolidBox,
+): boolean {
+  const halfW = box.w * 0.5
+  const halfD = box.d * 0.5
+  const closestX = Math.max(box.x - halfW, Math.min(x, box.x + halfW))
+  const closestZ = Math.max(box.z - halfD, Math.min(z, box.z + halfD))
+  const dx = x - closestX
+  const dz = z - closestZ
+  return dx * dx + dz * dz <= radius * radius
+}
+
+/**
+ * Highest walkable surface under/near the feet (arena floor = 0).
+ * `maxReach` limits how far above the feet we still consider a top.
+ */
+export function findSupportY(
+  x: number,
+  z: number,
+  feetY: number,
+  radius: number,
+  solids: readonly SolidBox[],
+  maxReach: number = COLLISION.landSnap,
+): number {
+  let best = 0
+  for (const box of solids) {
+    if (!circleHitsSolidXZ(x, z, radius, box)) continue
+    if (box.maxY <= feetY + maxReach && box.maxY > best) {
+      best = box.maxY
+    }
+  }
+  return best
+}
+
+/** Clamp rising head against solid undersides. */
+export function resolveCeiling(
+  feetY: number,
+  velY: number,
+  radius: number,
+  x: number,
+  z: number,
+  bodyHeight: number,
+  solids: readonly SolidBox[],
+): { feetY: number; velY: number } {
+  if (velY <= 0) return { feetY, velY }
+  let y = feetY
+  let vy = velY
+  const head = y + bodyHeight
+  for (const box of solids) {
+    if (!circleHitsSolidXZ(x, z, radius, box)) continue
+    if (head > box.minY && y < box.minY) {
+      y = box.minY - bodyHeight
+      vy = 0
+    }
+  }
+  return { feetY: y, velY: vy }
 }
