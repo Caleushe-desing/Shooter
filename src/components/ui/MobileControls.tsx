@@ -6,8 +6,8 @@ import { useGameStore } from '../../store/gameStore'
 /**
  * Android / tablet overlay:
  * - Left: virtual joystick (move)
- * - Right: look drag + dedicated RUN toggle (independent of move direction)
- * Desktop uses WASD + Shift in PlayerController; this stays hidden.
+ * - Right: look drag + CORRER toggle + SALTAR button
+ * Desktop uses WASD + Shift + Space in PlayerController; this stays hidden.
  */
 export function MobileControls() {
   const mobile = useIsMobile()
@@ -17,7 +17,7 @@ export function MobileControls() {
     <div className="absolute inset-0 z-30">
       <Joystick />
       <LookZone />
-      <RunButton />
+      <RightHandButtons />
     </div>
   )
 }
@@ -91,27 +91,41 @@ function Joystick() {
   )
 }
 
-/** Right-hand RUN toggle — on = sprint in any move direction. */
-function RunButton() {
+/** Right-hand action cluster: jump (tap) + run (toggle). */
+function RightHandButtons() {
   const sprint = useGameStore((s) => s.input.sprint)
   const toggleSprint = useGameStore((s) => s.toggleSprint)
+  const requestJump = useGameStore((s) => s.requestJump)
 
   return (
-    <button
-      type="button"
-      className={`absolute bottom-6 right-6 z-40 flex h-16 w-16 touch-none select-none items-center justify-center rounded-full border-2 text-[11px] font-bold tracking-[0.14em] shadow-md sm:bottom-8 sm:right-8 ${
-        sprint
-          ? 'border-white bg-[#6FE04A] text-[#143018]'
-          : 'border-white/50 bg-[#1A2430]/55 text-white/90 backdrop-blur-sm'
-      }`}
-      onPointerDown={(e) => {
-        e.preventDefault()
-        e.stopPropagation()
-        toggleSprint()
-      }}
-    >
-      CORRER
-    </button>
+    <div className="absolute bottom-6 right-6 z-40 flex touch-none flex-col items-center gap-3 sm:bottom-8 sm:right-8">
+      <button
+        type="button"
+        className="flex h-14 w-14 select-none items-center justify-center rounded-full border-2 border-white/50 bg-[#1A2430]/55 text-[10px] font-bold tracking-[0.12em] text-white/90 shadow-md backdrop-blur-sm active:scale-95 active:border-white active:bg-[#6FE04A] active:text-[#143018]"
+        onPointerDown={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          requestJump()
+        }}
+      >
+        SALTAR
+      </button>
+      <button
+        type="button"
+        className={`flex h-16 w-16 select-none items-center justify-center rounded-full border-2 text-[11px] font-bold tracking-[0.14em] shadow-md ${
+          sprint
+            ? 'border-white bg-[#6FE04A] text-[#143018]'
+            : 'border-white/50 bg-[#1A2430]/55 text-white/90 backdrop-blur-sm'
+        }`}
+        onPointerDown={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          toggleSprint()
+        }}
+      >
+        CORRER
+      </button>
+    </div>
   )
 }
 
@@ -130,8 +144,6 @@ function LookZone() {
     <div
       className="absolute bottom-0 right-0 top-0 w-1/2 touch-none"
       onPointerDown={(e) => {
-        // Ignore presses on the run button (it stops propagation), but also
-        // skip the lower-right corner if a child already handled it.
         if ((e.target as HTMLElement).closest('button')) return
         e.preventDefault()
         e.currentTarget.setPointerCapture(e.pointerId)

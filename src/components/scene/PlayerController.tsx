@@ -8,7 +8,7 @@ import { PlayerAvatar } from './PlayerAvatar'
 
 /**
  * Minimal third-person controller:
- * WASD move · Shift run · mouse look · chase cam on the back.
+ * WASD move · Shift run · Space jump · mouse look · chase cam on the back.
  */
 export function PlayerController() {
   const rig = useRef<THREE.Group>(null)
@@ -19,6 +19,8 @@ export function PlayerController() {
   const bodyYaw = useRef(0)
   const moving = useRef(false)
   const pos = useRef(new THREE.Vector3(PLAYER.spawn.x, 0, PLAYER.spawn.z))
+  const velY = useRef(0)
+  const grounded = useRef(true)
   const forward = useRef(new THREE.Vector3())
   const right = useRef(new THREE.Vector3())
   const wish = useRef(new THREE.Vector3())
@@ -50,11 +52,11 @@ export function PlayerController() {
     }
   }, [gl])
 
-  // WASD — always registered (laptops with touchscreens still need keyboard).
+  // WASD / Shift / Space — always registered.
   useEffect(() => {
     const keys = new Set<string>()
 
-    const sync = () => {
+    const syncMoveSprint = () => {
       let x = 0
       let z = 0
       if (keys.has('KeyW') || keys.has('ArrowUp')) z -= 1
@@ -68,20 +70,28 @@ export function PlayerController() {
       }
       const game = useGameStore.getState()
       game.setMove(x, z)
-      // Shift held = run, any move direction.
       game.setSprint(keys.has('ShiftLeft') || keys.has('ShiftRight'))
     }
 
     const down = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        e.preventDefault()
+        if (!e.repeat) useGameStore.getState().requestJump()
+        return
+      }
       keys.add(e.code)
       if (e.code.startsWith('Arrow') || e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
         e.preventDefault()
       }
-      sync()
+      syncMoveSprint()
     }
     const up = (e: KeyboardEvent) => {
+      if (e.code === 'Space') {
+        e.preventDefault()
+        return
+      }
       keys.delete(e.code)
-      sync()
+      syncMoveSprint()
     }
 
     window.addEventListener('keydown', down)
@@ -96,7 +106,8 @@ export function PlayerController() {
     const dt = Math.min(delta, 0.05)
     if (!rig.current || !yawPivot.current || !pitchObj.current) return
 
-    const { dx, dy } = useGameStore.getState().consumeLook()
+    const game = useGameStore.getState()
+    const { dx, dy } = game.consumeLook()
     lookYaw.current -= dx
     lookPitch.current = THREE.MathUtils.clamp(
       lookPitch.current - dy,
@@ -116,7 +127,7 @@ export function PlayerController() {
     forward.current.set(-Math.sin(lookYaw.current), 0, -Math.cos(lookYaw.current))
     right.current.set(Math.cos(lookYaw.current), 0, -Math.sin(lookYaw.current))
 
-    const { moveX, moveZ, sprint } = useGameStore.getState().input
+    const { moveX, moveZ, sprint } = game.input
     wish.current
       .set(0, 0, 0)
       .addScaledVector(right.current, moveX)
@@ -135,7 +146,22 @@ export function PlayerController() {
       pos.current.z = next.z
     }
 
-    rig.current.position.set(pos.current.x, 0, pos.current.z)
+    // Jump + gravity (simple vertical only; floor at y = 0).
+    if (game.consumeJump() && grounded.current) {
+      velY.current = PLAYER.jumpSpeed
+      grounded.current = false
+    }
+    if (!grounded.current || velY.current !== 0) {
+      velY.current -= PLAYER.gravity * dt
+      pos.current.y += velY.current * dt
+      if (pos.current.y <= 0) {
+        pos.current.y = 0
+        velY.current = 0
+        grounded.current = true
+      }
+    }
+
+    rig.current.position.set(pos.current.x, pos.current.y, pos.current.z)
   })
 
   return (

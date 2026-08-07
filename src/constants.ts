@@ -12,6 +12,10 @@ export const PLAYER = {
   radius: 0.35,
   speed: 4.2,
   runMul: 1.7,
+  /** Vertical launch speed (m/s). */
+  jumpSpeed: 5.2,
+  /** Gravity while airborne (m/s²). */
+  gravity: 16,
   lookSensitivity: 0.0022,
   /** Touch look drag — slightly snappier than mouse. */
   lookSensitivityMobile: 0.0032,
