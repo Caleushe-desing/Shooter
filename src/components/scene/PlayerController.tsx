@@ -265,7 +265,6 @@ export function PlayerController() {
     }
 
     const { dx, dy } = game.consumeLook()
-    const hadLookDelta = Math.abs(dx) + Math.abs(dy) > 1e-8
     // All views: yaw always responds to look. Pitch only in 1ª / 3ª.
     lookYaw.current -= dx
     if (!topDown) {
@@ -286,7 +285,6 @@ export function PlayerController() {
         )
       }
     }
-    const lookingHard = hadLookDelta || mobileLookStick.active
 
     const { moveX, moveZ, sprint } = game.input
     const canPlay = game.status === 'playing'
@@ -383,10 +381,7 @@ export function PlayerController() {
 
     moving.current = wish.current.lengthSq() > 1e-6
     if (moving.current) {
-      // Top-down: only auto-face walk direction when the player isn't looking/aiming.
-      if (topDown && !lookingHard) {
-        lookYaw.current = Math.atan2(-wish.current.x, -wish.current.z)
-      }
+      // Move and look are independent in every camera mode (dual-stick / WASD+mouse).
       const speed = PLAYER.speed * (sprint ? PLAYER.runMul : 1)
       wish.current.normalize().multiplyScalar(speed * dt)
       let nx = pos.current.x + wish.current.x

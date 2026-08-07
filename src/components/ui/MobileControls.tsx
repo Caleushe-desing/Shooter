@@ -131,7 +131,7 @@ function RightHandButtons() {
   )
 }
 
-/** Right-half look + fire. Buttons sit above this layer (z-40). */
+/** Right-half look + fire. Works together with the left joystick (2 fingers). */
 function RightLookAndFire() {
   const requestFire = useGameStore((s) => s.requestFire)
   const addLook = useGameStore((s) => s.addLook)
@@ -169,8 +169,9 @@ function RightLookAndFire() {
       className="pointer-events-auto absolute bottom-0 right-0 top-24 z-30 w-1/2 touch-none"
       onPointerDown={(e) => {
         if ((e.target as HTMLElement).closest('button')) return
-        // Ignore extra fingers (pinch zoom) — do not break the primary look pointer.
-        if (!e.isPrimary) return
+        // Already aiming with another finger on this pad (pinch) — ignore.
+        if (pointerId.current !== null) return
+        // Allow non-primary pointers so move (finger 1) + look (finger 2) work together.
         e.preventDefault()
         e.currentTarget.setPointerCapture(e.pointerId)
         active.current = true
@@ -195,7 +196,9 @@ function RightLookAndFire() {
       onPointerCancel={(e) => {
         if (pointerId.current === e.pointerId) end()
       }}
-      onLostPointerCapture={() => end()}
+      onLostPointerCapture={(e) => {
+        if (pointerId.current === e.pointerId) end()
+      }}
     />
   )
 }
