@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react'
+import { useMemo, useRef, type MutableRefObject } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { WEAPON } from '../../constants'
@@ -32,7 +32,8 @@ const _world = new THREE.Vector3()
 const _aimPoint = new THREE.Vector3()
 const _muzzle = new THREE.Vector3()
 const _dir = new THREE.Vector3()
-const _camForward = new THREE.Vector3()
+const _camPos = new THREE.Vector3()
+const _look = new THREE.Vector3()
 const _forward = new THREE.Vector3()
 const _right = new THREE.Vector3()
 const _up = new THREE.Vector3(0, 1, 0)
@@ -76,16 +77,24 @@ function orientTracer(mesh: THREE.Mesh, dir: THREE.Vector3) {
   mesh.quaternion.copy(_quat)
 }
 
+/** World look direction matching the chase-cam yaw/pitch hierarchy. */
+function lookDirection(yaw: number, pitch: number, out: THREE.Vector3) {
+  const cp = Math.cos(pitch)
+  out.set(-Math.sin(yaw) * cp, Math.sin(pitch), -Math.cos(yaw) * cp)
+  return out.normalize()
+}
+
 type Props = {
-  /** Player root (rig) — used for muzzle world position. */
   rigRef: React.RefObject<THREE.Group | null>
+  lookYaw: MutableRefObject<number>
+  lookPitch: MutableRefObject<number>
 }
 
 /**
- * Shots leave the character shoulder and fly toward the world point
- * under the off-center TPS crosshair.
+ * Shots leave the character and always fly where the character is looking
+ * (yaw/pitch). Crosshair ray refines the aim point so the mirilla stays true.
  */
-export function WeaponSystem({ rigRef }: Props) {
+export function WeaponSystem({ rigRef, lookYaw, lookPitch }: Props) {
   const { camera, scene, size } = useThree()
   const group = useRef<THREE.Group>(null)
   const bullets = useRef<Bullet[]>([])
@@ -142,13 +151,19 @@ export function WeaponSystem({ rigRef }: Props) {
       }))
   }, [])
 
+  // After PlayerController (priority -1) so yaw/pitch + camera matrices are fresh.
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05)
     cooldown.current = Math.max(0, cooldown.current - dt)
     const root = group.current
-    // Prefer the R3F scene so tracers stay in world space (not parented to the moving rig).
     const parent = scene
     if (!root) return
+
+    const yaw = lookYaw.current
+    const pitch = lookPitch.current
+    lookDirection(yaw, pitch, _look)
+    _forward.set(-Math.sin(yaw), 0, -Math.cos(yaw))
+    _right.set(Math.cos(yaw), 0, -Math.sin(yaw))
 
     const game = useGameStore.getState()
     while (game.consumeFire()) {
@@ -157,35 +172,39 @@ export function WeaponSystem({ rigRef }: Props) {
       unlockAudio()
       playGunshot()
 
-      // 1) World point under the crosshair (same px offsets → NDC for this viewport).
-      const ndcX = (2 * WEAPON.crosshairOffsetX) / Math.max(1, size.width)
-      const ndcY = (-2 * WEAPON.crosshairOffsetY) / Math.max(1, size.height)
-      _ndc.set(ndcX, ndcY, 0.5)
-      _world.copy(_ndc).unproject(camera)
-      _camForward.copy(_world).sub(camera.position).normalize()
-      _aimPoint.copy(camera.position).addScaledVector(_camForward, WEAPON.aimDistance)
-
-      // 2) Muzzle on the character (shoulder), not on the camera.
       if (rigRef.current) {
+        rigRef.current.updateWorldMatrix(true, true)
         rigRef.current.getWorldPosition(_char)
       } else {
         _char.set(0, 0, 0)
       }
-      camera.getWorldDirection(_camForward)
-      _forward.set(_camForward.x, 0, _camForward.z)
-      if (_forward.lengthSq() < 1e-6) _forward.set(0, 0, -1)
-      else _forward.normalize()
-      _right.crossVectors(_up, _forward).normalize()
 
+      // Muzzle rides with the character facing (turns when you look left/right).
       _muzzle
         .copy(_char)
         .addScaledVector(_up, WEAPON.muzzleHeight)
         .addScaledVector(_right, WEAPON.muzzleShoulder)
         .addScaledVector(_forward, WEAPON.muzzleForward)
 
-      // 3) Shot direction: character → aim point (follows the mirilla).
+      // Aim point: camera ray through the mirilla in WORLD space (follows look).
+      camera.updateMatrixWorld(true)
+      const ndcX = (2 * WEAPON.crosshairOffsetX) / Math.max(1, size.width)
+      const ndcY = (-2 * WEAPON.crosshairOffsetY) / Math.max(1, size.height)
+      _ndc.set(ndcX, ndcY, 0.5)
+      _world.copy(_ndc).unproject(camera)
+      camera.getWorldPosition(_camPos)
+      _dir.copy(_world).sub(_camPos)
+      if (_dir.lengthSq() < 1e-8) {
+        _dir.copy(_look)
+      } else {
+        _dir.normalize()
+      }
+      _aimPoint.copy(_camPos).addScaledVector(_dir, WEAPON.aimDistance)
+
+      // Final shot direction: from character muzzle → where the mirilla looks.
+      // Falls back to character look so turning left always aims left.
       _dir.copy(_aimPoint).sub(_muzzle)
-      if (_dir.lengthSq() < 1e-6) _dir.copy(_camForward)
+      if (_dir.lengthSq() < 1e-8) _dir.copy(_look)
       else _dir.normalize()
 
       const mesh = new THREE.Mesh(tracerGeo, tracerMat.clone())
@@ -275,7 +294,7 @@ export function WeaponSystem({ rigRef }: Props) {
       }
     }
     bullets.current = remain
-  })
+  }, 1)
 
   return <group ref={group} />
 }

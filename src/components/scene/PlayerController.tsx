@@ -113,6 +113,7 @@ export function PlayerController() {
     }
   }, [])
 
+  // Priority -1: update look + camera before WeaponSystem (priority 1).
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05)
     if (!rig.current || !yawPivot.current || !pitchObj.current) return
@@ -134,6 +135,7 @@ export function PlayerController() {
     // Hierarchical boom: camera on +Z looks local −Z at the character.
     camera.position.set(CAMERA.shoulder, CAMERA.lift, CAMERA.distance)
     camera.rotation.set(0, 0, 0)
+    camera.updateMatrixWorld(true)
 
     forward.current.set(-Math.sin(lookYaw.current), 0, -Math.cos(lookYaw.current))
     right.current.set(Math.cos(lookYaw.current), 0, -Math.sin(lookYaw.current))
@@ -184,12 +186,12 @@ export function PlayerController() {
     }
 
     rig.current.position.set(pos.current.x, pos.current.y, pos.current.z)
-  })
+  }, -1)
 
   return (
     <group ref={rig} position={[PLAYER.spawn.x, 0, PLAYER.spawn.z]}>
       <PlayerAvatar yawRef={bodyYaw} movingRef={moving} />
-      <WeaponSystem rigRef={rig} />
+      <WeaponSystem rigRef={rig} lookYaw={lookYaw} lookPitch={lookPitch} />
       <group ref={yawPivot} position={[0, CAMERA.height, 0]}>
         <group ref={pitchObj}>
           <PerspectiveCamera
