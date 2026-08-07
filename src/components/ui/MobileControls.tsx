@@ -3,16 +3,15 @@ import { PLAYER } from '../../constants'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useGameStore } from '../../store/gameStore'
 
-/** Push stick this far forward (0–1) to lock sprint. */
+/** Push stick this far forward (0–1) to engage sprint lock. */
 const SPRINT_ENGAGE = 0.82
-/** Keep sprint while still this far forward (hysteresis). */
-const SPRINT_HOLD = 0.45
 /** Stick must also be near the rim to engage run. */
 const SPRINT_RIM = 0.88
 
 /**
  * Android / tablet overlay:
- * - Left: virtual joystick (move). Push fully forward to lock run.
+ * - Left: virtual joystick (move). Push fully forward to lock run;
+ *   run stays on until you move in another direction (or release stick).
  * - Right half: drag to look
  * Desktop uses WASD + mouse in PlayerController; this component stays hidden.
  */
@@ -25,7 +24,7 @@ export function MobileControls() {
       <Joystick />
       <LookZone />
       <div className="pointer-events-none absolute bottom-3 right-3 rounded-md bg-black/35 px-2 py-1 text-[9px] tracking-[0.14em] text-white/75">
-        JOYSTICK · ARRIBA A TOPE = CORRER
+        ARRIBA = CORRER · CAMBIA DIRECCIÓN = CAMINAR
       </div>
     </div>
   )
@@ -39,32 +38,7 @@ function Joystick() {
   const [knob, setKnob] = useState({ x: 0, y: 0 })
   const active = useRef(false)
   const pointerId = useRef<number | null>(null)
-  const sprintLocked = useRef(false)
   const radius = 52
-
-  const applySprint = useCallback(
-    (nx: number, ny: number) => {
-      // ny < 0 = forward on screen / in game.
-      const forward = -ny
-      const mag = Math.hypot(nx, ny)
-
-      if (!sprintLocked.current) {
-        if (mag >= SPRINT_RIM && forward >= SPRINT_ENGAGE) {
-          sprintLocked.current = true
-          setSprint(true)
-        } else {
-          setSprint(false)
-        }
-      } else if (mag < 0.12 || forward < SPRINT_HOLD) {
-        // Released or pulled back / sideways — unlock run.
-        sprintLocked.current = false
-        setSprint(false)
-      } else {
-        setSprint(true)
-      }
-    },
-    [setSprint],
-  )
 
   const updateFromEvent = useCallback(
     (clientX: number, clientY: number) => {
@@ -85,15 +59,21 @@ function Joystick() {
       const ny = dy / radius
       // Screen up → negative Y → forward (same as keyboard W = moveZ -1).
       setMove(nx, ny)
-      applySprint(nx, ny)
+
+      const forward = -ny
+      const mag = Math.hypot(nx, ny)
+      const { sprint: isSprint, sprintPending } = useGameStore.getState()
+      // Engage once when stick is pushed fully forward; stay locked via setMove.
+      if (!isSprint && !sprintPending && mag >= SPRINT_RIM && forward >= SPRINT_ENGAGE) {
+        setSprint(true)
+      }
     },
-    [applySprint, setMove],
+    [setMove, setSprint],
   )
 
   const reset = useCallback(() => {
     active.current = false
     pointerId.current = null
-    sprintLocked.current = false
     setKnob({ x: 0, y: 0 })
     setMove(0, 0)
     setSprint(false)
@@ -125,7 +105,6 @@ function Joystick() {
             : 'border-white/30 bg-[#1A2430]/40'
         }`}
       />
-      {/* Forward sprint zone hint */}
       <div className="pointer-events-none absolute top-1 left-1/2 h-3 w-8 -translate-x-1/2 rounded-full bg-[#6FE04A]/35" />
       <div
         className={`absolute inset-3 rounded-full border ${
