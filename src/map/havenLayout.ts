@@ -11,6 +11,8 @@ export type PropBox = {
   /** If true, blocks player movement on XZ. */
   solid?: boolean
   roughness?: number
+  /** Collision-only prop (not drawn by Arena). */
+  hidden?: boolean
 }
 
 /** Building block helper (origin at footprint center, sits on ground). */
@@ -140,6 +142,8 @@ export function buildHavenInspiredMap(): { props: PropBox[]; solids: SolidBox[] 
     { x: 3.2, y: 0.55, z: 9, w: 1.4, h: 1.1, d: 1.4, color: COLORS.wood, solid: true },
     { x: -2.2, y: 0.9, z: -2, w: 1.2, h: 1.8, d: 1.2, color: COLORS.stone, solid: true },
     { x: 2.5, y: 0.7, z: -3, w: 2, h: 1.4, d: 1.1, color: COLORS.wood, solid: true },
+    // Hero fir trunk collider (visual mesh is RealisticTree).
+    { x: 11.5, y: 2.2, z: 17.5, w: 0.85, h: 4.4, d: 0.85, color: COLORS.wood, solid: true, hidden: true },
   )
 
   const solids: SolidBox[] = props

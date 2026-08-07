@@ -13,9 +13,23 @@ function Scene() {
     <>
       <color attach="background" args={[COLORS.sky]} />
       <fog attach="fog" args={[COLORS.skyHaze, 45, 130]} />
-      <ambientLight intensity={0.65} color="#E8EEF2" />
-      <hemisphereLight args={['#B8D0E0', '#6A8A50', 0.5]} />
-      <directionalLight position={[28, 40, 18]} intensity={1.2} color="#FFF2D8" castShadow={false} />
+      <ambientLight intensity={0.55} color="#E8EEF2" />
+      <hemisphereLight args={['#B8D0E0', '#6A8A50', 0.55]} />
+      <directionalLight
+        position={[28, 42, 18]}
+        intensity={1.35}
+        color="#FFF2D8"
+        castShadow
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
+        shadow-camera-near={2}
+        shadow-camera-far={120}
+        shadow-camera-left={-50}
+        shadow-camera-right={50}
+        shadow-camera-top={50}
+        shadow-camera-bottom={-50}
+        shadow-bias={-0.0002}
+      />
       <Arena />
       <PlayerController />
       <EnemySystem />
@@ -39,6 +53,7 @@ export function Game() {
     <div className="relative h-full w-full overflow-hidden bg-[#6FA8C8]">
       <Canvas
         className="absolute inset-0 h-full w-full touch-none"
+        shadows
         gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
         dpr={[1, 1.75]}
         onCreated={({ gl }) => {

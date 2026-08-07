@@ -1,11 +1,13 @@
-import { useMemo } from 'react'
+import { Suspense, useMemo } from 'react'
 import { ARENA, COLORS } from '../../constants'
 import { buildHavenInspiredMap } from '../../map/havenLayout'
+import { RealisticTree } from './RealisticTree'
 
 /** Large Haven-inspired blockout: three plazas, mid lane, buildings, outer walls. */
 export function Arena() {
   const { props } = useMemo(() => buildHavenInspiredMap(), [])
   const half = ARENA.size / 2
+  const visible = props.filter((p) => !p.hidden)
 
   return (
     <group>
@@ -39,13 +41,8 @@ export function Arena() {
         <meshStandardMaterial color={COLORS.stone} roughness={0.9} />
       </mesh>
 
-      {props.map((p, i) => (
-        <mesh
-          key={i}
-          position={[p.x, p.y, p.z]}
-          castShadow
-          receiveShadow
-        >
+      {visible.map((p, i) => (
+        <mesh key={i} position={[p.x, p.y, p.z]} castShadow receiveShadow>
           <boxGeometry args={[p.w, p.h, p.d]} />
           <meshStandardMaterial
             color={p.color}
@@ -54,6 +51,10 @@ export function Arena() {
           />
         </mesh>
       ))}
+
+      <Suspense fallback={null}>
+        <RealisticTree />
+      </Suspense>
     </group>
   )
 }
