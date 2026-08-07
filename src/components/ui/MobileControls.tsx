@@ -1,0 +1,157 @@
+import { useCallback, useRef, useState } from 'react'
+import { PLAYER } from '../../constants'
+import { useIsMobile } from '../../hooks/useIsMobile'
+import { useGameStore } from '../../store/gameStore'
+
+/**
+ * Android / tablet overlay:
+ * - Left: virtual joystick (move)
+ * - Right half: drag to look
+ * - Correr button (hold)
+ * Desktop uses WASD + mouse in PlayerController; this component stays hidden.
+ */
+export function MobileControls() {
+  const mobile = useIsMobile()
+  if (!mobile) return null
+
+  return (
+    <div className="absolute inset-0 z-30">
+      <Joystick />
+      <SprintButton />
+      <LookZone />
+      <div className="pointer-events-none absolute bottom-3 right-3 rounded-md bg-black/35 px-2 py-1 text-[9px] tracking-[0.14em] text-white/75">
+        JOYSTICK · ARRASTRA PARA MIRAR
+      </div>
+    </div>
+  )
+}
+
+function SprintButton() {
+  const sprint = useGameStore((s) => s.input.sprint)
+  const setSprint = useGameStore((s) => s.setSprint)
+
+  return (
+    <button
+      type="button"
+      className={`pointer-events-auto absolute bottom-36 left-6 z-40 min-h-12 min-w-16 rounded-md border px-3 text-[11px] font-bold uppercase tracking-wider text-white sm:bottom-40 sm:left-8 ${
+        sprint
+          ? 'border-[#6FE04A]/70 bg-[#6FE04A]/30 text-[#d8ffc8]'
+          : 'border-white/25 bg-black/55'
+      }`}
+      onPointerDown={(e) => {
+        e.preventDefault()
+        e.currentTarget.setPointerCapture(e.pointerId)
+        setSprint(true)
+      }}
+      onPointerUp={() => setSprint(false)}
+      onPointerCancel={() => setSprint(false)}
+      onLostPointerCapture={() => setSprint(false)}
+    >
+      Correr
+    </button>
+  )
+}
+
+function Joystick() {
+  const setMove = useGameStore((s) => s.setMove)
+  const baseRef = useRef<HTMLDivElement>(null)
+  const [knob, setKnob] = useState({ x: 0, y: 0 })
+  const active = useRef(false)
+  const pointerId = useRef<number | null>(null)
+  const radius = 48
+
+  const updateFromEvent = useCallback(
+    (clientX: number, clientY: number) => {
+      const el = baseRef.current
+      if (!el) return
+      const rect = el.getBoundingClientRect()
+      const cx = rect.left + rect.width / 2
+      const cy = rect.top + rect.height / 2
+      let dx = clientX - cx
+      let dy = clientY - cy
+      const len = Math.hypot(dx, dy)
+      if (len > radius) {
+        dx = (dx / len) * radius
+        dy = (dy / len) * radius
+      }
+      setKnob({ x: dx, y: dy })
+      // Screen up → negative Y → forward (same as keyboard W = moveZ -1).
+      setMove(dx / radius, dy / radius)
+    },
+    [setMove],
+  )
+
+  const reset = useCallback(() => {
+    active.current = false
+    pointerId.current = null
+    setKnob({ x: 0, y: 0 })
+    setMove(0, 0)
+  }, [setMove])
+
+  return (
+    <div
+      ref={baseRef}
+      className="absolute bottom-6 left-6 h-28 w-28 touch-none sm:bottom-8 sm:left-8"
+      onPointerDown={(e) => {
+        e.preventDefault()
+        e.currentTarget.setPointerCapture(e.pointerId)
+        active.current = true
+        pointerId.current = e.pointerId
+        updateFromEvent(e.clientX, e.clientY)
+      }}
+      onPointerMove={(e) => {
+        if (!active.current || pointerId.current !== e.pointerId) return
+        updateFromEvent(e.clientX, e.clientY)
+      }}
+      onPointerUp={reset}
+      onPointerCancel={reset}
+      onLostPointerCapture={reset}
+    >
+      <div className="absolute inset-0 rounded-full border border-white/30 bg-[#1A2430]/40 backdrop-blur-sm" />
+      <div className="absolute inset-3 rounded-full border border-[#6FE04A]/35" />
+      <div
+        className="absolute h-12 w-12 rounded-full border-2 border-white/80 bg-[#6FE04A]/85 shadow-md"
+        style={{
+          left: `calc(50% + ${knob.x}px)`,
+          top: `calc(50% + ${knob.y}px)`,
+          transform: 'translate(-50%, -50%)',
+        }}
+      />
+    </div>
+  )
+}
+
+function LookZone() {
+  const addLook = useGameStore((s) => s.addLook)
+  const active = useRef(false)
+  const last = useRef({ x: 0, y: 0 })
+  const pointerId = useRef<number | null>(null)
+
+  const end = () => {
+    active.current = false
+    pointerId.current = null
+  }
+
+  return (
+    <div
+      className="absolute bottom-0 right-0 top-0 w-1/2 touch-none"
+      onPointerDown={(e) => {
+        e.preventDefault()
+        e.currentTarget.setPointerCapture(e.pointerId)
+        active.current = true
+        pointerId.current = e.pointerId
+        last.current = { x: e.clientX, y: e.clientY }
+      }}
+      onPointerMove={(e) => {
+        if (!active.current || pointerId.current !== e.pointerId) return
+        const dx = e.clientX - last.current.x
+        const dy = e.clientY - last.current.y
+        last.current = { x: e.clientX, y: e.clientY }
+        addLook(dx * PLAYER.lookSensitivityMobile, dy * PLAYER.lookSensitivityMobile)
+      }}
+      onPointerUp={end}
+      onPointerCancel={end}
+      onLostPointerCapture={end}
+    />
+  )
+}

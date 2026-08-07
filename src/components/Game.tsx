@@ -1,6 +1,8 @@
 import { Canvas } from '@react-three/fiber'
 import { Arena } from './scene/Arena'
 import { PlayerController } from './scene/PlayerController'
+import { MobileControls } from './ui/MobileControls'
+import { useIsMobile } from '../hooks/useIsMobile'
 import { COLORS } from '../constants'
 
 function Scene() {
@@ -14,6 +16,17 @@ function Scene() {
       <Arena />
       <PlayerController />
     </>
+  )
+}
+
+function ControlsHint() {
+  const mobile = useIsMobile()
+  return (
+    <div className="pointer-events-none absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded-md bg-black/40 px-3 py-1.5 text-[11px] tracking-[0.12em] text-white/85">
+      {mobile
+        ? 'JOYSTICK MOVER · DEDO DERECHO MIRAR · CORRER'
+        : 'CLIC · WASD CAMINAR · SHIFT CORRER'}
+    </div>
   )
 }
 
@@ -31,9 +44,8 @@ export function Game() {
         <Scene />
       </Canvas>
 
-      <div className="pointer-events-none absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded-md bg-black/40 px-3 py-1.5 text-[11px] tracking-[0.12em] text-white/85">
-        CLIC · WASD CAMINAR · SHIFT CORRER
-      </div>
+      <MobileControls />
+      <ControlsHint />
     </div>
   )
 }

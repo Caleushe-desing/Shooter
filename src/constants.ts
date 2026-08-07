@@ -13,6 +13,8 @@ export const PLAYER = {
   speed: 4.2,
   runMul: 1.7,
   lookSensitivity: 0.0022,
+  /** Touch look drag — slightly snappier than mouse. */
+  lookSensitivityMobile: 0.0032,
   pitchMin: -0.55,
   pitchMax: 0.4,
   pitchDefault: -0.28,

@@ -24,14 +24,17 @@ export function PlayerController() {
   const wish = useRef(new THREE.Vector3())
   const { gl, camera } = useThree()
 
-  // Pointer look
+  // Desktop mouse look. On phones/tablets, look comes from MobileControls.
   useEffect(() => {
     const el = gl.domElement
+    const isCoarse = () => window.matchMedia('(pointer: coarse)').matches
 
     const onClick = () => {
+      if (isCoarse()) return
       if (document.pointerLockElement !== el) void el.requestPointerLock()
     }
     const onMouseMove = (e: MouseEvent) => {
+      if (isCoarse()) return
       if (document.pointerLockElement !== el) return
       useGameStore.getState().addLook(
         e.movementX * PLAYER.lookSensitivity,
@@ -47,7 +50,7 @@ export function PlayerController() {
     }
   }, [gl])
 
-  // WASD — always on (never gate on touch)
+  // WASD — always registered (laptops with touchscreens still need keyboard).
   useEffect(() => {
     const keys = new Set<string>()
 
