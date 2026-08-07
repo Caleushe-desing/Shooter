@@ -59,8 +59,8 @@ export const PLAYER = {
    */
   pitchMin: -0.55,
   pitchMax: 0.35,
-  /** Slight look-down so the mira starts on the character / patio. */
-  pitchDefault: -0.18,
+  /** Look-down so the mira starts on the character back / patio, not the sky. */
+  pitchDefault: -0.32,
   spawn: { x: 0, y: 0, z: 5 },
   maxHealth: 100,
   skin: '#C9956E',
@@ -100,10 +100,10 @@ export const CAMERA = {
   height: 1.85,
   /** Slight lift on the lens so we look down onto the body. */
   lift: 0.28,
-  distance: 4.6,
-  scopedDistance: 2.2,
+  distance: 3.8,
+  scopedDistance: 2.0,
   /** Extra look-down on the boom (negative = camera higher). */
-  pitchBias: -0.06,
+  pitchBias: -0.1,
   /** Unused with hierarchical boom (no lookAt). Kept for scoped tweaks. */
   lookAhead: 1.0,
   /** Snappy follow — less lag means less time seeing the side. */

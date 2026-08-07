@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, type MutableRefObject } from 'react'
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, type MutableRefObject } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useAnimations, useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
@@ -42,11 +42,32 @@ function findBone(root: THREE.Object3D, names: string[]): THREE.Object3D | null 
   return found
 }
 
-/**
- * Mixamo X-Bot nude humanoid with real locomotion clips + layered poses:
- * crouch (knee bend), jump (knees + arms up), prone on belly (guata al piso).
- */
-export function PlayerAvatar({ yawRef, pitchRef: _pitchRef, movingRef }: PlayerAvatarProps) {
+/** Simple nude placeholder so the back is always visible while the GLB loads. */
+function FallbackHuman({ yawRef }: { yawRef: MutableRefObject<number> }) {
+  const root = useRef<THREE.Group>(null)
+  useFrame(() => {
+    if (root.current) root.current.rotation.y = yawRef.current
+  })
+  const h = PLAYER.height
+  return (
+    <group ref={root}>
+      <mesh position={[0, 0.95 * h, 0]} castShadow>
+        <capsuleGeometry args={[0.16 * h, 0.55 * h, 6, 10]} />
+        <meshStandardMaterial color={PLAYER.skin} roughness={0.7} />
+      </mesh>
+      <mesh position={[0, 1.55 * h, 0]} castShadow>
+        <sphereGeometry args={[0.14 * h, 12, 10]} />
+        <meshStandardMaterial color={PLAYER.skin} roughness={0.7} />
+      </mesh>
+      <mesh position={[0, 1.62 * h, 0.05]} castShadow>
+        <sphereGeometry args={[0.145 * h, 10, 8]} />
+        <meshStandardMaterial color={PLAYER.hair} roughness={0.85} />
+      </mesh>
+    </group>
+  )
+}
+
+function MixamoHuman({ yawRef, movingRef }: PlayerAvatarProps) {
   const root = useRef<THREE.Group>(null)
   const stanceRef = useRef<THREE.Group>(null)
   const animRoot = useRef<THREE.Group>(null)
@@ -57,16 +78,27 @@ export function PlayerAvatar({ yawRef, pitchRef: _pitchRef, movingRef }: PlayerA
   const crouchAmt = useRef(0)
   const jumpAmt = useRef(0)
   const proneAmt = useRef(0)
+  const modelScale = useRef(1)
   const { scene, animations } = useGLTF(MODEL_URL)
 
   const clone = useMemo(() => {
     const c = cloneSkeleton(scene) as THREE.Group
+    // Normalize height to ~1.7m so the boom always frames the back.
+    const box = new THREE.Box3().setFromObject(c)
+    const size = new THREE.Vector3()
+    box.getSize(size)
+    const targetH = 1.7
+    modelScale.current = size.y > 0.1 ? targetH / size.y : 1
+    c.scale.setScalar(modelScale.current)
+    // Plant feet on y=0
+    const box2 = new THREE.Box3().setFromObject(c)
+    c.position.y -= box2.min.y
+
     c.traverse((obj) => {
       const mesh = obj as THREE.Mesh
       if (!mesh.isMesh) return
       mesh.castShadow = true
       mesh.receiveShadow = true
-
       const n = (mesh.name || '').toLowerCase()
       const matName = (
         Array.isArray(mesh.material)
@@ -77,7 +109,6 @@ export function PlayerAvatar({ yawRef, pitchRef: _pitchRef, movingRef }: PlayerA
         mesh.visible = false
         return
       }
-
       const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
       for (const mat of mats) {
         const std = mat as THREE.MeshStandardMaterial
@@ -90,9 +121,10 @@ export function PlayerAvatar({ yawRef, pitchRef: _pitchRef, movingRef }: PlayerA
     return c
   }, [scene])
 
-  const hand = useMemo(() => {
-    return findBone(clone, ['mixamorig:RightHand', 'mixamorigRightHand'])
-  }, [clone])
+  const hand = useMemo(
+    () => findBone(clone, ['mixamorig:RightHand', 'mixamorigRightHand']),
+    [clone],
+  )
 
   useLayoutEffect(() => {
     bonesRef.current = {
@@ -138,7 +170,6 @@ export function PlayerAvatar({ yawRef, pitchRef: _pitchRef, movingRef }: PlayerA
     }
   }, [actions, mixer])
 
-  // Priority 1: run after the animation mixer so bone overlays stick.
   useFrame((_, delta) => {
     if (!root.current || !stanceRef.current) return
     root.current.rotation.y = yawRef.current
@@ -150,7 +181,6 @@ export function PlayerAvatar({ yawRef, pitchRef: _pitchRef, movingRef }: PlayerA
     const airborne = game.airborne
     const moving = movingRef.current
 
-    // Base locomotion clips (no sneak_pose — it froze the rig).
     let next: ClipName = 'idle'
     if (stance === 'prone') next = 'idle'
     else if (airborne) next = 'idle'
@@ -178,7 +208,6 @@ export function PlayerAvatar({ yawRef, pitchRef: _pitchRef, movingRef }: PlayerA
       else action.setEffectiveTimeScale(1)
     }
 
-    // Blend pose weights
     const crouchTarget = stance === 'crouch' ? 1 : 0
     const jumpTarget = airborne && stance !== 'prone' ? 1 : 0
     const proneTarget = stance === 'prone' ? 1 : 0
@@ -190,16 +219,10 @@ export function PlayerAvatar({ yawRef, pitchRef: _pitchRef, movingRef }: PlayerA
     const j = jumpAmt.current
     const p = proneAmt.current
 
-    // Root stance: crouch lowers body; prone = de guata (barriga al piso).
-    // Negative pitch puts belly on the floor and back toward the sky/camera.
+    // Prone de guata: pitch negativo (barriga al piso, espalda a la cámara).
     const stanceY = c * -0.42 + p * 0.28 + j * 0.04
-    const stancePitch = p * -1.42 // de guata (not on back)
-    stanceRef.current.position.y = THREE.MathUtils.damp(
-      stanceRef.current.position.y,
-      stanceY,
-      14,
-      delta,
-    )
+    const stancePitch = p * -1.42
+    stanceRef.current.position.y = THREE.MathUtils.damp(stanceRef.current.position.y, stanceY, 14, delta)
     stanceRef.current.rotation.x = THREE.MathUtils.damp(
       stanceRef.current.rotation.x,
       stancePitch,
@@ -207,17 +230,13 @@ export function PlayerAvatar({ yawRef, pitchRef: _pitchRef, movingRef }: PlayerA
       delta,
     )
 
-    // Bone overlays after mixer
     const b = bonesRef.current
     if (!b) return
 
-    if (b.hips) {
-      b.hips.position.y += c * -0.12 + j * 0.02
-    }
+    if (b.hips) b.hips.position.y += c * -0.12 + j * 0.02
     if (b.spine) b.spine.rotation.x += c * 0.35 + j * 0.1
     if (b.spine1) b.spine1.rotation.x += c * 0.2
 
-    // Knees flex (crouch + jump)
     const thigh = c * 1.05 + j * 0.85
     const shin = c * -1.55 + j * -1.25
     if (b.leftUpLeg) b.leftUpLeg.rotation.x += thigh
@@ -225,15 +244,12 @@ export function PlayerAvatar({ yawRef, pitchRef: _pitchRef, movingRef }: PlayerA
     if (b.leftLeg) b.leftLeg.rotation.x += shin
     if (b.rightLeg) b.rightLeg.rotation.x += shin
 
-    // Jump: arms up; crouch: arms a bit forward
     const armUp = j * -2.4 + c * -0.45
     const shoulderLift = j * 0.55
     if (b.leftArm) b.leftArm.rotation.x += armUp
     if (b.rightArm) b.rightArm.rotation.x += armUp
     if (b.leftShoulder) b.leftShoulder.rotation.y += shoulderLift
     if (b.rightShoulder) b.rightShoulder.rotation.y -= shoulderLift
-
-    // Prone: slight arm out for a natural belly-down rest
     if (b.leftArm) b.leftArm.rotation.z += p * 0.35
     if (b.rightArm) b.rightArm.rotation.z += p * -0.35
   }, 1)
@@ -241,7 +257,6 @@ export function PlayerAvatar({ yawRef, pitchRef: _pitchRef, movingRef }: PlayerA
   return (
     <group ref={root}>
       <group ref={stanceRef}>
-        {/* Mixamo +Z forward → flip so camera on +Z always sees the back. */}
         <group rotation={[0, Math.PI, 0]}>
           <group ref={animRoot}>
             <primitive object={clone} />
@@ -256,5 +271,17 @@ export function PlayerAvatar({ yawRef, pitchRef: _pitchRef, movingRef }: PlayerA
         <group ref={muzzleRef} position={[0, 0, -0.2]} />
       </group>
     </group>
+  )
+}
+
+/**
+ * Nude Mixamo human with walk/crouch/jump/prone poses.
+ * Fallback body shows immediately so the camera always has a back to frame.
+ */
+export function PlayerAvatar(props: PlayerAvatarProps) {
+  return (
+    <Suspense fallback={<FallbackHuman yawRef={props.yawRef} />}>
+      <MixamoHuman {...props} />
+    </Suspense>
   )
 }
