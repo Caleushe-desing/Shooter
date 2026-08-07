@@ -63,9 +63,11 @@ function findBone(root: THREE.Object3D, names: string[]): THREE.Bone | null {
  * Apply a world-Y yaw on top of the mixer pose.
  * World → local via parent world quaternion inverse (safe for skinned bones
  * under root yaw + the model's Math.PI facing flip).
+ * Does NOT call skeleton.update — caller must refresh matrixWorld first.
  */
-function applyWorldYawSlerp(bone: THREE.Bone, radians: number, alpha: number) {
-  if (Math.abs(radians) < 1e-7 || alpha <= 0) return
+function applyWorldYaw(bone: THREE.Bone, radians: number) {
+  if (Math.abs(radians) < 1e-7) return
+  // Parents must be current so getWorldQuaternion is correct.
   bone.updateWorldMatrix(true, false)
 
   _worldYawQ.setFromAxisAngle(_worldUp, radians)
@@ -80,8 +82,17 @@ function applyWorldYawSlerp(bone: THREE.Bone, radians: number, alpha: number) {
     _targetLocalQ.copy(_worldQ)
   }
 
+  if (
+    !Number.isFinite(_targetLocalQ.x) ||
+    !Number.isFinite(_targetLocalQ.y) ||
+    !Number.isFinite(_targetLocalQ.z) ||
+    !Number.isFinite(_targetLocalQ.w)
+  ) {
+    return
+  }
+
   // Mixer already wrote the animated local quat into bone.quaternion.
-  bone.quaternion.slerp(_targetLocalQ, alpha)
+  bone.quaternion.copy(_targetLocalQ)
 }
 
 /**
@@ -205,29 +216,33 @@ function MixamoHuman({ yawRef, lookYawRef, movingRef }: Props) {
     const { spine2, neck, head } = bones.current
     if (!spine2 && !neck && !head) return
 
-    let targetYaw = shortestAngle(yawRef.current, lookYawRef.current)
-    targetYaw = THREE.MathUtils.clamp(targetYaw, -LOOK_YAW_MAX, LOOK_YAW_MAX)
+    try {
+      let targetYaw = shortestAngle(yawRef.current, lookYawRef.current)
+      targetYaw = THREE.MathUtils.clamp(targetYaw, -LOOK_YAW_MAX, LOOK_YAW_MAX)
 
-    // Slerp a pure world-Y quaternion toward the clamped look offset.
-    _targetLookQ.setFromAxisAngle(_worldUp, targetYaw)
-    const slerpT = 1 - Math.exp(-LOOK_SLERP * dt)
-    lookQ.current.slerp(_targetLookQ, slerpT)
+      // Slerp a pure world-Y quaternion toward the clamped look offset.
+      _targetLookQ.setFromAxisAngle(_worldUp, targetYaw)
+      lookQ.current.slerp(_targetLookQ, 1 - Math.exp(-LOOK_SLERP * dt))
 
-    // Signed angle from (0, sin(a/2), 0, cos(a/2)).
-    const yaw = 2 * Math.atan2(lookQ.current.y, lookQ.current.w)
-    if (Math.abs(yaw) < 1e-5) {
-      for (const mesh of skins.current) mesh.skeleton.update()
-      return
-    }
+      // Signed angle from (0, sin(a/2), 0, cos(a/2)).
+      const yaw = 2 * Math.atan2(lookQ.current.y, lookQ.current.w)
 
-    // Apply full smoothed offset (already slerped). alpha=1 writes the
-    // world→local target; the lookQ slerp is what removes jerks.
-    if (spine2) applyWorldYawSlerp(spine2, yaw * LOOK_WEIGHTS.spine2, 1)
-    if (neck) applyWorldYawSlerp(neck, yaw * LOOK_WEIGHTS.neck, 1)
-    if (head) applyWorldYawSlerp(head, yaw * LOOK_WEIGHTS.head, 1)
+      if (Math.abs(yaw) >= 1e-5) {
+        // Parent → child so each bone sees updated parent matrices.
+        if (spine2) applyWorldYaw(spine2, yaw * LOOK_WEIGHTS.spine2)
+        if (neck) applyWorldYaw(neck, yaw * LOOK_WEIGHTS.neck)
+        if (head) applyWorldYaw(head, yaw * LOOK_WEIGHTS.head)
+      }
 
-    for (const mesh of skins.current) {
-      mesh.skeleton.update()
+      // skeleton.update reads bone.matrixWorld — refresh after quat writes.
+      const rootBone = spine2 ?? neck ?? head
+      if (rootBone) rootBone.updateWorldMatrix(true, true)
+
+      for (const mesh of skins.current) {
+        mesh.skeleton.update()
+      }
+    } catch {
+      // Never let look overlay kill the R3F frame loop / skinned mesh.
     }
   }, 1)
 
