@@ -6,14 +6,18 @@ type InputState = {
   sprint: boolean
 }
 
+type AvatarStatus = 'loading' | 'ready' | 'error'
+
 type GameState = {
   input: InputState
   crouched: boolean
+  avatarStatus: AvatarStatus
   lookDx: number
   lookDy: number
   setMove: (x: number, z: number) => void
   setSprint: (on: boolean) => void
   toggleCrouch: () => void
+  setAvatarStatus: (status: AvatarStatus) => void
   addLook: (dx: number, dy: number) => void
   consumeLook: () => { dx: number; dy: number }
 }
@@ -21,6 +25,7 @@ type GameState = {
 export const useGameStore = create<GameState>((set, get) => ({
   input: { moveX: 0, moveZ: 0, sprint: false },
   crouched: false,
+  avatarStatus: 'loading',
   lookDx: 0,
   lookDy: 0,
 
@@ -31,6 +36,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       crouched: !s.crouched,
       input: { ...s.input, sprint: s.crouched ? s.input.sprint : false },
     })),
+  setAvatarStatus: (avatarStatus) => set({ avatarStatus }),
 
   addLook: (dx, dy) =>
     set((s) => ({
