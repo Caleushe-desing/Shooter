@@ -7,43 +7,25 @@ import { PLAYER } from '../../constants'
 import { useGameStore } from '../../store/gameStore'
 
 type Props = {
-  /** Body / legs facing (move direction when strafing). */
   yawRef: MutableRefObject<number>
-  /** Camera look yaw — head keeps aiming this way. */
-  lookYawRef: MutableRefObject<number>
   movingRef: MutableRefObject<boolean>
 }
 
 const MODEL_URL = '/models/human.glb'
 const TARGET_HEIGHT = PLAYER.height
-/** Max head yaw vs body, radians (~66°). */
-const HEAD_YAW_MAX = 1.15
-
-const _euler = new THREE.Euler()
-const _q = new THREE.Quaternion()
 
 useGLTF.preload(MODEL_URL)
 
 type ClipName = 'idle' | 'walk' | 'run'
 
-function shortestAngle(from: number, to: number) {
-  let d = to - from
-  while (d > Math.PI) d -= Math.PI * 2
-  while (d < -Math.PI) d += Math.PI * 2
-  return d
-}
-
 /**
  * Mixamo X-Bot nude human — idle / walk / run.
  * Restored from the working clip setup (modelRef + real clip names).
- * Head bone gets a small extra yaw so the face can stay on lookYaw while
- * the root faces the walk direction.
  */
-function MixamoHuman({ yawRef, lookYawRef, movingRef }: Props) {
+function MixamoHuman({ yawRef, movingRef }: Props) {
   const root = useRef<THREE.Group>(null)
   const modelRef = useRef<THREE.Group>(null)
   const currentClip = useRef<ClipName | null>(null)
-  const headBone = useRef<THREE.Bone | null>(null)
   const { scene, animations } = useGLTF(MODEL_URL)
 
   const { clone, fitScale, footOffset } = useMemo(() => {
@@ -82,17 +64,6 @@ function MixamoHuman({ yawRef, lookYawRef, movingRef }: Props) {
   }, [scene])
 
   const { actions, mixer } = useAnimations(animations, modelRef)
-
-  useEffect(() => {
-    // Resolve Mixamo head once after clone is ready.
-    headBone.current = null
-    clone.traverse((obj) => {
-      if (headBone.current) return
-      if (obj.name === 'mixamorigHead' || obj.name === 'mixamorig:Head') {
-        headBone.current = obj as THREE.Bone
-      }
-    })
-  }, [clone])
 
   useEffect(() => {
     const idle = actions.idle
@@ -137,23 +108,6 @@ function MixamoHuman({ yawRef, lookYawRef, movingRef }: Props) {
     modelRef.current.rotation.y = Math.PI
   })
 
-  // After the animation mixer (priority 1): add head yaw only.
-  // Does not replace the animated pose — reads quaternion, adds Y, writes back.
-  useFrame(() => {
-    const bone = headBone.current
-    if (!bone) return
-
-    let delta = shortestAngle(yawRef.current, lookYawRef.current)
-    delta = THREE.MathUtils.clamp(delta, -HEAD_YAW_MAX, HEAD_YAW_MAX)
-    // Root uses body yaw; model is flipped Math.PI — negate for local head Y.
-    const addY = -delta
-
-    _euler.setFromQuaternion(bone.quaternion, 'YXZ')
-    _euler.y += addY
-    _q.setFromEuler(_euler)
-    bone.quaternion.copy(_q)
-  }, 1)
-
   return (
     <group ref={root}>
       <group ref={modelRef} scale={fitScale} position={[0, footOffset, 0]}>
@@ -164,9 +118,8 @@ function MixamoHuman({ yawRef, lookYawRef, movingRef }: Props) {
 }
 
 /** Simple capsule while the GLB loads — also animates so movement is obvious. */
-function FallbackHuman({ yawRef, lookYawRef, movingRef }: Props) {
+function FallbackHuman({ yawRef, movingRef }: Props) {
   const root = useRef<THREE.Group>(null)
-  const head = useRef<THREE.Group>(null)
   const legL = useRef<THREE.Group>(null)
   const legR = useRef<THREE.Group>(null)
 
@@ -180,14 +133,6 @@ function FallbackHuman({ yawRef, lookYawRef, movingRef }: Props) {
     const swing = Math.sin(performance.now() * 0.001 * rate) * amp * (moving ? 1 : 0)
     if (legL.current) legL.current.rotation.x = swing
     if (legR.current) legR.current.rotation.x = -swing
-    if (head.current) {
-      const hy = THREE.MathUtils.clamp(
-        shortestAngle(yawRef.current, lookYawRef.current),
-        -HEAD_YAW_MAX,
-        HEAD_YAW_MAX,
-      )
-      head.current.rotation.y = hy
-    }
   })
 
   const h = 1
@@ -197,12 +142,10 @@ function FallbackHuman({ yawRef, lookYawRef, movingRef }: Props) {
         <capsuleGeometry args={[0.18, 0.5, 6, 12]} />
         <meshStandardMaterial color={PLAYER.skin} roughness={0.7} />
       </mesh>
-      <group ref={head} position={[0, 1.58 * h, 0]}>
-        <mesh castShadow>
-          <sphereGeometry args={[0.13, 14, 12]} />
-          <meshStandardMaterial color={PLAYER.skin} roughness={0.7} />
-        </mesh>
-      </group>
+      <mesh position={[0, 1.58 * h, 0]} castShadow>
+        <sphereGeometry args={[0.13, 14, 12]} />
+        <meshStandardMaterial color={PLAYER.skin} roughness={0.7} />
+      </mesh>
       <group ref={legL} position={[-0.1, 0.82, 0]}>
         <mesh position={[0, -0.28, 0]} castShadow>
           <capsuleGeometry args={[0.07, 0.38, 4, 8]} />
