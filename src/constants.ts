@@ -86,26 +86,26 @@ export const LOCOMOTION = {
 } as const
 
 /**
- * Classic third-person chase cam (GTA / San Andreas style):
- * camera sits rear-right so the pup reads in ¾ (back + side), with soft follow lag.
+ * Back-locked chase cam: stay behind the character so the back is always visible.
+ * Tiny shoulder offset keeps a light OTS mira without showing the face.
  */
 export const CAMERA = {
-  /** Rear-right boom — enough lateral offset to show the pup de costado. */
-  shoulder: 1.45,
+  /** Near-center boom — prefer espalda, not perfil. */
+  shoulder: 0.42,
   height: 1.85,
-  /** Slight lift on the lens so we look down onto the pup. */
-  lift: 0.35,
-  distance: 5.1,
-  scopedDistance: 2.4,
+  /** Slight lift on the lens so we look down onto the body. */
+  lift: 0.32,
+  distance: 4.6,
+  scopedDistance: 2.2,
   /** Mild look-down bias on the boom (radians). */
-  pitchBias: 0.12,
-  /** How far ahead of the pivots the camera looks (¾ framing). */
-  lookAhead: 1.15,
-  /** Soft chase lag — higher = snappier, lower = more cinematic. */
-  followYaw: 6.5,
-  followPitch: 8.5,
-  /** Body turns toward move / look. */
-  bodyTurn: 10,
+  pitchBias: 0.1,
+  /** Look ahead along the facing so framing stays on the back. */
+  lookAhead: 0.85,
+  /** Snappy follow — less lag means less time seeing the side. */
+  followYaw: 16,
+  followPitch: 12,
+  /** Body snaps to look yaw so the back always faces the camera. */
+  bodyTurn: 22,
   boomSpeed: 9,
   collisionPullSpeed: 28,
   minDistance: 1.1,
@@ -115,10 +115,9 @@ export const CAMERA = {
   near: 0.12,
   far: 120,
   /**
-   * Hip-fire reticle (% of viewport). Off-center OTS: character left, mira right.
-   * Hitscan uses the same NDC via hipFireAimNdc().
+   * Hip-fire reticle — slight OTS while the body still fills the left/back of frame.
    */
-  aimLeftPct: 62,
+  aimLeftPct: 56,
   aimTopPct: 46,
 } as const
 

@@ -308,7 +308,7 @@ export function PlayerController() {
       PLAYER.pitchMax,
     )
 
-    // Soft orbit lag — while turning you briefly see the body de costado.
+    // Tight follow — camera stays on the back, not orbiting to the face/side.
     const yawFollow = store.scoped ? CAMERA.followYaw * 2.2 : CAMERA.followYaw
     const pitchFollow = store.scoped ? CAMERA.followPitch * 2.2 : CAMERA.followPitch
     camYaw.current = dampAngle(camYaw.current, lookYaw.current, yawFollow, dt)
@@ -317,6 +317,9 @@ export function PlayerController() {
 
     yawPivot.current.rotation.y = camYaw.current
     pitchObj.current.rotation.x = camPitch.current + CAMERA.pitchBias
+
+    // Body always faces look direction → espalda toward camera at all times.
+    bodyYaw.current = dampAngle(bodyYaw.current, lookYaw.current, CAMERA.bodyTurn, dt)
 
     // Camera-relative movement (classic third-person).
     forward.current.set(-Math.sin(camYaw.current), 0, -Math.cos(camYaw.current))
@@ -360,12 +363,7 @@ export function PlayerController() {
         const clamped = clampToArena(resolved.x, resolved.z, PLAYER.radius)
         pos.current.x = clamped.x
         pos.current.z = clamped.z
-
-        const moveYaw = Math.atan2(-wish.current.x, -wish.current.z)
-        bodyYaw.current = dampAngle(bodyYaw.current, moveYaw, CAMERA.bodyTurn, dt)
       }
-    } else {
-      bodyYaw.current = dampAngle(bodyYaw.current, lookYaw.current, CAMERA.bodyTurn, dt)
     }
 
     useWorldStore.getState().setPlayerYaw(lookYaw.current)
@@ -460,8 +458,8 @@ export function PlayerController() {
       camera.position.copy(_camWorld)
     }
 
-    // Look toward the open side of the frame (where the OTS mira sits).
-    _focusLocal.set(-shoulder * 0.35, -lift * 0.25, -CAMERA.lookAhead)
+    // Look slightly ahead of the back — keep framing on the espalda.
+    _focusLocal.set(-shoulder * 0.15, -lift * 0.2, -CAMERA.lookAhead)
     _focusWorld.copy(_focusLocal).applyMatrix4(pitchObj.current.matrixWorld)
     camera.lookAt(_focusWorld)
     camera.updateMatrixWorld(true)

@@ -3,7 +3,7 @@ import { useGameStore } from '../../store/gameStore'
 import { useWorldStore } from '../../store/worldStore'
 
 /**
- * Hip-fire reticle — off-center OTS (character left, mira right).
+ * Hip-fire reticle — slight OTS while the camera stays on the character's back.
  * Hitscan uses the same NDC. Hidden while scoped / map / inventory.
  */
 export function Crosshair() {
