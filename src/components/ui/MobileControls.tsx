@@ -7,7 +7,7 @@ import { unlockAudio } from '../../audio/gunshot'
 /**
  * Android / tablet overlay:
  * - Left: virtual joystick (move)
- * - Right: look drag + DISPARO / SALTAR / CORRER
+ * - Right half: tap anywhere to fire + drag to look; SALTAR / CORRER buttons
  * Desktop uses WASD + Shift + Space + click in PlayerController; this stays hidden.
  */
 export function MobileControls() {
@@ -17,7 +17,7 @@ export function MobileControls() {
   return (
     <div className="absolute inset-0 z-30">
       <Joystick />
-      <LookZone />
+      <RightLookAndFire />
       <RightHandButtons />
     </div>
   )
@@ -62,7 +62,7 @@ function Joystick() {
   return (
     <div
       ref={baseRef}
-      className="absolute bottom-6 left-6 h-32 w-32 touch-none sm:bottom-8 sm:left-8"
+      className="absolute bottom-6 left-6 z-40 h-32 w-32 touch-none sm:bottom-8 sm:left-8"
       onPointerDown={(e) => {
         e.preventDefault()
         e.currentTarget.setPointerCapture(e.pointerId)
@@ -92,27 +92,14 @@ function Joystick() {
   )
 }
 
-/** Right-hand action cluster: fire · jump · run. */
+/** Jump + sprint only — fire is the whole right half. */
 function RightHandButtons() {
   const sprint = useGameStore((s) => s.input.sprint)
   const toggleSprint = useGameStore((s) => s.toggleSprint)
   const requestJump = useGameStore((s) => s.requestJump)
-  const requestFire = useGameStore((s) => s.requestFire)
 
   return (
     <div className="absolute bottom-6 right-6 z-40 flex touch-none flex-col items-center gap-3 sm:bottom-8 sm:right-8">
-      <button
-        type="button"
-        className="flex h-16 w-16 select-none items-center justify-center rounded-full border-2 border-[#E8C86A]/70 bg-[#3A2A10]/70 text-[10px] font-bold tracking-[0.12em] text-[#F2E08A] shadow-md backdrop-blur-sm active:scale-95 active:bg-[#E8C86A] active:text-[#1A1408]"
-        onPointerDown={(e) => {
-          e.preventDefault()
-          e.stopPropagation()
-          unlockAudio()
-          requestFire()
-        }}
-      >
-        DISPARO
-      </button>
       <button
         type="button"
         className="flex h-14 w-14 select-none items-center justify-center rounded-full border-2 border-white/50 bg-[#1A2430]/55 text-[10px] font-bold tracking-[0.12em] text-white/90 shadow-md backdrop-blur-sm active:scale-95 active:border-white active:bg-[#6FE04A] active:text-[#143018]"
@@ -143,33 +130,47 @@ function RightHandButtons() {
   )
 }
 
-function LookZone() {
+/**
+ * Entire right half of the screen:
+ * - tap / press → fire
+ * - drag → look
+ * SALTAR / CORRER sit above this and stopPropagation so they don't shoot.
+ */
+function RightLookAndFire() {
   const addLook = useGameStore((s) => s.addLook)
+  const requestFire = useGameStore((s) => s.requestFire)
   const active = useRef(false)
   const last = useRef({ x: 0, y: 0 })
   const pointerId = useRef<number | null>(null)
+  const moved = useRef(false)
 
   const end = () => {
     active.current = false
     pointerId.current = null
+    moved.current = false
   }
 
   return (
     <div
-      className="absolute bottom-0 right-0 top-0 w-1/2 touch-none"
+      className="absolute bottom-0 right-0 top-0 z-30 w-1/2 touch-none"
       onPointerDown={(e) => {
         if ((e.target as HTMLElement).closest('button')) return
         e.preventDefault()
         e.currentTarget.setPointerCapture(e.pointerId)
         active.current = true
         pointerId.current = e.pointerId
+        moved.current = false
         last.current = { x: e.clientX, y: e.clientY }
+        unlockAudio()
+        // Any press on the right half fires immediately.
+        requestFire()
       }}
       onPointerMove={(e) => {
         if (!active.current || pointerId.current !== e.pointerId) return
         const dx = e.clientX - last.current.x
         const dy = e.clientY - last.current.y
         last.current = { x: e.clientX, y: e.clientY }
+        if (Math.hypot(dx, dy) > 0.5) moved.current = true
         addLook(dx * PLAYER.lookSensitivityMobile, dy * PLAYER.lookSensitivityMobile)
       }}
       onPointerUp={end}
