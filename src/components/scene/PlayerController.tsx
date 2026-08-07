@@ -2,9 +2,12 @@ import { useEffect, useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { PerspectiveCamera } from '@react-three/drei'
 import * as THREE from 'three'
-import { PLAYER, CAMERA, clampToArena } from '../../constants'
+import { PLAYER, CAMERA, clampToArena, resolveCircleAabb } from '../../constants'
 import { useGameStore } from '../../store/gameStore'
 import { PlayerAvatar } from './PlayerAvatar'
+import { buildHavenInspiredMap } from '../../map/havenLayout'
+
+const MAP_SOLIDS = buildHavenInspiredMap().solids
 
 /**
  * Minimal third-person controller:
@@ -137,13 +140,24 @@ export function PlayerController() {
     if (moving.current) {
       const speed = PLAYER.speed * (sprint ? PLAYER.runMul : 1)
       wish.current.normalize().multiplyScalar(speed * dt)
-      const next = clampToArena(
-        pos.current.x + wish.current.x,
-        pos.current.z + wish.current.z,
-        PLAYER.radius,
-      )
-      pos.current.x = next.x
-      pos.current.z = next.z
+      let nx = pos.current.x + wish.current.x
+      let nz = pos.current.z + wish.current.z
+      const bounded = clampToArena(nx, nz, PLAYER.radius)
+      nx = bounded.x
+      nz = bounded.z
+      for (const box of MAP_SOLIDS) {
+        const hit = resolveCircleAabb(nx, nz, PLAYER.radius, box)
+        nx = hit.x
+        nz = hit.z
+      }
+      // Second pass keeps corners from tunneling into overlaps.
+      for (const box of MAP_SOLIDS) {
+        const hit = resolveCircleAabb(nx, nz, PLAYER.radius, box)
+        nx = hit.x
+        nz = hit.z
+      }
+      pos.current.x = nx
+      pos.current.z = nz
     }
 
     // Jump + gravity (simple vertical only; floor at y = 0).

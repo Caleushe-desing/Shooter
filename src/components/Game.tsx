@@ -9,10 +9,10 @@ function Scene() {
   return (
     <>
       <color attach="background" args={[COLORS.sky]} />
-      <fog attach="fog" args={[COLORS.skyHaze, 30, 70]} />
-      <ambientLight intensity={0.7} color="#E8EEF2" />
-      <hemisphereLight args={['#B8D0E0', '#6A8A50', 0.55]} />
-      <directionalLight position={[12, 22, 10]} intensity={1.15} color="#FFF2D8" />
+      <fog attach="fog" args={[COLORS.skyHaze, 45, 130]} />
+      <ambientLight intensity={0.65} color="#E8EEF2" />
+      <hemisphereLight args={['#B8D0E0', '#6A8A50', 0.5]} />
+      <directionalLight position={[28, 40, 18]} intensity={1.2} color="#FFF2D8" castShadow={false} />
       <Arena />
       <PlayerController />
     </>

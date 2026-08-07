@@ -1,7 +1,16 @@
 export const COLORS = {
-  sky: '#6FA8C8',
+  sky: '#7BA8C4',
   skyHaze: '#A8BCC8',
   grass: '#5A8A48',
+  /** Packed earth / plaza sand (Haven-like warm ground). */
+  sand: '#C4B48A',
+  stone: '#B8A890',
+  stoneDark: '#8A7A68',
+  brick: '#C96A4A',
+  plaster: '#D8C8B0',
+  wood: '#8B5A3C',
+  roof: '#6B4A3A',
+  roofGreen: '#4A6B52',
   wall: '#C96A4A',
   wallCap: '#F2E8D5',
   skin: '#C9956E',
@@ -22,7 +31,8 @@ export const PLAYER = {
   pitchMin: -0.55,
   pitchMax: 0.4,
   pitchDefault: -0.28,
-  spawn: { x: 0, y: 0, z: 4 },
+  /** Mid lane spawn facing north toward sites. */
+  spawn: { x: 0, y: 0, z: 10 },
   skin: '#C9956E',
 } as const
 
@@ -33,14 +43,15 @@ export const CAMERA = {
   lift: 0.22,
   distance: 3.6,
   near: 0.1,
-  far: 80,
+  far: 220,
   fov: 60,
 } as const
 
 export const ARENA = {
-  size: 20,
-  wallHeight: 2.4,
-  wallThickness: 0.35,
+  /** Playable square (meters). */
+  size: 96,
+  wallHeight: 3.6,
+  wallThickness: 0.9,
 } as const
 
 export function clampToArena(x: number, z: number, radius: number) {
@@ -49,4 +60,55 @@ export function clampToArena(x: number, z: number, radius: number) {
     x: Math.max(-half, Math.min(half, x)),
     z: Math.max(-half, Math.min(half, z)),
   }
+}
+
+/** Axis-aligned solid for horizontal collision (footprint). */
+export type SolidBox = {
+  x: number
+  z: number
+  w: number
+  d: number
+}
+
+/**
+ * Push a circle out of an AABB on XZ.
+ * Returns corrected position.
+ */
+export function resolveCircleAabb(
+  x: number,
+  z: number,
+  radius: number,
+  box: SolidBox,
+): { x: number; z: number } {
+  const halfW = box.w * 0.5
+  const halfD = box.d * 0.5
+  const minX = box.x - halfW
+  const maxX = box.x + halfW
+  const minZ = box.z - halfD
+  const maxZ = box.z + halfD
+
+  const closestX = Math.max(minX, Math.min(x, maxX))
+  const closestZ = Math.max(minZ, Math.min(z, maxZ))
+  let dx = x - closestX
+  let dz = z - closestZ
+  const distSq = dx * dx + dz * dz
+
+  if (distSq >= radius * radius) return { x, z }
+
+  // Center inside the box — push out via nearest face.
+  if (distSq < 1e-8) {
+    const left = x - minX
+    const right = maxX - x
+    const bottom = z - minZ
+    const top = maxZ - z
+    const m = Math.min(left, right, bottom, top)
+    if (m === left) return { x: minX - radius, z }
+    if (m === right) return { x: maxX + radius, z }
+    if (m === bottom) return { x, z: minZ - radius }
+    return { x, z: maxZ + radius }
+  }
+
+  const dist = Math.sqrt(distSq)
+  const push = (radius - dist) / dist
+  return { x: x + dx * push, z: z + dz * push }
 }
