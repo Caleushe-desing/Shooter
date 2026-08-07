@@ -6,9 +6,21 @@ import { PLAYER, CAMERA, clampToArena } from '../../constants'
 import { useGameStore } from '../../store/gameStore'
 import { PlayerAvatar } from './PlayerAvatar'
 
+function shortestAngle(from: number, to: number) {
+  let d = to - from
+  while (d > Math.PI) d -= Math.PI * 2
+  while (d < -Math.PI) d += Math.PI * 2
+  return d
+}
+
 /**
  * Minimal third-person controller:
  * WASD move · Shift run · mouse look · chase cam on the back.
+ *
+ * Layers:
+ * - lookYaw / lookPitch → camera only
+ * - bodyYaw → avatar root (faces walk direction when moving)
+ * Upper-body look-back is procedural on bones inside PlayerAvatar.
  */
 export function PlayerController() {
   const rig = useRef<THREE.Group>(null)
@@ -103,7 +115,7 @@ export function PlayerController() {
       PLAYER.pitchMax,
     )
 
-    bodyYaw.current = lookYaw.current
+    // Camera follows look only — never write look into body here.
     yawPivot.current.rotation.y = lookYaw.current
     pitchObj.current.rotation.x = lookPitch.current
     yawPivot.current.position.y = CAMERA.height
@@ -123,6 +135,10 @@ export function PlayerController() {
 
     moving.current = wish.current.lengthSq() > 1e-6
     if (moving.current) {
+      // Body faces the walk vector (strafe turns hips/legs with the clip).
+      const moveYaw = Math.atan2(-wish.current.x, -wish.current.z)
+      bodyYaw.current += shortestAngle(bodyYaw.current, moveYaw) * (1 - Math.exp(-14 * dt))
+
       const speed = PLAYER.speed * (sprint ? PLAYER.runMul : 1)
       wish.current.normalize().multiplyScalar(speed * dt)
       const next = clampToArena(
@@ -132,6 +148,8 @@ export function PlayerController() {
       )
       pos.current.x = next.x
       pos.current.z = next.z
+    } else {
+      bodyYaw.current += shortestAngle(bodyYaw.current, lookYaw.current) * (1 - Math.exp(-10 * dt))
     }
 
     rig.current.position.set(pos.current.x, 0, pos.current.z)
@@ -139,7 +157,7 @@ export function PlayerController() {
 
   return (
     <group ref={rig} position={[PLAYER.spawn.x, 0, PLAYER.spawn.z]}>
-      <PlayerAvatar yawRef={bodyYaw} movingRef={moving} />
+      <PlayerAvatar yawRef={bodyYaw} lookYawRef={lookYaw} movingRef={moving} />
       <group ref={yawPivot} position={[0, CAMERA.height, 0]}>
         <group ref={pitchObj}>
           <PerspectiveCamera
