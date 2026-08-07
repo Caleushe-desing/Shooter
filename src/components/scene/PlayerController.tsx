@@ -27,9 +27,6 @@ const _pivotWorld = new THREE.Vector3()
 const _idealLocal = new THREE.Vector3()
 const _idealWorld = new THREE.Vector3()
 const _camDir = new THREE.Vector3()
-const _focusWorld = new THREE.Vector3()
-const _focusLocal = new THREE.Vector3()
-const _camWorld = new THREE.Vector3()
 
 /**
  * Classic third-person chase cam (GTA / San Andreas feel):
@@ -208,6 +205,12 @@ export function PlayerController() {
     }
   }, [gl, isTouch])
 
+  // Patio sandbox: if a previous session left the colono dead, revive on mount.
+  useEffect(() => {
+    const s = useGameStore.getState()
+    if (s.caught || s.health <= 0) s.restartGame()
+  }, [])
+
   useEffect(() => {
     const keys = new Set<string>()
 
@@ -269,148 +272,53 @@ export function PlayerController() {
     const store = useGameStore.getState()
     if (!rig.current || !yawPivot.current || !pitchObj.current) return
 
-    setPlayerPosition(pos.current.x, PLAYER.eyeHeight, pos.current.z)
-    if (store.caught) return
-    if (useSettingsStore.getState().open) return
+    const settingsOpen = useSettingsStore.getState().open
     const worldUi = useWorldStore.getState()
-    if (worldUi.inventoryOpen || worldUi.mapOpen) return
+    const uiBlocked = settingsOpen || worldUi.inventoryOpen || worldUi.mapOpen
+    const dead = store.caught
 
-    store.tickNeeds(dt)
+    // Look / camera always update (even when dead) so the view never freezes on the sky.
+    if (!uiBlocked) {
+      const targetFov = store.scoped ? SCOPE.zoomedFov : SCOPE.baseFov
+      const perspective = camera as THREE.PerspectiveCamera
+      if (perspective.isPerspectiveCamera && Math.abs(perspective.fov - targetFov) > 0.01) {
+        perspective.fov = THREE.MathUtils.damp(
+          perspective.fov,
+          targetFov,
+          SCOPE.transitionSpeed,
+          dt,
+        )
+        perspective.updateProjectionMatrix()
+      }
+      const zoomFactor = perspective.isPerspectiveCamera
+        ? perspective.fov / SCOPE.baseFov
+        : 1
 
-    const targetFov = store.scoped ? SCOPE.zoomedFov : SCOPE.baseFov
-    const perspective = camera as THREE.PerspectiveCamera
-    if (perspective.isPerspectiveCamera && Math.abs(perspective.fov - targetFov) > 0.01) {
-      perspective.fov = THREE.MathUtils.damp(
-        perspective.fov,
-        targetFov,
-        SCOPE.transitionSpeed,
-        dt,
+      const { dx, dy } = store.consumeLook()
+      lookYaw.current -= dx * zoomFactor
+      // Boom at +Z looking −Z: mouse up → pitch ↑ → look up.
+      lookPitch.current = THREE.MathUtils.clamp(
+        lookPitch.current - dy * zoomFactor,
+        PLAYER.pitchMin,
+        PLAYER.pitchMax,
       )
-      perspective.updateProjectionMatrix()
     }
-    const zoomFactor = perspective.isPerspectiveCamera
-      ? perspective.fov / SCOPE.baseFov
-      : 1
 
-    const { dx, dy } = store.consumeLook()
-    lookYaw.current -= dx * zoomFactor
-    // Boom at +Z: mouse up (dy < 0) → pitch ↑ → look up; mouse down → look down.
-    lookPitch.current = THREE.MathUtils.clamp(
-      lookPitch.current - dy * zoomFactor,
-      PLAYER.pitchMin,
-      PLAYER.pitchMax,
-    )
-
-    // Hard lock: camera yaw + body yaw = look yaw every frame → always the back.
     camYaw.current = lookYaw.current
     bodyYaw.current = lookYaw.current
-    const pitchFollow = store.scoped ? CAMERA.followPitch * 2.2 : CAMERA.followPitch
-    // Pitch must not wrap like yaw — use linear damp.
-    camPitch.current = THREE.MathUtils.damp(
-      camPitch.current,
-      lookPitch.current,
-      pitchFollow,
-      dt,
-    )
-    camPitch.current = THREE.MathUtils.clamp(camPitch.current, PLAYER.pitchMin, PLAYER.pitchMax)
+    camPitch.current = lookPitch.current
 
     yawPivot.current.rotation.y = camYaw.current
     pitchObj.current.rotation.x = camPitch.current + CAMERA.pitchBias
 
-    // Camera-relative movement (classic third-person).
-    forward.current.set(-Math.sin(camYaw.current), 0, -Math.cos(camYaw.current))
-    right.current.set(Math.cos(camYaw.current), 0, -Math.sin(camYaw.current))
-
-    const { moveX, moveZ, sprint, slow } = store.input
     const stance = store.stance
-    wish.current
-      .set(0, 0, 0)
-      .addScaledVector(right.current, moveX)
-      .addScaledVector(forward.current, -moveZ)
-
-    moving.current = wish.current.lengthSq() > 1e-6
-
-    let gait: number = LOCOMOTION.walk
-    if (stance === 'prone') gait = LOCOMOTION.prone
-    else if (stance === 'crouch') gait = LOCOMOTION.crouch
-    else if (sprint) gait = LOCOMOTION.run
-    else if (slow) gait = LOCOMOTION.slow
-
-    if (moving.current) {
-      const scopePenalty = store.scoped ? SCOPE.moveScale : 1
-      const air = grounded.current ? 1 : LOCOMOTION.airControl
-      const speed =
-        PLAYER.speed * useSettingsStore.getState().moveSpeed * scopePenalty * gait * air
-      wish.current.normalize().multiplyScalar(speed * dt)
-      const nextX = pos.current.x + wish.current.x
-      const nextZ = pos.current.z + wish.current.z
-      const nextGround = sampleHeight(nextX, nextZ)
-      const stepUp = nextGround - (grounded.current ? smoothedY.current : pos.current.y)
-      // Block cliff climbs / freefall ledges that feel broken (airborne can fall farther).
-      const maxDrop = grounded.current ? 2.8 : 40
-      if (stepUp <= 1.35 && stepUp >= -maxDrop) {
-        const worldCols = useWorldStore.getState().getTreeColliders()
-        const resolved = resolveCircleBoxCollision(
-          nextX,
-          nextZ,
-          PLAYER.radius,
-          mergeColliders(worldCols),
-        )
-        const clamped = clampToArena(resolved.x, resolved.z, PLAYER.radius)
-        pos.current.x = clamped.x
-        pos.current.z = clamped.z
-      }
-    }
-
-    useWorldStore.getState().setPlayerYaw(lookYaw.current)
-
-    const groundY = sampleHeight(pos.current.x, pos.current.z)
-
-    // Jump / gravity
-    if (store.consumeJump() && grounded.current && stance !== 'prone') {
-      velY.current =
-        stance === 'crouch' ? LOCOMOTION.crouchJumpSpeed : LOCOMOTION.jumpSpeed
-      grounded.current = false
-      if (stance === 'crouch') store.setStance('stand')
-    }
-
-    if (grounded.current) {
-      // Stepped off a ledge — leave ground stick and fall.
-      if (smoothedY.current - groundY > 0.45) {
-        grounded.current = false
-        pos.current.y = smoothedY.current
-        velY.current = 0
-      } else {
-        smoothedY.current = THREE.MathUtils.damp(smoothedY.current, groundY, 14, dt)
-        pos.current.y = smoothedY.current
-        velY.current = 0
-      }
-    }
-    if (!grounded.current) {
-      velY.current -= LOCOMOTION.gravity * dt
-      pos.current.y += velY.current * dt
-      if (pos.current.y <= groundY && velY.current <= 0) {
-        pos.current.y = groundY
-        smoothedY.current = groundY
-        velY.current = 0
-        grounded.current = true
-      } else {
-        smoothedY.current = pos.current.y
-      }
-    }
-    store.setAirborne(!grounded.current)
-
     const eyeH = LOCOMOTION.eyeHeight[stance]
     const camH = LOCOMOTION.camHeight[stance]
     camHeightSmooth.current = THREE.MathUtils.damp(camHeightSmooth.current, camH, 10, dt)
     yawPivot.current.position.y = camHeightSmooth.current
 
-    rig.current.position.set(pos.current.x, pos.current.y, pos.current.z)
-    setPlayerPosition(pos.current.x, pos.current.y + eyeH, pos.current.z)
-
-    useWorldStore.getState().setInteractHint(null)
-
-    // --- Rear-right boom + wall collision ---
+    // --- Stable hierarchical boom: camera looks down local −Z at the character.
+    // No lookAt() — that was yanking the mira into the sky.
     const boomMul = LOCOMOTION.boomScale[stance]
     const desiredZ = (store.scoped ? CAMERA.scopedDistance : CAMERA.distance) * boomMul
     const shoulder = (store.scoped ? CAMERA.shoulder * 0.4 : CAMERA.shoulder) * boomMul
@@ -443,32 +351,109 @@ export function PlayerController() {
     }
 
     camera.position.copy(_idealLocal).multiplyScalar(camScale.current)
-
-    // Soft floor clamp — pull boom in instead of yanking local Y (that aimed the mira at the sky).
+    camera.rotation.set(0, 0, 0)
     camera.updateMatrixWorld(true)
-    camera.getWorldPosition(_camWorld)
-    const floorY = sampleHeight(_camWorld.x, _camWorld.z) + CAMERA.groundClearance
-    if (_camWorld.y < floorY && camScale.current > 0.35) {
-      camScale.current = Math.max(0.35, camScale.current * 0.85)
-      camera.position.copy(_idealLocal).multiplyScalar(camScale.current)
+
+    // Gameplay frozen when dead / UI open — but camera above still runs.
+    if (dead || uiBlocked) {
+      rig.current.position.set(pos.current.x, pos.current.y, pos.current.z)
+      setPlayerPosition(pos.current.x, pos.current.y + eyeH, pos.current.z)
+      return
     }
 
-    // Aim focus at torso height ahead — keeps the mira on the patio, not the sky.
-    _focusLocal.set(-shoulder * 0.1, -0.65, -CAMERA.lookAhead)
-    _focusWorld.copy(_focusLocal).applyMatrix4(pitchObj.current.matrixWorld)
-    camera.lookAt(_focusWorld)
-    camera.updateMatrixWorld(true)
+    // Patio sandbox: skip need decay so testing never freezes the cam at 0 HP.
+    // store.tickNeeds(dt)
+
+    forward.current.set(-Math.sin(camYaw.current), 0, -Math.cos(camYaw.current))
+    right.current.set(Math.cos(camYaw.current), 0, -Math.sin(camYaw.current))
+
+    const { moveX, moveZ, sprint, slow } = store.input
+    wish.current
+      .set(0, 0, 0)
+      .addScaledVector(right.current, moveX)
+      .addScaledVector(forward.current, -moveZ)
+
+    moving.current = wish.current.lengthSq() > 1e-6
+
+    let gait: number = LOCOMOTION.walk
+    if (stance === 'prone') gait = LOCOMOTION.prone
+    else if (stance === 'crouch') gait = LOCOMOTION.crouch
+    else if (sprint) gait = LOCOMOTION.run
+    else if (slow) gait = LOCOMOTION.slow
+
+    if (moving.current) {
+      const scopePenalty = store.scoped ? SCOPE.moveScale : 1
+      const air = grounded.current ? 1 : LOCOMOTION.airControl
+      const speed =
+        PLAYER.speed * useSettingsStore.getState().moveSpeed * scopePenalty * gait * air
+      wish.current.normalize().multiplyScalar(speed * dt)
+      const nextX = pos.current.x + wish.current.x
+      const nextZ = pos.current.z + wish.current.z
+      const nextGround = sampleHeight(nextX, nextZ)
+      const stepUp = nextGround - (grounded.current ? smoothedY.current : pos.current.y)
+      const maxDrop = grounded.current ? 2.8 : 40
+      if (stepUp <= 1.35 && stepUp >= -maxDrop) {
+        const worldCols = useWorldStore.getState().getTreeColliders()
+        const resolved = resolveCircleBoxCollision(
+          nextX,
+          nextZ,
+          PLAYER.radius,
+          mergeColliders(worldCols),
+        )
+        const clamped = clampToArena(resolved.x, resolved.z, PLAYER.radius)
+        pos.current.x = clamped.x
+        pos.current.z = clamped.z
+      }
+    }
+
+    useWorldStore.getState().setPlayerYaw(lookYaw.current)
+
+    const groundY = sampleHeight(pos.current.x, pos.current.z)
+
+    if (store.consumeJump() && grounded.current && stance !== 'prone') {
+      velY.current =
+        stance === 'crouch' ? LOCOMOTION.crouchJumpSpeed : LOCOMOTION.jumpSpeed
+      grounded.current = false
+      if (stance === 'crouch') store.setStance('stand')
+    }
+
+    if (grounded.current) {
+      if (smoothedY.current - groundY > 0.45) {
+        grounded.current = false
+        pos.current.y = smoothedY.current
+        velY.current = 0
+      } else {
+        smoothedY.current = THREE.MathUtils.damp(smoothedY.current, groundY, 14, dt)
+        pos.current.y = smoothedY.current
+        velY.current = 0
+      }
+    }
+    if (!grounded.current) {
+      velY.current -= LOCOMOTION.gravity * dt
+      pos.current.y += velY.current * dt
+      if (pos.current.y <= groundY && velY.current <= 0) {
+        pos.current.y = groundY
+        smoothedY.current = groundY
+        velY.current = 0
+        grounded.current = true
+      } else {
+        smoothedY.current = pos.current.y
+      }
+    }
+    store.setAirborne(!grounded.current)
+
+    rig.current.position.set(pos.current.x, pos.current.y, pos.current.z)
+    setPlayerPosition(pos.current.x, pos.current.y + eyeH, pos.current.z)
+    useWorldStore.getState().setInteractHint(null)
 
     const now = performance.now()
     if (store.consumeFire() && now - lastFire.current >= COMBAT.fireCooldownMs) {
       lastFire.current = now
       camera.updateMatrixWorld(true)
-      // Exact screen-space mira (offset NDC) — bullets go where the reticle is.
       const aimNdc = store.scoped ? SCOPE_AIM : hipAim
       aimRaycaster.setFromCamera(aimNdc, camera)
       aimOrigin.current.copy(aimRaycaster.ray.origin)
       aimDir.current.copy(aimRaycaster.ray.direction)
-      // Tracer rides the same mira ray (not the gun barrel offset).
       muzzlePos.current.copy(aimOrigin.current).addScaledVector(aimDir.current, 1.1)
       store.spawnTracer(aimOrigin.current, aimDir.current, muzzlePos.current)
     }

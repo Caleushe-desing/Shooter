@@ -54,12 +54,13 @@ export const PLAYER = {
   lookSensitivityDesktop: 0.0022,
   lookSensitivityMobile: 0.0034,
   /**
-   * Boom cam at +Z: negative pitch = lens above (look down), positive = lens below (look up).
+   * Boom cam sits on +Z and looks toward −Z (the character).
+   * Negative pitch = camera higher (look down). Positive = look up.
    */
-  pitchMin: -0.72,
-  pitchMax: 0.42,
-  /** Default look-down so the mira starts on the patio, not the sky. */
-  pitchDefault: -0.22,
+  pitchMin: -0.55,
+  pitchMax: 0.35,
+  /** Slight look-down so the mira starts on the character / patio. */
+  pitchDefault: -0.18,
   spawn: { x: 0, y: 0, z: 5 },
   maxHealth: 100,
   skin: '#C9956E',
@@ -101,10 +102,10 @@ export const CAMERA = {
   lift: 0.28,
   distance: 4.6,
   scopedDistance: 2.2,
-  /** Extra look-down on the boom (negative = camera higher, mira on the ground/character). */
-  pitchBias: -0.08,
-  /** Look ahead along the facing so framing stays on the back / horizon. */
-  lookAhead: 1.35,
+  /** Extra look-down on the boom (negative = camera higher). */
+  pitchBias: -0.06,
+  /** Unused with hierarchical boom (no lookAt). Kept for scoped tweaks. */
+  lookAhead: 1.0,
   /** Snappy follow — less lag means less time seeing the side. */
   followYaw: 16,
   followPitch: 12,
@@ -119,10 +120,10 @@ export const CAMERA = {
   near: 0.12,
   far: 120,
   /**
-   * Hip-fire reticle — slight OTS while the body still fills the left/back of frame.
+   * Hip-fire reticle — centered on the camera forward (matches hierarchical boom).
    */
-  aimLeftPct: 56,
-  aimTopPct: 46,
+  aimLeftPct: 50,
+  aimTopPct: 48,
 } as const
 
 /** NDC coords matching `CAMERA.aimLeftPct` / `aimTopPct` for hitscan. */

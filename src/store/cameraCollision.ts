@@ -65,8 +65,6 @@ function buildStaticCameraColliders(): Aabb[] {
 
 const STATIC_BOXES = buildStaticCameraColliders()
 
-const _terrainProbe = new THREE.Vector3()
-
 function pointInAabb(p: THREE.Vector3, box: Aabb): boolean {
   return (
     p.x >= box.minX &&
@@ -125,36 +123,7 @@ function rayAabbEnter(
   return t0
 }
 
-/** Flat patio floor clearance along the boom. */
-export function maxCameraBoomDistanceAgainstTerrain(
-  origin: THREE.Vector3,
-  direction: THREE.Vector3,
-  desiredDistance: number,
-): number {
-  const dirLen = direction.length()
-  if (dirLen < 1e-8) return CAMERA.minDistance
-  const inv = 1 / dirLen
-  const maxDist = Math.max(desiredDistance, CAMERA.minDistance)
-  const clearance = CAMERA.groundClearance
-  const steps = 16
-  let hit = maxDist
-
-  for (let i = 1; i <= steps; i++) {
-    const t = (maxDist * i) / steps
-    _terrainProbe.set(
-      origin.x + direction.x * inv * t,
-      origin.y + direction.y * inv * t,
-      origin.z + direction.z * inv * t,
-    )
-    if (_terrainProbe.y < clearance) {
-      hit = (maxDist * (i - 1)) / steps
-      break
-    }
-  }
-
-  return THREE.MathUtils.clamp(hit, CAMERA.minDistance, maxDist)
-}
-
+/** Boom distance vs walls/crates only (flat patio — no terrain sky-yank). */
 export function maxCameraBoomDistance(
   origin: THREE.Vector3,
   direction: THREE.Vector3,
@@ -165,16 +134,13 @@ export function maxCameraBoomDistance(
   const dir = direction.clone().multiplyScalar(1 / dirLen)
   const maxDist = Math.max(desiredDistance, CAMERA.minDistance)
 
-  if (isInsideCameraSolid(origin)) return CAMERA.minDistance
+  if (isInsideCameraSolid(origin)) return Math.max(CAMERA.minDistance, maxDist * 0.35)
 
   let hit = maxDist
   for (const box of STATIC_BOXES) {
     const t = rayAabbEnter(origin, dir, box, 0, maxDist)
     if (t != null && t < hit) hit = t
   }
-
-  const terrainHit = maxCameraBoomDistanceAgainstTerrain(origin, direction, maxDist)
-  if (terrainHit < hit) hit = terrainHit
 
   return THREE.MathUtils.clamp(hit, CAMERA.minDistance, maxDist)
 }
