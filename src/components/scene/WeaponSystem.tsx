@@ -72,6 +72,41 @@ function rayHitsAabb(
   return t
 }
 
+function rayHitsFloor(
+  ox: number,
+  oy: number,
+  oz: number,
+  dx: number,
+  dy: number,
+  dz: number,
+  maxDist: number,
+): number | null {
+  if (dy >= -1e-8) return null
+  const t = -oy / dy
+  if (t < 0.05 || t > maxDist) return null
+  return t
+}
+
+function nearestRayHit(
+  ox: number,
+  oy: number,
+  oz: number,
+  dx: number,
+  dy: number,
+  dz: number,
+  maxDist: number,
+  boxes: HitBox[],
+): number {
+  let best = maxDist
+  for (const box of boxes) {
+    const t = rayHitsAabb(ox, oy, oz, dx, dy, dz, best, box)
+    if (t !== null && t < best) best = t
+  }
+  const floorT = rayHitsFloor(ox, oy, oz, dx, dy, dz, best)
+  if (floorT !== null && floorT < best) best = floorT
+  return best
+}
+
 function orientTracer(mesh: THREE.Mesh, dir: THREE.Vector3) {
   _quat.setFromUnitVectors(_up, dir)
   mesh.quaternion.copy(_quat)
@@ -91,8 +126,9 @@ type Props = {
 }
 
 /**
- * Shots leave the character and always fly where the character is looking
- * (yaw/pitch). Crosshair ray refines the aim point so the mirilla stays true.
+ * TPS gun: camera ray through the mirilla finds the true aim point
+ * (what you see under the reticle), then the tracer flies muzzle → that point
+ * so impacts land on the crosshair at any range.
  */
 export function WeaponSystem({ rigRef, lookYaw, lookPitch }: Props) {
   const { camera, scene, size } = useThree()
@@ -187,7 +223,7 @@ export function WeaponSystem({ rigRef, lookYaw, lookPitch }: Props) {
         .addScaledVector(_right, WEAPON.muzzleShoulder)
         .addScaledVector(_forward, WEAPON.muzzleForward)
 
-      // Aim point: camera ray through the mirilla in WORLD space (follows look).
+      // 1) Camera ray through the mirilla — this is what the player sees.
       camera.updateWorldMatrix(true, false)
       const ndcX = (2 * WEAPON.crosshairOffsetX) / Math.max(1, size.width)
       const ndcY = (-2 * WEAPON.crosshairOffsetY) / Math.max(1, size.height)
@@ -195,15 +231,25 @@ export function WeaponSystem({ rigRef, lookYaw, lookPitch }: Props) {
       _world.copy(_ndc).unproject(camera)
       camera.getWorldPosition(_camPos)
       _dir.copy(_world).sub(_camPos)
-      if (_dir.lengthSq() < 1e-8) {
-        _dir.copy(_look)
-      } else {
-        _dir.normalize()
-      }
-      _aimPoint.copy(_camPos).addScaledVector(_dir, WEAPON.aimDistance)
+      if (_dir.lengthSq() < 1e-8) _dir.copy(_look)
+      else _dir.normalize()
 
-      // Final shot direction: from character muzzle → where the mirilla looks.
-      // Falls back to character look so turning left always aims left.
+      // 2) Aim point = first surface under the reticle (or far point).
+      //    Using a fixed far point made near-wall hits drift left/down of the mirilla
+      //    because muzzle→farPoint ≠ camera→wall under the crosshair.
+      const aimT = nearestRayHit(
+        _camPos.x,
+        _camPos.y,
+        _camPos.z,
+        _dir.x,
+        _dir.y,
+        _dir.z,
+        WEAPON.aimDistance,
+        hitBoxes,
+      )
+      _aimPoint.copy(_camPos).addScaledVector(_dir, aimT)
+
+      // 3) Tracer leaves the character toward that exact world point.
       _dir.copy(_aimPoint).sub(_muzzle)
       if (_dir.lengthSq() < 1e-8) _dir.copy(_look)
       else _dir.normalize()
