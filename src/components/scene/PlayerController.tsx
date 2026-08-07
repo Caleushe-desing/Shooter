@@ -102,8 +102,19 @@ export function PlayerController() {
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (useSettingsStore.getState().open) return
+      const world = useWorldStore.getState()
+      const p = getPlayerPosition()
+
+      if (e.code === 'Escape') {
+        world.setBuildMode(null)
+        world.setInventoryOpen(false)
+      }
       if (e.code === 'Space' || e.code === 'KeyF') {
         e.preventDefault()
+        if (world.buildMode) {
+          world.placeBuilding(world.buildMode, p.x, p.z, 0)
+          return
+        }
         useGameStore.getState().queueFire()
       }
       if (e.code === 'KeyZ') {
@@ -112,12 +123,26 @@ export function PlayerController() {
       }
       if (e.code === 'KeyE') {
         e.preventDefault()
-        const p = getPlayerPosition()
-        useWorldStore.getState().tryInteract(p.x, p.z)
+        world.tryInteract(p.x, p.z)
       }
       if (e.code === 'KeyI') {
         e.preventDefault()
-        useWorldStore.getState().toggleInventory()
+        world.toggleInventory()
+      }
+      if (e.code === 'KeyC') {
+        e.preventDefault()
+        world.toggleScan()
+        world.performScan(p.x, p.z)
+      }
+      if (e.code === 'KeyQ') {
+        e.preventDefault()
+        if (world.bathe(p.x, p.z)) {
+          useGameStore.getState().applyNeeds({ hygiene: 50 })
+        }
+      }
+      if (e.code === 'KeyR') {
+        e.preventDefault()
+        world.fish(p.x, p.z)
       }
     }
 
@@ -183,8 +208,10 @@ export function PlayerController() {
     if (!rig.current || !yawPivot.current || !pitchObj.current) return
 
     setPlayerPosition(pos.current.x, PLAYER.eyeHeight, pos.current.z)
-    if (store.sectorCleared || store.caught) return
+    if (store.caught) return
     if (useSettingsStore.getState().open) return
+
+    store.tickNeeds(dt)
 
     const targetFov = store.scoped ? SCOPE.zoomedFov : SCOPE.baseFov
     const perspective = camera as THREE.PerspectiveCamera
@@ -256,26 +283,34 @@ export function PlayerController() {
     rig.current.position.set(pos.current.x, 0, pos.current.z)
     setPlayerPosition(pos.current.x, PLAYER.eyeHeight, pos.current.z)
 
-    // Proximity hint for harvestable Chilean flora / minerals.
+    // Proximity hint for harvest, lakes, minerals.
     {
       const range = WORLD.interactRange
       const world = useWorldStore.getState()
       let hint: string | null = null
-      for (const f of world.flora) {
-        if (!f.alive || f.harvested) continue
-        if (Math.hypot(f.x - pos.current.x, f.z - pos.current.z) <= range) {
-          hint = `E · Recolectar ${FLORA[f.kind].label}`
-          break
+      if (world.nearestLake(pos.current.x, pos.current.z)) {
+        hint = 'E · Agua  ·  Q · Ducharse  ·  R · Pescar'
+      }
+      if (!hint) {
+        for (const f of world.flora) {
+          if (!f.alive || f.harvested) continue
+          if (Math.hypot(f.x - pos.current.x, f.z - pos.current.z) <= range) {
+            hint = `E · Recolectar ${FLORA[f.kind].label}`
+            break
+          }
         }
       }
       if (!hint) {
         for (const m of world.minerals) {
-          if (!m.alive) continue
+          if (!m.alive || !m.revealed) continue
           if (Math.hypot(m.x - pos.current.x, m.z - pos.current.z) <= range) {
             hint = `E · Extraer ${MINERALS[m.kind].label}`
             break
           }
         }
+      }
+      if (!hint && world.scanActive) {
+        hint = 'C · Pulsar escáner de minerales'
       }
       world.setInteractHint(hint)
     }

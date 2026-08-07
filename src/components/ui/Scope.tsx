@@ -50,9 +50,8 @@ export function ScopeButton() {
   const scoped = useGameStore((s) => s.scoped)
   const toggleScope = useGameStore((s) => s.toggleScope)
   const caught = useGameStore((s) => s.caught)
-  const sectorCleared = useGameStore((s) => s.sectorCleared)
 
-  if (caught || sectorCleared) return null
+  if (caught) return null
 
   return (
     <button

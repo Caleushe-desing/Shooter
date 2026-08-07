@@ -1,27 +1,11 @@
 import { create } from 'zustand'
 import * as THREE from 'three'
-import { COLORS, COMBAT, ENEMY, PLAYER } from '../constants'
-import { clearAllEnemyRuntimes, clearEnemyRuntime } from './enemyRuntime'
-import { findClosestEnemyHit, findCratePierces } from './combat'
+import { COLORS, COMBAT, PLAYER } from '../constants'
+import { NEEDS, MINERALS } from '../world/catalog'
+import { findCratePierces } from './combat'
 import { findClosestFaunaHit, findClosestWorldPropHit } from './faunaRuntime'
 import { useWorldStore } from './worldStore'
 import { audio } from '../audio/audio'
-
-/** A hostile human hunting the player. Motion lives in `enemyRuntime`. */
-export type EnemyData = {
-  id: string
-  spawnAt: number
-  startX: number
-  startZ: number
-  speed: number
-  height: number
-  skin: string
-  shirt: string
-  pants: string
-  alive: boolean
-  /** performance.now() of death, used to fade the corpse out. */
-  diedAt: number
-}
 
 export type TracerData = {
   id: string
@@ -47,12 +31,10 @@ export type ExplosionData = {
   fragments: Fragment[]
 }
 
-/** Bullet hole punched through a styrofoam crate; persists for the round. */
 export type PierceHole = {
   id: string
   position: [number, number, number]
   normal: [number, number, number]
-  /** Random roll so holes don't look like identical stamps. */
   spin: number
   scale: number
 }
@@ -66,22 +48,19 @@ type InputState = {
 }
 
 type GameState = {
-  score: number
-  enemies: EnemyData[]
   tracers: TracerData[]
   explosions: ExplosionData[]
   pierceHoles: PierceHole[]
   health: number
+  hunger: number
+  thirst: number
+  hygiene: number
   caught: boolean
   sectorCleared: boolean
-  /** Telescopic sight engaged. */
   scoped: boolean
-  round: number
-  /** performance.now() when the survival run started. */
   startedAt: number
   input: InputState
   recoilNonce: number
-  /** Bumped when the player takes damage so the HUD can flash. */
   damageNonce: number
   setMove: (x: number, z: number) => void
   addLook: (dx: number, dy: number) => void
@@ -90,21 +69,17 @@ type GameState = {
   consumeFire: () => boolean
   toggleScope: () => void
   setScoped: (scoped: boolean) => void
-  /**
-   * Hitscan along the player's forward aim (body facing).
-   * Visual tracer starts at visualOrigin (muzzle) and flies to the aim point.
-   * Styrofoam crates are pierceable — never stop the shot.
-   */
   spawnTracer: (
     aimOrigin: THREE.Vector3,
     aimDir: THREE.Vector3,
     visualOrigin?: THREE.Vector3,
   ) => void
   updateTracers: (dt: number, now: number) => void
-  killEnemy: (enemyId: string, hitPos: THREE.Vector3, head: boolean) => void
   damagePlayer: (amount: number) => void
-  pruneCorpses: (now: number) => void
+  applyNeeds: (delta: { hunger?: number; thirst?: number; hygiene?: number }) => void
+  tickNeeds: (dt: number) => void
   updateExplosions: (dt: number, now: number) => void
+  pruneCorpses: (now: number) => void
   resetRound: () => void
   restartGame: () => void
 }
@@ -113,86 +88,6 @@ function uid(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 9)}`
 }
 
-function pick<T>(list: readonly T[]): T {
-  return list[Math.floor(Math.random() * list.length)]
-}
-
-function createEnemies(round: number): EnemyData[] {
-  const enemies: EnemyData[] = []
-  const count = Math.min(ENEMY.baseCount + (round - 1) * ENEMY.perRound, ENEMY.maxCount)
-  const now = performance.now()
-
-  for (let i = 0; i < count; i++) {
-    // Spread spawns around the open country so they close in from all sides.
-    const angle = (i / count) * Math.PI * 2 + Math.random() * 0.6 + round * 0.4
-    const radius = ENEMY.spawnRingMin + Math.random() * (ENEMY.spawnRingMax - ENEMY.spawnRingMin)
-    const speedBoost = (round - 1) * ENEMY.speedPerRound
-
-    enemies.push({
-      id: uid('enemy'),
-      spawnAt: now + ENEMY.firstSpawnDelayMs + i * ENEMY.spawnIntervalMs,
-      startX: Math.cos(angle) * radius,
-      startZ: Math.sin(angle) * radius,
-      speed: ENEMY.speedMin + Math.random() * (ENEMY.speedMax - ENEMY.speedMin) + speedBoost,
-      height: 0.94 + Math.random() * 0.12,
-      skin: pick(COLORS.enemySkins),
-      shirt: pick(COLORS.enemyShirts),
-      pants: pick(COLORS.enemyPants),
-      alive: true,
-      diedAt: 0,
-    })
-  }
-
-  return enemies
-}
-
-/** One more hostile for endless survival pressure. */
-function spawnSurvivalHostile(spawnAt: number): EnemyData {
-  const angle = Math.random() * Math.PI * 2
-  const radius = ENEMY.spawnRingMin + Math.random() * (ENEMY.spawnRingMax - ENEMY.spawnRingMin)
-  return {
-    id: uid('enemy'),
-    spawnAt,
-    startX: Math.cos(angle) * radius,
-    startZ: Math.sin(angle) * radius,
-    speed: ENEMY.speedMin + Math.random() * (ENEMY.speedMax - ENEMY.speedMin),
-    height: 0.94 + Math.random() * 0.12,
-    skin: pick(COLORS.enemySkins),
-    shirt: pick(COLORS.enemyShirts),
-    pants: pick(COLORS.enemyPants),
-    alive: true,
-    diedAt: 0,
-  }
-}
-
-function createBloodBurst(pos: THREE.Vector3, head: boolean): ExplosionData {
-  const fragments: Fragment[] = []
-  const count = head ? COMBAT.explosionFragments + 6 : COMBAT.explosionFragments
-  for (let i = 0; i < count; i++) {
-    const dir = new THREE.Vector3(
-      Math.random() * 2 - 1,
-      Math.random() * 2 - 0.2,
-      Math.random() * 2 - 1,
-    ).normalize()
-    const speed = 2.5 + Math.random() * 6
-    fragments.push({
-      id: uid('blood'),
-      position: [pos.x, pos.y, pos.z],
-      velocity: [dir.x * speed, dir.y * speed, dir.z * speed],
-      color: Math.random() > 0.4 ? COLORS.blood : COLORS.bloodDark,
-      born: performance.now(),
-      size: 0.05 + Math.random() * 0.11,
-      spin: [
-        (Math.random() - 0.5) * 10,
-        (Math.random() - 0.5) * 10,
-        (Math.random() - 0.5) * 10,
-      ],
-    })
-  }
-  return { id: uid('boom'), fragments }
-}
-
-/** Light foam chip burst when a round punches through plumavit. */
 function createFoamBurst(
   pos: THREE.Vector3,
   outward: THREE.Vector3,
@@ -226,8 +121,6 @@ function createFoamBurst(
 
 function holeFrom(pos: THREE.Vector3, normal: THREE.Vector3): PierceHole {
   const n = normal.lengthSq() > 0 ? normal.clone().normalize() : new THREE.Vector3(0, 0, 1)
-  // Crate bodies are inset 0.01 from the collision box, so pull the decal
-  // slightly inward to sit just proud of the visible foam face.
   const p = pos.clone().addScaledVector(n, -0.008)
   return {
     id: uid('hole'),
@@ -246,26 +139,25 @@ const initialInput: InputState = {
   fireQueued: false,
 }
 
+const clampNeed = (v: number) => Math.max(0, Math.min(NEEDS.max, v))
+
 export const useGameStore = create<GameState>((set, get) => ({
-  score: 0,
-  enemies: createEnemies(1),
   tracers: [],
   explosions: [],
   pierceHoles: [],
   health: PLAYER.maxHealth,
+  hunger: 78,
+  thirst: 72,
+  hygiene: 85,
   caught: false,
   sectorCleared: false,
   scoped: false,
-  round: 1,
   startedAt: performance.now(),
   input: { ...initialInput },
   recoilNonce: 0,
   damageNonce: 0,
 
-  setMove: (x, z) =>
-    set((s) => ({
-      input: { ...s.input, moveX: x, moveZ: z },
-    })),
+  setMove: (x, z) => set((s) => ({ input: { ...s.input, moveX: x, moveZ: z } })),
 
   addLook: (dx, dy) =>
     set((s) => ({
@@ -279,9 +171,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   consumeLook: () => {
     const { lookDx, lookDy } = get().input
     if (lookDx === 0 && lookDy === 0) return { dx: 0, dy: 0 }
-    set((s) => ({
-      input: { ...s.input, lookDx: 0, lookDy: 0 },
-    }))
+    set((s) => ({ input: { ...s.input, lookDx: 0, lookDy: 0 } }))
     return { dx: lookDx, dy: lookDy }
   },
 
@@ -293,9 +183,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   consumeFire: () => {
     if (!get().input.fireQueued) return false
-    set((s) => ({
-      input: { ...s.input, fireQueued: false },
-    }))
+    set((s) => ({ input: { ...s.input, fireQueued: false } }))
     return true
   },
 
@@ -315,20 +203,16 @@ export const useGameStore = create<GameState>((set, get) => ({
     const dir = aimDir.clone().normalize()
     const now = performance.now()
 
-    const enemyHit = findClosestEnemyHit(aimOrigin, dir, get().enemies)
     const faunaHit = findClosestFaunaHit(aimOrigin, dir, COMBAT.tracerMaxDistance)
     const propHit = findClosestWorldPropHit(aimOrigin, dir, COMBAT.tracerMaxDistance)
 
     let shotRange: number = COMBAT.tracerMaxDistance
-    if (enemyHit) shotRange = Math.min(shotRange, enemyHit.distance)
     if (faunaHit) shotRange = Math.min(shotRange, faunaHit.distance)
     if (propHit) shotRange = Math.min(shotRange, propHit.distance)
 
     const aimPoint = aimOrigin.clone().addScaledVector(dir, shotRange)
 
-    if (enemyHit && enemyHit.distance <= shotRange + 1e-4) {
-      get().killEnemy(enemyHit.enemyId, enemyHit.point, enemyHit.head)
-    } else if (faunaHit && faunaHit.distance <= shotRange + 1e-4) {
+    if (faunaHit && faunaHit.distance <= shotRange + 1e-4) {
       useWorldStore.getState().damageFauna(faunaHit.id, 1)
     } else if (propHit && propHit.distance <= shotRange + 1e-4) {
       if (propHit.type === 'flora') useWorldStore.getState().damageFlora(propHit.id, 1)
@@ -351,17 +235,13 @@ export const useGameStore = create<GameState>((set, get) => ({
     const start = visualOrigin?.clone() ?? aimOrigin.clone()
     const visualDir = aimPoint.clone().sub(start)
     const maxDistance = Math.max(visualDir.length(), 0.5)
-    if (visualDir.lengthSq() < 1e-8) {
-      visualDir.copy(dir)
-    } else {
-      visualDir.normalize()
-    }
+    if (visualDir.lengthSq() < 1e-8) visualDir.copy(dir)
+    else visualDir.normalize()
 
     set((s) => {
       const pierceHoles = [...s.pierceHoles, ...newHoles]
       const overflow = pierceHoles.length - COMBAT.pierceHoleMax
       if (overflow > 0) pierceHoles.splice(0, overflow)
-
       return {
         tracers: [
           ...s.tracers,
@@ -383,51 +263,21 @@ export const useGameStore = create<GameState>((set, get) => ({
   updateTracers: (dt, now) => {
     const state = get()
     if (state.tracers.length === 0) return
-
     const remaining: TracerData[] = []
     for (const tracer of state.tracers) {
       const nextDist = tracer.distance + COMBAT.tracerSpeed * dt
       if (nextDist > tracer.maxDistance) continue
       remaining.push({ ...tracer, distance: nextDist })
     }
-
     set({ tracers: remaining.filter((t) => now - t.born < 2000) })
-  },
-
-  killEnemy: (enemyId, hitPos, head) => {
-    const enemy = get().enemies.find((e) => e.id === enemyId)
-    if (!enemy || !enemy.alive) return
-
-    const now = performance.now()
-    const nextEnemies = get().enemies.map((e) =>
-      e.id === enemyId ? { ...e, alive: false, diedAt: now } : e,
-    )
-    const points = ENEMY.pointsPerKill + (head ? ENEMY.headshotBonus : 0)
-
-    audio.enemyDown(head)
-
-    // Survival: killing hostiles never clears a "wave" — they keep coming.
-    const aliveCount = nextEnemies.filter((e) => e.alive).length
-    const withReinforcement =
-      aliveCount < ENEMY.maxCount
-        ? [...nextEnemies, spawnSurvivalHostile(now + ENEMY.spawnIntervalMs)]
-        : nextEnemies
-    set({
-      enemies: withReinforcement,
-      explosions: [...get().explosions, createBloodBurst(hitPos, head)],
-      score: get().score + points,
-      sectorCleared: false,
-    })
   },
 
   damagePlayer: (amount) => {
     const state = get()
     if (state.caught) return
-
     const health = Math.max(0, state.health - amount)
     if (health <= 0) audio.caught()
-    else audio.playerHurt()
-
+    else if (amount > 0.5) audio.playerHurt()
     set({
       health,
       caught: health <= 0,
@@ -436,20 +286,34 @@ export const useGameStore = create<GameState>((set, get) => ({
     })
   },
 
-  pruneCorpses: (now) => {
-    const enemies = get().enemies
-    const next = enemies.filter((e) => e.alive || now - e.diedAt < ENEMY.corpseFadeMs)
-    if (next.length === enemies.length) return
-    for (const e of enemies) {
-      if (!next.includes(e)) clearEnemyRuntime(e.id)
-    }
-    set({ enemies: next })
+  applyNeeds: (delta) => {
+    set((s) => ({
+      hunger: clampNeed(s.hunger + (delta.hunger ?? 0)),
+      thirst: clampNeed(s.thirst + (delta.thirst ?? 0)),
+      hygiene: clampNeed(s.hygiene + (delta.hygiene ?? 0)),
+    }))
   },
+
+  tickNeeds: (dt) => {
+    const s = get()
+    if (s.caught) return
+    const hunger = clampNeed(s.hunger - NEEDS.hungerDecay * dt)
+    const thirst = clampNeed(s.thirst - NEEDS.thirstDecay * dt)
+    const hygiene = clampNeed(s.hygiene - NEEDS.hygieneDecay * dt)
+    set({ hunger, thirst, hygiene })
+
+    let dmg = 0
+    if (hunger <= 0) dmg += NEEDS.starveDps * dt
+    if (thirst <= 0) dmg += NEEDS.dehydrateDps * dt
+    if (hygiene <= 8) dmg += 1.2 * dt
+    if (dmg > 0) get().damagePlayer(dmg)
+  },
+
+  pruneCorpses: () => {},
 
   updateExplosions: (dt, now) => {
     const explosions = get().explosions
     if (explosions.length === 0) return
-
     const next: ExplosionData[] = []
     for (const boom of explosions) {
       const fragments = boom.fragments
@@ -471,31 +335,46 @@ export const useGameStore = create<GameState>((set, get) => ({
           }
         })
         .filter(Boolean) as Fragment[]
-
       if (fragments.length > 0) next.push({ ...boom, fragments })
     }
-
     set({ explosions: next })
   },
 
-  resetRound: () => {
-    // Survival has no waves — treat as a soft continue after a scare.
-    get().restartGame()
-  },
+  resetRound: () => get().restartGame(),
 
   restartGame: () => {
-    clearAllEnemyRuntimes()
+    // Soft world reset so the colonist can start gathering again.
+    useWorldStore.setState({
+      inventory: {
+        madera: 4,
+        bayas: 3,
+        agua: 2,
+        fibra: 2,
+      },
+      inventoryOpen: false,
+      buildMode: null,
+      buildings: [],
+      toast: null,
+    })
+    // Re-reveal only surface minerals; buried stay hidden until scan.
+    const minerals = useWorldStore.getState().minerals.map((m) => ({
+      ...m,
+      alive: true,
+      hp: MINERALS[m.kind].hp,
+      revealed: !m.buried,
+    }))
+    useWorldStore.setState({ minerals })
     set({
-      score: 0,
-      enemies: createEnemies(1),
       tracers: [],
       explosions: [],
       pierceHoles: [],
       health: PLAYER.maxHealth,
+      hunger: 78,
+      thirst: 72,
+      hygiene: 85,
       caught: false,
       sectorCleared: false,
       scoped: false,
-      round: 1,
       startedAt: performance.now(),
       input: { ...initialInput },
     })

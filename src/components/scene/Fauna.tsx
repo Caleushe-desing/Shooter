@@ -14,19 +14,11 @@ import { ResourceMarker } from './ResourceMarker'
 function AnimalBody({ animal }: { animal: FaunaState }) {
   const root = useRef<THREE.Group>(null)
   const def = FAUNA[animal.kind]
-  const primaryLoot = def.loot[0]?.id
+  const primaryLoot = def.loot.find((l) => l.amount > 0)?.id
   const materials = useMemo(() => {
     return {
-      body: new THREE.MeshStandardMaterial({
-        color: def.color,
-        roughness: 0.7,
-        metalness: 0,
-      }),
-      alt: new THREE.MeshStandardMaterial({
-        color: def.colorAlt,
-        roughness: 0.65,
-        metalness: 0,
-      }),
+      body: new THREE.MeshStandardMaterial({ color: def.color, roughness: 0.7, metalness: 0 }),
+      alt: new THREE.MeshStandardMaterial({ color: def.colorAlt, roughness: 0.65, metalness: 0 }),
       eye: new THREE.MeshBasicMaterial({ color: '#1A1A1A' }),
     }
   }, [def.color, def.colorAlt])
@@ -69,36 +61,35 @@ function AnimalBody({ animal }: { animal: FaunaState }) {
 
   const h = def.height
   const marker =
-    animal.alive && primaryLoot ? (
-      <ResourceMarker resourceId={primaryLoot} y={h + 0.55} />
-    ) : null
+    animal.alive && primaryLoot ? <ResourceMarker resourceId={primaryLoot} y={h + 0.5} /> : null
 
-  if (animal.kind === 'caballo' || animal.kind === 'guanaco') {
+  // Shared quadruped / small critter shapes by kind.
+  if (animal.kind === 'ciervo') {
     return (
       <group ref={root}>
         {marker}
-        <mesh material={materials.body} position={[0, h * 0.45, 0]} castShadow scale={[0.7, 0.55, 1.1]}>
-          <sphereGeometry args={[0.45, 10, 10]} />
+        <mesh material={materials.body} position={[0, h * 0.45, 0]} castShadow scale={[0.65, 0.55, 1.15]}>
+          <sphereGeometry args={[0.42, 10, 10]} />
         </mesh>
-        <mesh material={materials.body} position={[0, h * 0.75, -0.45]} castShadow>
-          <sphereGeometry args={[0.22, 10, 10]} />
+        <mesh material={materials.body} position={[0, h * 0.72, -0.42]} castShadow>
+          <sphereGeometry args={[0.2, 10, 10]} />
         </mesh>
-        <mesh material={materials.alt} position={[0, h * 0.72, -0.62]}>
-          <sphereGeometry args={[0.1, 8, 8]} />
+        <mesh material={materials.alt} position={[-0.08, h * 0.95, -0.38]} rotation={[0.2, 0, 0.3]}>
+          <capsuleGeometry args={[0.025, 0.28, 3, 4]} />
+        </mesh>
+        <mesh material={materials.alt} position={[0.08, h * 0.95, -0.38]} rotation={[0.2, 0, -0.3]}>
+          <capsuleGeometry args={[0.025, 0.28, 3, 4]} />
         </mesh>
         {[
-          [-0.2, 0.22, 0.28],
-          [0.2, 0.22, 0.28],
-          [-0.2, 0.22, -0.28],
-          [0.2, 0.22, -0.28],
+          [-0.18, 0.22, 0.28],
+          [0.18, 0.22, 0.28],
+          [-0.18, 0.22, -0.28],
+          [0.18, 0.22, -0.28],
         ].map((p, i) => (
           <mesh key={i} material={materials.body} position={p as [number, number, number]} castShadow>
-            <capsuleGeometry args={[0.07, 0.28, 4, 6]} />
+            <capsuleGeometry args={[0.06, 0.3, 4, 6]} />
           </mesh>
         ))}
-        <mesh material={materials.alt} position={[0, h * 0.55, 0.55]} rotation={[0.4, 0, 0]}>
-          <capsuleGeometry args={[0.05, 0.35, 4, 6]} />
-        </mesh>
       </group>
     )
   }
@@ -112,12 +103,6 @@ function AnimalBody({ animal }: { animal: FaunaState }) {
         </mesh>
         <mesh material={materials.alt} position={[0, 0.7, -0.38]} castShadow>
           <sphereGeometry args={[0.18, 10, 10]} />
-        </mesh>
-        <mesh material={materials.eye} position={[-0.07, 0.74, -0.52]}>
-          <sphereGeometry args={[0.03, 6, 6]} />
-        </mesh>
-        <mesh material={materials.eye} position={[0.07, 0.74, -0.52]}>
-          <sphereGeometry args={[0.03, 6, 6]} />
         </mesh>
         {[
           [-0.16, 0.2, 0.2],
@@ -133,46 +118,44 @@ function AnimalBody({ animal }: { animal: FaunaState }) {
     )
   }
 
-  // Perro
+  if (animal.kind === 'pato') {
+    return (
+      <group ref={root}>
+        {marker}
+        <mesh material={materials.body} position={[0, 0.28, 0]} castShadow scale={[0.8, 0.65, 1.1]}>
+          <sphereGeometry args={[0.22, 10, 10]} />
+        </mesh>
+        <mesh material={materials.body} position={[0, 0.4, -0.22]} castShadow>
+          <sphereGeometry args={[0.12, 8, 8]} />
+        </mesh>
+        <mesh material={materials.alt} position={[0, 0.38, -0.34]}>
+          <coneGeometry args={[0.04, 0.12, 5]} />
+        </mesh>
+      </group>
+    )
+  }
+
+  // conejo
   return (
     <group ref={root}>
       {marker}
-      <mesh material={materials.body} position={[0, 0.4, 0]} castShadow scale={[0.7, 0.55, 1.15]}>
-        <sphereGeometry args={[0.28, 10, 10]} />
-      </mesh>
-      <mesh material={materials.body} position={[0, 0.55, -0.32]} castShadow>
+      <mesh material={materials.body} position={[0, 0.22, 0]} castShadow scale={[0.75, 0.65, 1]}>
         <sphereGeometry args={[0.16, 10, 10]} />
       </mesh>
-      <mesh material={materials.alt} position={[-0.1, 0.68, -0.3]} rotation={[0, 0, 0.4]}>
-        <capsuleGeometry args={[0.04, 0.1, 4, 6]} />
+      <mesh material={materials.body} position={[0, 0.32, -0.14]} castShadow>
+        <sphereGeometry args={[0.1, 8, 8]} />
       </mesh>
-      <mesh material={materials.alt} position={[0.1, 0.68, -0.3]} rotation={[0, 0, -0.4]}>
-        <capsuleGeometry args={[0.04, 0.1, 4, 6]} />
+      <mesh material={materials.alt} position={[-0.05, 0.42, -0.12]} rotation={[0, 0, 0.2]}>
+        <capsuleGeometry args={[0.025, 0.1, 3, 4]} />
       </mesh>
-      <mesh material={materials.eye} position={[-0.05, 0.58, -0.44]}>
-        <sphereGeometry args={[0.025, 6, 6]} />
-      </mesh>
-      <mesh material={materials.eye} position={[0.05, 0.58, -0.44]}>
-        <sphereGeometry args={[0.025, 6, 6]} />
-      </mesh>
-      {[
-        [-0.12, 0.18, 0.18],
-        [0.12, 0.18, 0.18],
-        [-0.12, 0.18, -0.18],
-        [0.12, 0.18, -0.18],
-      ].map((p, i) => (
-        <mesh key={i} material={materials.body} position={p as [number, number, number]} castShadow>
-          <capsuleGeometry args={[0.05, 0.16, 4, 6]} />
-        </mesh>
-      ))}
-      <mesh material={materials.alt} position={[0, 0.4, 0.35]} rotation={[0.5, 0, 0]}>
-        <capsuleGeometry args={[0.04, 0.18, 4, 6]} />
+      <mesh material={materials.alt} position={[0.05, 0.42, -0.12]} rotation={[0, 0, -0.2]}>
+        <capsuleGeometry args={[0.025, 0.1, 3, 4]} />
       </mesh>
     </group>
   )
 }
 
-/** Living Chilean countryside fauna with wander / flee AI. */
+/** Living fantasy fauna with wander / flee AI per biome. */
 export function Fauna() {
   const fauna = useWorldStore((s) => s.fauna)
   const initWorld = useWorldStore((s) => s.initWorld)

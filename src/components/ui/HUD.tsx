@@ -1,67 +1,99 @@
 import { PLAYER } from '../../constants'
 import { useGameStore } from '../../store/gameStore'
+import { useWorldStore } from '../../store/worldStore'
 import { useEffect, useState } from 'react'
+import { getPlayerPosition } from '../../store/enemyRuntime'
 
-function formatSurvive(ms: number) {
-  const s = Math.max(0, Math.floor(ms / 1000))
-  const m = Math.floor(s / 60)
-  const r = s % 60
-  return `${m}:${String(r).padStart(2, '0')}`
+function NeedBar({
+  label,
+  value,
+  color,
+}: {
+  label: string
+  value: number
+  color: string
+}) {
+  const critical = value <= 25
+  return (
+    <div className="min-w-0 flex-1">
+      <div className="mb-0.5 flex justify-between text-[9px] font-bold tracking-[0.14em] text-white/65">
+        <span>{label}</span>
+        <span className={critical ? 'text-[#FF7A59]' : 'text-white/70'}>{Math.round(value)}</span>
+      </div>
+      <div className="h-1.5 w-full overflow-hidden rounded-full border border-white/15 bg-black/35">
+        <div
+          className="h-full rounded-full transition-[width] duration-150"
+          style={{ width: `${Math.max(0, Math.min(100, value))}%`, background: color }}
+        />
+      </div>
+    </div>
+  )
 }
 
-/** Survival HUD: time alive, kills/score, hostiles nearby, vitals. */
+/** Colonist HUD: needs, biome, scan status. */
 export function HUD() {
-  const score = useGameStore((s) => s.score)
-  const enemies = useGameStore((s) => s.enemies)
   const health = useGameStore((s) => s.health)
-  const startedAt = useGameStore((s) => s.startedAt)
-  const caught = useGameStore((s) => s.caught)
-  const [now, setNow] = useState(() => performance.now())
-  const left = enemies.filter((e) => e.alive).length
+  const hunger = useGameStore((s) => s.hunger)
+  const thirst = useGameStore((s) => s.thirst)
+  const hygiene = useGameStore((s) => s.hygiene)
+  const scanActive = useWorldStore((s) => s.scanActive)
+  const biomeLabelAt = useWorldStore((s) => s.biomeLabelAt)
+  const buildings = useWorldStore((s) => s.buildings)
+  const [biome, setBiome] = useState('Pradera')
+
   const healthPct = Math.max(0, Math.round((health / PLAYER.maxHealth) * 100))
   const critical = healthPct <= 30
 
   useEffect(() => {
-    if (caught) return
-    const id = window.setInterval(() => setNow(performance.now()), 250)
+    const id = window.setInterval(() => {
+      const p = getPlayerPosition()
+      setBiome(biomeLabelAt(p.x, p.z))
+    }, 400)
     return () => window.clearInterval(id)
-  }, [caught])
+  }, [biomeLabelAt])
 
   return (
     <>
       <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between px-4 pt-3 sm:px-6 sm:pt-4">
         <div className="sims-panel select-none px-4 py-2.5">
           <div className="text-[10px] font-bold tracking-[0.2em] text-white/60 sm:text-xs">
-            SUPERVIVENCIA
+            SIMULADOR COLONO
           </div>
-          <div className="pulse-glow text-2xl font-extrabold leading-none tracking-wide text-[#6FE04A] sm:text-3xl">
-            {formatSurvive(now - startedAt)}
+          <div className="text-lg font-extrabold tracking-wide text-[#6FE04A] sm:text-xl">
+            {biome}
           </div>
         </div>
 
         <div className="sims-panel select-none px-4 py-2.5 text-right">
           <div className="text-[10px] font-bold tracking-[0.2em] text-white/60 sm:text-xs">
-            PUNTAJE {score}
+            ASENTAMIENTO
           </div>
           <div className="text-lg font-extrabold tracking-wide text-white sm:text-xl">
-            HOSTILES <span className="text-[#FF7A59]">{left}</span>
+            {buildings.length}{' '}
+            <span className="text-white/50">obras</span>
+            {scanActive && <span className="ml-2 text-[#6FE04A]">ESCÁNER</span>}
           </div>
         </div>
       </div>
 
-      <div className="pointer-events-none absolute bottom-14 left-1/2 z-30 w-48 -translate-x-1/2 select-none sm:bottom-10 sm:w-60">
-        <div className="sims-panel px-3 py-2">
-          <div className="mb-1.5 flex items-end justify-between text-[9px] font-bold tracking-[0.18em] text-white/65">
-            <span>VITALS</span>
+      <div className="pointer-events-none absolute bottom-14 left-1/2 z-30 w-[min(92vw,28rem)] -translate-x-1/2 select-none sm:bottom-10">
+        <div className="sims-panel space-y-2 px-3 py-2">
+          <div className="flex items-end justify-between text-[9px] font-bold tracking-[0.18em] text-white/65">
+            <span>VITALIDAD</span>
             <span className={critical ? 'text-[#FF7A59]' : 'text-[#6FE04A]'}>{healthPct}%</span>
           </div>
-          <div className="h-2.5 w-full overflow-hidden rounded-full border border-white/20 bg-black/35">
+          <div className="h-2 w-full overflow-hidden rounded-full border border-white/20 bg-black/35">
             <div
               className={`h-full rounded-full transition-[width] duration-150 ${
                 critical ? 'bg-[#FF7A59]' : 'bg-[#6FE04A]'
               }`}
               style={{ width: `${healthPct}%` }}
             />
+          </div>
+          <div className="flex gap-2">
+            <NeedBar label="HAMBRE" value={hunger} color="#E8A050" />
+            <NeedBar label="SED" value={thirst} color="#4AA8E8" />
+            <NeedBar label="HIGIENE" value={hygiene} color="#B8E0C8" />
           </div>
         </div>
       </div>

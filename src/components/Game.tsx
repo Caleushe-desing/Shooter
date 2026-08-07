@@ -4,7 +4,6 @@ import { Arena } from './scene/Arena'
 import { Sky } from './scene/Sky'
 import { PlayerController } from './scene/PlayerController'
 import { Tracers } from './scene/Tracers'
-import { Enemies } from './scene/Enemies'
 import { Fauna } from './scene/Fauna'
 import { Explosions } from './scene/Explosions'
 import { PierceHoles } from './scene/PierceHoles'
@@ -24,7 +23,7 @@ function Scene() {
   return (
     <>
       <color attach="background" args={[COLORS.sky]} />
-      <fog attach="fog" args={[COLORS.skyHaze, 70, 220]} />
+      <fog attach="fog" args={[COLORS.skyHaze, 90, 280]} />
       <ambientLight intensity={0.95} color="#FFF8F0" />
       <hemisphereLight args={['#B8E4FF', '#8BCF6E', 0.7]} />
       <directionalLight position={[14, 22, 10]} intensity={1.35} color="#FFE7B8" castShadow={false} />
@@ -33,7 +32,6 @@ function Scene() {
       <Arena />
       <Fauna />
       <PlayerController />
-      <Enemies />
       <Tracers />
       <Explosions />
       <PierceHoles />
@@ -74,11 +72,11 @@ export function Game() {
       <SectorCleared />
       <LandscapeGate />
 
-      <div className="pointer-events-none absolute bottom-3 left-1/2 z-30 hidden -translate-x-1/2 rounded-full bg-black/25 px-3 py-1 text-[10px] tracking-[0.18em] text-white/80 sm:block">
-        WASD · MIRAR · DISPARAR · E RECOGER · I MOCHILA · Z MIRA
+      <div className="pointer-events-none absolute bottom-3 left-1/2 z-30 hidden -translate-x-1/2 rounded-full bg-black/25 px-3 py-1 text-[10px] tracking-[0.14em] text-white/80 sm:block">
+        WASD · E RECOGER · C ESCANEAR · I MOCHILA · F CAZAR/COLOCAR · Q DUCHA · R PESCAR
       </div>
-      <div className="pointer-events-none absolute bottom-3 left-1/2 z-30 -translate-x-1/2 rounded-full bg-black/25 px-3 py-1 text-[9px] tracking-[0.16em] text-white/75 sm:hidden">
-        MOVER · MIRAR · DISPARAR · RECOGER
+      <div className="pointer-events-none absolute bottom-3 left-1/2 z-30 -translate-x-1/2 rounded-full bg-black/25 px-3 py-1 text-[9px] tracking-[0.12em] text-white/75 sm:hidden">
+        MOVER · RECOGER · MOCHILA · ESCANEAR
       </div>
     </div>
   )

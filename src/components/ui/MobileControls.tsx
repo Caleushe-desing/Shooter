@@ -14,7 +14,6 @@ export function MobileControls() {
   const setMove = useGameStore((s) => s.setMove)
   const addLook = useGameStore((s) => s.addLook)
   const queueFire = useGameStore((s) => s.queueFire)
-  const sectorCleared = useGameStore((s) => s.sectorCleared)
   const caught = useGameStore((s) => s.caught)
   const settingsOpen = useSettingsStore((s) => s.open)
 
@@ -26,7 +25,7 @@ export function MobileControls() {
     setIsTouch(touch)
   }, [])
 
-  if (!isTouch || sectorCleared || caught || settingsOpen) return null
+  if (!isTouch || caught || settingsOpen) return null
 
   return (
     <div className="absolute inset-0 z-30">

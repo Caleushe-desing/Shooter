@@ -176,7 +176,7 @@ export function findClosestWorldPropHit(
     testCylinder('flora', f.id, f.x, f.z, def.radius * f.scale, def.height * f.scale)
   }
   for (const m of state.minerals) {
-    if (!m.alive) continue
+    if (!m.alive || !m.revealed) continue
     const def = MINERALS[m.kind]
     testCylinder('mineral', m.id, m.x, m.z, def.radius * m.scale, def.height * m.scale)
   }
