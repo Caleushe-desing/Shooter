@@ -226,8 +226,11 @@ export function WeaponSystem({ rigRef, lookYaw, lookPitch }: Props) {
 
       // 1) Camera ray through the mirilla — this is what the player sees.
       camera.updateWorldMatrix(true, false)
-      const ndcX = (2 * WEAPON.crosshairOffsetX) / Math.max(1, size.width)
-      const ndcY = (-2 * WEAPON.crosshairOffsetY) / Math.max(1, size.height)
+      const firstPerson = useGameStore.getState().cameraMode === 'first'
+      const ox = firstPerson ? 0 : WEAPON.crosshairOffsetX
+      const oy = firstPerson ? 0 : WEAPON.crosshairOffsetY
+      const ndcX = (2 * ox) / Math.max(1, size.width)
+      const ndcY = (-2 * oy) / Math.max(1, size.height)
       _ndc.set(ndcX, ndcY, 0.5)
       _world.copy(_ndc).unproject(camera)
       camera.getWorldPosition(_camPos)

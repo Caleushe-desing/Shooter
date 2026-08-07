@@ -93,14 +93,27 @@ function Joystick() {
   )
 }
 
-/** Jump + sprint only — fire is the whole right half. */
+/** Jump + sprint + camera mode. */
 function RightHandButtons() {
   const sprint = useGameStore((s) => s.input.sprint)
+  const cameraMode = useGameStore((s) => s.cameraMode)
   const toggleSprint = useGameStore((s) => s.toggleSprint)
   const requestJump = useGameStore((s) => s.requestJump)
+  const toggleCameraMode = useGameStore((s) => s.toggleCameraMode)
 
   return (
     <div className="absolute bottom-6 right-6 z-40 flex touch-none flex-col items-center gap-3 sm:bottom-8 sm:right-8">
+      <button
+        type="button"
+        className="flex h-12 w-12 select-none items-center justify-center rounded-full border-2 border-[#E8C86A]/55 bg-[#3A2A10]/65 text-[9px] font-bold tracking-[0.1em] text-[#F2E08A] shadow-md backdrop-blur-sm active:scale-95"
+        onPointerDown={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          toggleCameraMode()
+        }}
+      >
+        {cameraMode === 'first' ? '1ª' : '3ª'}
+      </button>
       <button
         type="button"
         className="flex h-14 w-14 select-none items-center justify-center rounded-full border-2 border-white/50 bg-[#1A2430]/55 text-[10px] font-bold tracking-[0.12em] text-white/90 shadow-md backdrop-blur-sm active:scale-95 active:border-white active:bg-[#6FE04A] active:text-[#143018]"

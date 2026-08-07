@@ -13,11 +13,12 @@ import { mobileLookStick } from '../../input/mobileLookStick'
 const MAP_SOLIDS = buildHavenInspiredMap().solids
 
 /**
- * Minimal third-person controller:
- * WASD move · Shift run · Space jump · mouse look · chase cam on the back.
+ * Player controller with TPS / FPS camera toggle (store.cameraMode).
+ * WASD · Shift · Space · V (view) · mouse look · chase or eye cam.
  */
 export function PlayerController() {
   const rig = useRef<THREE.Group>(null)
+  const avatarRoot = useRef<THREE.Group>(null)
   const yawPivot = useRef<THREE.Group>(null)
   const pitchObj = useRef<THREE.Group>(null)
   const lookYaw = useRef(0)
@@ -31,9 +32,10 @@ export function PlayerController() {
   const right = useRef(new THREE.Vector3())
   const wish = useRef(new THREE.Vector3())
   const runId = useRef(useGameStore.getState().runId)
+  const lastCamMode = useRef(useGameStore.getState().cameraMode)
   const { gl, camera } = useThree()
 
-  // Desktop mouse look + fire. On phones/tablets, look/fire come from MobileControls.
+  // Desktop mouse look + fire.
   useEffect(() => {
     const el = gl.domElement
     const isCoarse = () => window.matchMedia('(pointer: coarse)').matches
@@ -65,7 +67,7 @@ export function PlayerController() {
     }
   }, [gl])
 
-  // WASD / Shift / Space — always registered.
+  // WASD / Shift / Space / V (camera mode).
   useEffect(() => {
     const keys = new Set<string>()
 
@@ -92,6 +94,11 @@ export function PlayerController() {
         if (!e.repeat) useGameStore.getState().requestJump()
         return
       }
+      if (e.code === 'KeyV' && !e.repeat) {
+        e.preventDefault()
+        useGameStore.getState().toggleCameraMode()
+        return
+      }
       keys.add(e.code)
       if (e.code.startsWith('Arrow') || e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
         e.preventDefault()
@@ -99,7 +106,7 @@ export function PlayerController() {
       syncMoveSprint()
     }
     const up = (e: KeyboardEvent) => {
-      if (e.code === 'Space') {
+      if (e.code === 'Space' || e.code === 'KeyV') {
         e.preventDefault()
         return
       }
@@ -121,15 +128,21 @@ export function PlayerController() {
     if (!rig.current || !yawPivot.current || !pitchObj.current) return
 
     const game = useGameStore.getState()
+    const firstPerson = game.cameraMode === 'first'
 
-    // Respawn at mid after REINTENTAR.
+    if (lastCamMode.current !== game.cameraMode) {
+      lastCamMode.current = game.cameraMode
+      // Soft pitch reset when switching view so FPS is not stuck looking down.
+      if (firstPerson) lookPitch.current = THREE.MathUtils.lerp(lookPitch.current, 0, 0.85)
+      else lookPitch.current = THREE.MathUtils.lerp(lookPitch.current, PLAYER.pitchDefault, 0.65)
+    }
     if (game.runId !== runId.current) {
       runId.current = game.runId
       pos.current.set(PLAYER.spawn.x, 0, PLAYER.spawn.z)
       velY.current = 0
       grounded.current = true
       lookYaw.current = 0
-      lookPitch.current = PLAYER.pitchDefault
+      lookPitch.current = firstPerson ? 0 : PLAYER.pitchDefault
       bodyYaw.current = 0
     }
 
@@ -141,7 +154,6 @@ export function PlayerController() {
       PLAYER.pitchMax,
     )
 
-    // Hold-to-turn from mobile look stick (no finger lift needed).
     if (mobileLookStick.active) {
       lookYaw.current -= mobileLookStick.x * PLAYER.lookStickRate * dt
       lookPitch.current = THREE.MathUtils.clamp(
@@ -154,11 +166,31 @@ export function PlayerController() {
     bodyYaw.current = lookYaw.current
     yawPivot.current.rotation.y = lookYaw.current
     pitchObj.current.rotation.x = lookPitch.current
-    yawPivot.current.position.y = CAMERA.height
+    yawPivot.current.position.y = firstPerson ? CAMERA.fpHeight : CAMERA.height
 
-    // Hierarchical boom: camera on +Z looks local −Z at the character.
-    camera.position.set(CAMERA.shoulder, CAMERA.lift, CAMERA.distance)
-    camera.rotation.set(0, 0, 0)
+    const persp = camera as THREE.PerspectiveCamera
+    if (firstPerson) {
+      // Eye cam: at head, looking along local −Z (world forward).
+      camera.position.set(0, 0, -CAMERA.fpForward)
+      camera.rotation.set(0, 0, 0)
+      if (persp.isPerspectiveCamera) {
+        persp.fov = CAMERA.fpFov
+        persp.near = CAMERA.fpNear
+        persp.updateProjectionMatrix()
+      }
+    } else {
+      // Chase boom behind the shoulder.
+      camera.position.set(CAMERA.shoulder, CAMERA.lift, CAMERA.distance)
+      camera.rotation.set(0, 0, 0)
+      if (persp.isPerspectiveCamera) {
+        persp.fov = CAMERA.fov
+        persp.near = CAMERA.near
+        persp.updateProjectionMatrix()
+      }
+    }
+
+    // Hide own body in first person so it does not clip the view.
+    if (avatarRoot.current) avatarRoot.current.visible = !firstPerson
 
     forward.current.set(-Math.sin(lookYaw.current), 0, -Math.cos(lookYaw.current))
     right.current.set(Math.cos(lookYaw.current), 0, -Math.sin(lookYaw.current))
@@ -217,7 +249,9 @@ export function PlayerController() {
 
   return (
     <group ref={rig} position={[PLAYER.spawn.x, 0, PLAYER.spawn.z]}>
-      <PlayerAvatar yawRef={bodyYaw} movingRef={moving} />
+      <group ref={avatarRoot}>
+        <PlayerAvatar yawRef={bodyYaw} movingRef={moving} />
+      </group>
       <WeaponSystem rigRef={rig} lookYaw={lookYaw} lookPitch={lookPitch} />
       <group ref={yawPivot} position={[0, CAMERA.height, 0]}>
         <group ref={pitchObj}>

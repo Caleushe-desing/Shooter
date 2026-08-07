@@ -53,7 +53,15 @@ export const CAMERA = {
   near: 0.1,
   far: 220,
   fov: 58,
+  /** First-person eye cam. */
+  fpHeight: 1.58,
+  fpNear: 0.05,
+  fpFov: 72,
+  /** Tiny forward so near plane clears the invisible body. */
+  fpForward: 0.12,
 } as const
+
+export type CameraMode = 'third' | 'first'
 
 /**
  * Third-person aim: tiny off-center point; shots leave the character

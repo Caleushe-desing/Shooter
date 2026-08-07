@@ -28,8 +28,8 @@ function ControlsHint() {
   return (
     <div className="pointer-events-none absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded-md bg-black/40 px-3 py-1.5 text-[11px] tracking-[0.12em] text-white/85">
       {mobile
-        ? 'IZQ MOVER · DER TOCAR=DISPARO · ARRASTRAR=MIRAR · SALTAR · CORRER'
-        : 'CLIC MIRAR/DISPARAR · WASD · SHIFT · SPACE'}
+        ? 'IZQ MOVER · DER DISPARO/MIRAR · 1ª/3ª · SALTAR · CORRER'
+        : 'CLIC MIRAR/DISPARAR · WASD · SHIFT · SPACE · V VISTA'}
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { COMBAT, PLAYER } from '../constants'
+import { COMBAT, PLAYER, type CameraMode } from '../constants'
 import { clearEnemies } from '../combat/enemies'
 
 type InputState = {
@@ -24,6 +24,7 @@ type GameState = {
   kills: number
   /** Bumped on restart so systems can reset timers. */
   runId: number
+  cameraMode: CameraMode
 
   setMove: (x: number, z: number) => void
   setSprint: (on: boolean) => void
@@ -39,6 +40,8 @@ type GameState = {
   damagePlayer: (amount: number) => void
   registerKill: () => void
   restartRun: () => void
+  setCameraMode: (mode: CameraMode) => void
+  toggleCameraMode: () => void
 }
 
 export const useGameStore = create<GameState>((set, get) => ({
@@ -56,6 +59,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   alive: true,
   kills: 0,
   runId: 1,
+  cameraMode: 'third',
 
   setMove: (x, z) => set((s) => ({ input: { ...s.input, moveX: x, moveZ: z } })),
   setSprint: (on) => set((s) => ({ input: { ...s.input, sprint: on } })),
@@ -120,4 +124,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       runId: get().runId + 1,
     })
   },
+
+  setCameraMode: (mode) => set({ cameraMode: mode }),
+  toggleCameraMode: () =>
+    set((s) => ({ cameraMode: s.cameraMode === 'third' ? 'first' : 'third' })),
 }))
