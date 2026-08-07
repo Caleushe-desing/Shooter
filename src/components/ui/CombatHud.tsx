@@ -1,9 +1,12 @@
+import { CAMERA } from '../../constants'
 import { useGameStore } from '../../store/gameStore'
 
-/** Survival HUD: orbs left, revolver ammo, camera toggle, win/lose. */
+/** Survival HUD: orbs left, revolver ammo, camera toggle, zoom, win/lose. */
 export function CombatHud() {
   const cameraMode = useGameStore((s) => s.cameraMode)
   const toggleCameraMode = useGameStore((s) => s.toggleCameraMode)
+  const adjustTopZoom = useGameStore((s) => s.adjustTopZoom)
+  const topCamHeight = useGameStore((s) => s.topCamHeight)
   const orbsRemaining = useGameStore((s) => s.orbsRemaining)
   const orbsTotal = useGameStore((s) => s.orbsTotal)
   const ammo = useGameStore((s) => s.ammo)
@@ -15,6 +18,13 @@ export function CombatHud() {
 
   const camLabel =
     cameraMode === 'top' ? 'VISTA 2D' : cameraMode === 'first' ? '1ª PERSONA' : '3ª PERSONA'
+
+  const zoomPct = Math.round(
+    (1 -
+      (topCamHeight - CAMERA.topHeightMin) /
+        (CAMERA.topHeightMax - CAMERA.topHeightMin)) *
+      100,
+  )
 
   return (
     <>
@@ -79,6 +89,41 @@ export function CombatHud() {
             TOCÁ · V
           </span>
         </button>
+
+        {cameraMode === 'top' && (
+          <div className="pointer-events-auto flex items-center gap-1 rounded border border-white/30 bg-black/50 p-1 backdrop-blur-sm">
+            <button
+              type="button"
+              className="flex h-9 w-9 items-center justify-center rounded text-lg font-bold text-white/90 hover:bg-white/10 active:scale-95"
+              aria-label="Acercar"
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                adjustTopZoom(-CAMERA.topZoomStep)
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              +
+            </button>
+            <div className="min-w-[3.2rem] text-center text-[10px] tracking-[0.1em] text-white/70">
+              ZOOM
+              <div className="text-[11px] font-semibold text-[#F2E08A]">{zoomPct}%</div>
+            </div>
+            <button
+              type="button"
+              className="flex h-9 w-9 items-center justify-center rounded text-lg font-bold text-white/90 hover:bg-white/10 active:scale-95"
+              aria-label="Alejar"
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                adjustTopZoom(CAMERA.topZoomStep)
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              −
+            </button>
+          </div>
+        )}
       </div>
 
       {status !== 'playing' && (
