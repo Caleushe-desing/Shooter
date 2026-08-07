@@ -25,7 +25,7 @@ export const PLAYER = {
 export const CAMERA = {
   shoulder: 0.35,
   height: 1.7,
-  crouchHeight: 1.15,
+  crouchHeight: 1.2,
   lift: 0.22,
   distance: 3.6,
   near: 0.1,

@@ -2,7 +2,6 @@ import { Canvas } from '@react-three/fiber'
 import { Arena } from './scene/Arena'
 import { PlayerController } from './scene/PlayerController'
 import { COLORS } from '../constants'
-import { useGameStore } from '../store/gameStore'
 
 function Scene() {
   return (
@@ -14,25 +13,6 @@ function Scene() {
       <directionalLight position={[12, 22, 10]} intensity={1.15} color="#FFF2D8" />
       <Arena />
       <PlayerController />
-    </>
-  )
-}
-
-function Hud() {
-  const status = useGameStore((s) => s.avatarStatus)
-  const crouched = useGameStore((s) => s.crouched)
-
-  return (
-    <>
-      {status === 'loading' && (
-        <div className="pointer-events-none absolute top-4 left-1/2 z-20 -translate-x-1/2 rounded-md bg-black/55 px-3 py-1.5 text-[11px] tracking-[0.14em] text-white/90">
-          CARGANDO HUMANO…
-        </div>
-      )}
-      <div className="pointer-events-none absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded-md bg-black/40 px-3 py-1.5 text-[11px] tracking-[0.12em] text-white/85">
-        CLIC · WASD · SHIFT CORRER · CTRL AGACHAR
-        {crouched ? ' · AGACHADO' : ''}
-      </div>
     </>
   )
 }
@@ -50,7 +30,10 @@ export function Game() {
       >
         <Scene />
       </Canvas>
-      <Hud />
+
+      <div className="pointer-events-none absolute bottom-4 left-1/2 z-10 -translate-x-1/2 rounded-md bg-black/40 px-3 py-1.5 text-[11px] tracking-[0.12em] text-white/85">
+        CLIC · WASD · SHIFT CORRER · CTRL AGACHAR
+      </div>
     </div>
   )
 }
