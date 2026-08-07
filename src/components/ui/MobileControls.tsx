@@ -62,7 +62,9 @@ function Joystick() {
 
       const forward = -ny
       const mag = Math.hypot(nx, ny)
-      const { sprint: isSprint, sprintPending } = useGameStore.getState()
+      const state = useGameStore.getState()
+      const isSprint = state.input.sprint
+      const sprintPending = state.sprintPending
       // Engage once when stick is pushed fully forward; stay locked via setMove.
       if (!isSprint && !sprintPending && mag >= SPRINT_RIM && forward >= SPRINT_ENGAGE) {
         setSprint(true)
