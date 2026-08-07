@@ -112,7 +112,7 @@ function RightHandButtons() {
           toggleCameraMode()
         }}
       >
-        {cameraMode === 'first' ? '1ª' : '3ª'}
+        {cameraMode === 'top' ? '2D' : cameraMode === 'first' ? '1ª' : '3ª'}
       </button>
       <button
         type="button"

@@ -1,12 +1,13 @@
 import { WEAPON } from '../../constants'
 import { useGameStore } from '../../store/gameStore'
 
-/** Aim point — off-center in TPS, centered in FPS. */
+/** Aim point — centered in FPS / top-down, off-center in TPS. */
 export function Crosshair() {
   const shotId = useGameStore((s) => s.shotId)
-  const firstPerson = useGameStore((s) => s.cameraMode === 'first')
-  const ox = firstPerson ? 0 : WEAPON.crosshairOffsetX
-  const oy = firstPerson ? 0 : WEAPON.crosshairOffsetY
+  const cameraMode = useGameStore((s) => s.cameraMode)
+  const centered = cameraMode === 'first' || cameraMode === 'top'
+  const ox = centered ? 0 : WEAPON.crosshairOffsetX
+  const oy = centered ? 0 : WEAPON.crosshairOffsetY
 
   return (
     <>

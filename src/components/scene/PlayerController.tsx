@@ -28,7 +28,7 @@ const _worldDir = new THREE.Vector3()
 const _quat = new THREE.Quaternion()
 
 /**
- * Player controller with TPS / FPS camera toggle (store.cameraMode).
+ * Player controller with TPS / FPS / top-down (2D) camera toggle.
  * Third-person boom shortens against walls so the character stays in view.
  */
 export function PlayerController() {
@@ -157,11 +157,13 @@ export function PlayerController() {
 
     const game = useGameStore.getState()
     const firstPerson = game.cameraMode === 'first'
+    const topDown = game.cameraMode === 'top'
 
     if (lastCamMode.current !== game.cameraMode) {
       lastCamMode.current = game.cameraMode
-      if (firstPerson) lookPitch.current = THREE.MathUtils.lerp(lookPitch.current, 0, 0.85)
-      else lookPitch.current = THREE.MathUtils.lerp(lookPitch.current, PLAYER.pitchDefault, 0.65)
+      if (firstPerson) lookPitch.current = 0
+      else if (topDown) lookPitch.current = -Math.PI / 2
+      else lookPitch.current = PLAYER.pitchDefault
       boomLen.current = Math.hypot(CAMERA.shoulder, CAMERA.lift, CAMERA.distance)
     }
     if (game.runId !== runId.current) {
@@ -170,46 +172,74 @@ export function PlayerController() {
       velY.current = 0
       grounded.current = true
       lookYaw.current = 0
-      lookPitch.current = firstPerson ? 0 : PLAYER.pitchDefault
+      lookPitch.current = firstPerson ? 0 : topDown ? -Math.PI / 2 : PLAYER.pitchDefault
       bodyYaw.current = 0
       boomLen.current = Math.hypot(CAMERA.shoulder, CAMERA.lift, CAMERA.distance)
     }
 
     const { dx, dy } = game.consumeLook()
+    // Top-down: mouse / stick only turns facing (camera stays north-up).
     lookYaw.current -= dx
-    lookPitch.current = THREE.MathUtils.clamp(
-      lookPitch.current - dy,
-      PLAYER.pitchMin,
-      PLAYER.pitchMax,
-    )
-
-    if (mobileLookStick.active) {
-      lookYaw.current -= mobileLookStick.x * PLAYER.lookStickRate * dt
+    if (!topDown) {
       lookPitch.current = THREE.MathUtils.clamp(
-        lookPitch.current - mobileLookStick.y * PLAYER.lookStickRate * dt,
+        lookPitch.current - dy,
         PLAYER.pitchMin,
         PLAYER.pitchMax,
       )
     }
 
-    bodyYaw.current = lookYaw.current
-    yawPivot.current.rotation.y = lookYaw.current
-    pitchObj.current.rotation.x = lookPitch.current
-    yawPivot.current.position.y = firstPerson ? CAMERA.fpHeight : CAMERA.height
+    if (mobileLookStick.active) {
+      lookYaw.current -= mobileLookStick.x * PLAYER.lookStickRate * dt
+      if (!topDown) {
+        lookPitch.current = THREE.MathUtils.clamp(
+          lookPitch.current - mobileLookStick.y * PLAYER.lookStickRate * dt,
+          PLAYER.pitchMin,
+          PLAYER.pitchMax,
+        )
+      }
+    }
+
+    const { moveX, moveZ, sprint } = game.input
+    const canPlay = game.status === 'playing'
 
     // Keep rig transform current before camera world probes.
     rig.current.position.set(pos.current.x, pos.current.y, pos.current.z)
 
     const persp = camera as THREE.PerspectiveCamera
-    if (firstPerson) {
+    if (topDown) {
+      // Fixed north-up bird's-eye: pivot high above player, pitch straight down.
+      yawPivot.current.rotation.y = 0
+      pitchObj.current.rotation.x = -Math.PI / 2
+      yawPivot.current.position.y = CAMERA.topHeight
+      camera.position.set(0, 0, 0)
+      camera.rotation.set(0, 0, 0)
+      if (persp.isPerspectiveCamera) {
+        persp.fov = CAMERA.topFov
+        persp.near = CAMERA.topNear
+        persp.far = CAMERA.topFar
+        persp.updateProjectionMatrix()
+      }
+      // World-aligned move (screen up = −Z).
+      forward.current.set(0, 0, -1)
+      right.current.set(1, 0, 0)
+    } else if (firstPerson) {
+      yawPivot.current.rotation.y = lookYaw.current
+      pitchObj.current.rotation.x = lookPitch.current
+      yawPivot.current.position.y = CAMERA.fpHeight
       camera.position.set(0, 0, -CAMERA.fpForward)
       camera.rotation.set(0, 0, 0)
       if (persp.isPerspectiveCamera) {
         persp.fov = CAMERA.fpFov
         persp.near = CAMERA.fpNear
+        persp.far = CAMERA.far
         persp.updateProjectionMatrix()
       }
+      forward.current.set(-Math.sin(lookYaw.current), 0, -Math.cos(lookYaw.current))
+      right.current.set(Math.cos(lookYaw.current), 0, -Math.sin(lookYaw.current))
     } else {
+      yawPivot.current.rotation.y = lookYaw.current
+      pitchObj.current.rotation.x = lookPitch.current
+      yawPivot.current.position.y = CAMERA.height
       // Ideal chase boom in pitch-local space (camera looks local −Z at the pivot).
       _idealLocal.set(CAMERA.shoulder, CAMERA.lift, CAMERA.distance)
       const idealLen = _idealLocal.length()
@@ -248,17 +278,15 @@ export function PlayerController() {
       if (persp.isPerspectiveCamera) {
         persp.fov = CAMERA.fov
         persp.near = CAMERA.near
+        persp.far = CAMERA.far
         persp.updateProjectionMatrix()
       }
+      forward.current.set(-Math.sin(lookYaw.current), 0, -Math.cos(lookYaw.current))
+      right.current.set(Math.cos(lookYaw.current), 0, -Math.sin(lookYaw.current))
     }
 
     if (avatarRoot.current) avatarRoot.current.visible = !firstPerson
 
-    forward.current.set(-Math.sin(lookYaw.current), 0, -Math.cos(lookYaw.current))
-    right.current.set(Math.cos(lookYaw.current), 0, -Math.sin(lookYaw.current))
-
-    const { moveX, moveZ, sprint } = game.input
-    const canPlay = game.status === 'playing'
     wish.current
       .set(0, 0, 0)
       .addScaledVector(right.current, canPlay ? moveX : 0)
@@ -266,6 +294,10 @@ export function PlayerController() {
 
     moving.current = wish.current.lengthSq() > 1e-6
     if (moving.current) {
+      // In top-down, face the direction of travel (Pac-Man style).
+      if (topDown) {
+        lookYaw.current = Math.atan2(-wish.current.x, -wish.current.z)
+      }
       const speed = PLAYER.speed * (sprint ? PLAYER.runMul : 1)
       wish.current.normalize().multiplyScalar(speed * dt)
       let nx = pos.current.x + wish.current.x
@@ -286,6 +318,8 @@ export function PlayerController() {
       pos.current.x = hit.x
       pos.current.z = hit.z
     }
+
+    bodyYaw.current = lookYaw.current
 
     if (canPlay && game.consumeJump() && grounded.current) {
       velY.current = PLAYER.jumpSpeed

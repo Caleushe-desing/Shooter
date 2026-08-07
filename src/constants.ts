@@ -65,9 +65,14 @@ export const CAMERA = {
   fpFov: 72,
   /** Tiny forward so near plane clears the invisible body. */
   fpForward: 0.12,
+  /** Top-down / 2D Pac-Man style. */
+  topHeight: 34,
+  topFov: 46,
+  topNear: 2,
+  topFar: 160,
 } as const
 
-export type CameraMode = 'third' | 'first'
+export type CameraMode = 'third' | 'first' | 'top'
 
 /**
  * Third-person aim: tiny off-center point; shots leave the character

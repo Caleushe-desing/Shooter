@@ -236,39 +236,44 @@ export function WeaponSystem({ rigRef, lookYaw, lookPitch }: Props) {
         .addScaledVector(_right, WEAPON.muzzleShoulder)
         .addScaledVector(_forward, WEAPON.muzzleForward)
 
-      // 1) Camera ray through the mirilla — this is what the player sees.
-      camera.updateWorldMatrix(true, false)
-      const firstPerson = useGameStore.getState().cameraMode === 'first'
-      const ox = firstPerson ? 0 : WEAPON.crosshairOffsetX
-      const oy = firstPerson ? 0 : WEAPON.crosshairOffsetY
-      const ndcX = (2 * ox) / Math.max(1, size.width)
-      const ndcY = (-2 * oy) / Math.max(1, size.height)
-      _ndc.set(ndcX, ndcY, 0.5)
-      _world.copy(_ndc).unproject(camera)
-      camera.getWorldPosition(_camPos)
-      _dir.copy(_world).sub(_camPos)
-      if (_dir.lengthSq() < 1e-8) _dir.copy(_look)
-      else _dir.normalize()
+      const camMode = useGameStore.getState().cameraMode
+      if (camMode === 'top') {
+        // Top-down: shoot horizontally in facing direction (not into the ground).
+        _dir.set(-Math.sin(yaw), 0, -Math.cos(yaw)).normalize()
+        _aimPoint.copy(_muzzle).addScaledVector(_dir, WEAPON.aimDistance)
+      } else {
+        // 1) Camera ray through the mirilla — this is what the player sees.
+        camera.updateWorldMatrix(true, false)
+        const firstPerson = camMode === 'first'
+        const ox = firstPerson ? 0 : WEAPON.crosshairOffsetX
+        const oy = firstPerson ? 0 : WEAPON.crosshairOffsetY
+        const ndcX = (2 * ox) / Math.max(1, size.width)
+        const ndcY = (-2 * oy) / Math.max(1, size.height)
+        _ndc.set(ndcX, ndcY, 0.5)
+        _world.copy(_ndc).unproject(camera)
+        camera.getWorldPosition(_camPos)
+        _dir.copy(_world).sub(_camPos)
+        if (_dir.lengthSq() < 1e-8) _dir.copy(_look)
+        else _dir.normalize()
 
-      // 2) Aim point = first surface under the reticle (or far point).
-      //    Using a fixed far point made near-wall hits drift left/down of the mirilla
-      //    because muzzle→farPoint ≠ camera→wall under the crosshair.
-      const aimT = nearestRayHit(
-        _camPos.x,
-        _camPos.y,
-        _camPos.z,
-        _dir.x,
-        _dir.y,
-        _dir.z,
-        WEAPON.aimDistance,
-        hitBoxes,
-      )
-      _aimPoint.copy(_camPos).addScaledVector(_dir, aimT)
+        // 2) Aim point = first surface under the reticle (or far point).
+        const aimT = nearestRayHit(
+          _camPos.x,
+          _camPos.y,
+          _camPos.z,
+          _dir.x,
+          _dir.y,
+          _dir.z,
+          WEAPON.aimDistance,
+          hitBoxes,
+        )
+        _aimPoint.copy(_camPos).addScaledVector(_dir, aimT)
 
-      // 3) Tracer leaves the character toward that exact world point.
-      _dir.copy(_aimPoint).sub(_muzzle)
-      if (_dir.lengthSq() < 1e-8) _dir.copy(_look)
-      else _dir.normalize()
+        // 3) Tracer leaves the character toward that exact world point.
+        _dir.copy(_aimPoint).sub(_muzzle)
+        if (_dir.lengthSq() < 1e-8) _dir.copy(_look)
+        else _dir.normalize()
+      }
 
       const mesh = new THREE.Mesh(tracerGeo, tracerMat.clone())
       mesh.position.copy(_muzzle)

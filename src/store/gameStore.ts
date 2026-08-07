@@ -71,7 +71,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   playerY: 0,
   playerZ: PLAYER.spawn.z,
   runId: 1,
-  cameraMode: 'third',
+  cameraMode: 'top',
 
   status: 'playing',
   score: 0,
@@ -171,5 +171,8 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   setCameraMode: (mode) => set({ cameraMode: mode }),
   toggleCameraMode: () =>
-    set((s) => ({ cameraMode: s.cameraMode === 'third' ? 'first' : 'third' })),
+    set((s) => ({
+      cameraMode:
+        s.cameraMode === 'third' ? 'top' : s.cameraMode === 'top' ? 'first' : 'third',
+    })),
 }))

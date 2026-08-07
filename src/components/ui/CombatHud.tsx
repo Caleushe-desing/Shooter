@@ -11,8 +11,10 @@ export function CombatHud() {
   const score = useGameStore((s) => s.score)
   const status = useGameStore((s) => s.status)
   const restartRun = useGameStore((s) => s.restartRun)
-  const isFirst = cameraMode === 'first'
   const ammoLow = ammo <= 1
+
+  const camLabel =
+    cameraMode === 'top' ? 'VISTA 2D' : cameraMode === 'first' ? '1ª PERSONA' : '3ª PERSONA'
 
   return (
     <>
@@ -72,7 +74,7 @@ export function CombatHud() {
             e.stopPropagation()
           }}
         >
-          {isFirst ? '1ª PERSONA' : '3ª PERSONA'}
+          {camLabel}
           <span className="mt-0.5 block text-[9px] font-normal tracking-[0.08em] text-white/55">
             TOCÁ · V
           </span>
