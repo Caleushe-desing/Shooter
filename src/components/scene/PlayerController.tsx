@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo } from 'react'
+import { Suspense, useRef, useEffect, useMemo } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import { PerspectiveCamera } from '@react-three/drei'
 import * as THREE from 'three'
@@ -461,7 +461,10 @@ export function PlayerController() {
 
   return (
     <group ref={rig} position={[PLAYER.spawn.x, 0, PLAYER.spawn.z]}>
-      <PlayerAvatar yawRef={bodyYaw} pitchRef={lookPitch} movingRef={moving} />
+      {/* Avatar GLB suspends on its own — camera must still mount or the view stays on sky. */}
+      <Suspense fallback={null}>
+        <PlayerAvatar yawRef={bodyYaw} pitchRef={lookPitch} movingRef={moving} />
+      </Suspense>
 
       <group ref={yawPivot} position={[0, CAMERA.height, 0]}>
         <group ref={pitchObj}>

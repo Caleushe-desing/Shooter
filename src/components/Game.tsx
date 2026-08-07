@@ -1,5 +1,4 @@
 import { Canvas } from '@react-three/fiber'
-import { Suspense } from 'react'
 import { Arena } from './scene/Arena'
 import { Sky } from './scene/Sky'
 import { PlayerController } from './scene/PlayerController'
@@ -22,11 +21,13 @@ function Scene() {
   return (
     <>
       <color attach="background" args={[COLORS.sky]} />
-      <fog attach="fog" args={[COLORS.skyHaze, 18, 55]} />
+      <fog attach="fog" args={[COLORS.skyHaze, 28, 70]} />
       <ambientLight intensity={0.62} color="#E8EEF2" />
       <hemisphereLight args={['#B8D0E0', '#6A8A50', 0.55]} />
       <directionalLight position={[12, 22, 10]} intensity={1.2} color="#FFF2D8" castShadow={false} />
       <directionalLight position={[-10, 10, -8]} intensity={0.3} color="#8AACC4" />
+      {/* Patio always mounts — do NOT wrap in the GLB Suspense or a failed/slow
+          character load leaves only the clear-color sky. */}
       <Sky />
       <Arena />
       <PlayerController />
@@ -42,6 +43,7 @@ export function Game() {
     <div className="relative h-full w-full overflow-hidden bg-[#6FA8C8]">
       <Canvas
         className="absolute inset-0 h-full w-full touch-none"
+        camera={{ position: [0, 2.8, 10], fov: 65, near: 0.12, far: 120 }}
         gl={{
           antialias: true,
           alpha: false,
@@ -53,9 +55,7 @@ export function Game() {
           gl.toneMappingExposure = 1.02
         }}
       >
-        <Suspense fallback={null}>
-          <Scene />
-        </Suspense>
+        <Scene />
       </Canvas>
 
       <Crosshair />

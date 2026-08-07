@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { getCloudTexture, getSkyTexture } from '../../scene/textures'
 
-const SKY_RADIUS = 900
+const SKY_RADIUS = 90
 
 type Puff = {
   position: [number, number, number]
