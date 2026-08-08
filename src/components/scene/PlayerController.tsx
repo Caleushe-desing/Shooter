@@ -12,16 +12,9 @@ import {
 import { useGameStore } from '../../store/gameStore'
 import { PlasticSoldier } from './PlasticSoldier'
 
-function lerpAngle(a: number, b: number, t: number) {
-  let d = b - a
-  while (d > Math.PI) d -= Math.PI * 2
-  while (d < -Math.PI) d += Math.PI * 2
-  return a + d * t
-}
-
 /**
- * TPS controller for the plastic soldier: stiff turns, boom camera,
- * crouch via Left Control. No Mixamo / head-bone coupling.
+ * Classic TPS: camera locked behind the back, body yaw tracks look yaw,
+ * LMB aims/fires, Left Ctrl crouches.
  */
 export function PlayerController() {
   const { gl, camera } = useThree()
@@ -49,56 +42,45 @@ export function PlayerController() {
 
   useEffect(() => {
     const el = gl.domElement
-    let dragging = false
-    let lastX = 0
-    let lastY = 0
 
     const onPointerDown = (e: PointerEvent) => {
-      if (e.button !== 0 && e.pointerType === 'mouse') return
-      dragging = true
-      lastX = e.clientX
-      lastY = e.clientY
-      try {
-        el.setPointerCapture(e.pointerId)
-      } catch {
-        /* ignore */
+      if (e.button !== 0) return
+      const locked = document.pointerLockElement === el
+      if (!locked) {
+        el.requestPointerLock?.()
+        return
       }
-      if (e.pointerType === 'mouse') el.requestPointerLock?.()
+      useGameStore.getState().setFiring(true)
     }
     const onPointerUp = (e: PointerEvent) => {
-      dragging = false
-      try {
-        el.releasePointerCapture(e.pointerId)
-      } catch {
-        /* ignore */
-      }
+      if (e.button !== 0) return
+      useGameStore.getState().setFiring(false)
     }
     const onPointerMove = (e: PointerEvent) => {
       const locked = document.pointerLockElement === el
+      if (!locked) return
       const sens =
         e.pointerType === 'touch' ? PLAYER.lookSensitivityMobile : PLAYER.lookSensitivity
-
-      if (locked) {
-        useGameStore.getState().addLook(e.movementX * sens, e.movementY * sens)
-        return
+      useGameStore.getState().addLook(e.movementX * sens, e.movementY * sens)
+    }
+    const onLockChange = () => {
+      if (document.pointerLockElement !== el) {
+        useGameStore.getState().setFiring(false)
       }
-      if (!dragging && !(e.buttons & 1)) return
-      const dx = e.clientX - lastX
-      const dy = e.clientY - lastY
-      lastX = e.clientX
-      lastY = e.clientY
-      useGameStore.getState().addLook(dx * sens, dy * sens)
     }
 
     el.addEventListener('pointerdown', onPointerDown)
     el.addEventListener('pointerup', onPointerUp)
     el.addEventListener('pointercancel', onPointerUp)
     el.addEventListener('pointermove', onPointerMove)
+    document.addEventListener('pointerlockchange', onLockChange)
     return () => {
       el.removeEventListener('pointerdown', onPointerDown)
       el.removeEventListener('pointerup', onPointerUp)
       el.removeEventListener('pointercancel', onPointerUp)
       el.removeEventListener('pointermove', onPointerMove)
+      document.removeEventListener('pointerlockchange', onLockChange)
+      useGameStore.getState().setFiring(false)
     }
   }, [gl])
 
@@ -188,6 +170,7 @@ export function PlayerController() {
       bodyHeight.current = PLAYER.height
       camHeight.current = CAMERA.height
       game.setCrouching(false)
+      game.setFiring(false)
     }
 
     const { dx, dy } = game.consumeLook()
@@ -197,6 +180,9 @@ export function PlayerController() {
       PLAYER.pitchMin,
       PLAYER.pitchMax,
     )
+
+    // Body yaw locked to camera yaw — always see the soldier's back.
+    bodyYaw.current = lookYaw.current
 
     const { moveX, moveZ, sprint } = game.input
     const wishMoving = Math.abs(moveX) > 1e-6 || Math.abs(moveZ) > 1e-6
@@ -233,12 +219,7 @@ export function PlayerController() {
 
     moving.current = wish.current.lengthSq() > 1e-6
     if (moving.current) {
-      wish.current.normalize()
-      const targetYaw = Math.atan2(-wish.current.x, -wish.current.z)
-      const turn = 1 - Math.exp(-PLAYER.turnRate * dt)
-      bodyYaw.current = lerpAngle(bodyYaw.current, targetYaw, turn)
-
-      wish.current.multiplyScalar(speed * dt)
+      wish.current.normalize().multiplyScalar(speed * dt)
 
       let nextX = pos.current.x + wish.current.x
       let nextZ = pos.current.z
@@ -290,6 +271,7 @@ export function PlayerController() {
     velY.current = vert.velY
     grounded.current = vert.grounded
 
+    // Fixed chase boom behind the back (soft pull-in only when blocked).
     euler.current.set(lookPitch.current, lookYaw.current, 0, 'YXZ')
     idealOffset.current.set(CAMERA.shoulder, CAMERA.lift, CAMERA.distance)
     idealOffset.current.applyEuler(euler.current)

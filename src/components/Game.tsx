@@ -1,5 +1,6 @@
 import { Canvas } from '@react-three/fiber'
 import { Suspense } from 'react'
+import { Crosshair } from './hud/Crosshair'
 import { PlayerController } from './scene/PlayerController'
 import { ProceduralMap } from './scene/ProceduralMap'
 
@@ -37,11 +38,12 @@ function Scene() {
 export function Game() {
   return (
     <div className="game-root">
-      <Canvas shadows camera={{ fov: 58, near: 0.1, far: 220, position: [0, 4, 8] }}>
+      <Canvas shadows camera={{ fov: 56, near: 0.1, far: 220, position: [0, 4, 8] }}>
         <Suspense fallback={null}>
           <Scene />
         </Suspense>
       </Canvas>
+      <Crosshair />
     </div>
   )
 }

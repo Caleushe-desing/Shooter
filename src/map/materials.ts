@@ -23,6 +23,14 @@ export const MAT = {
   accent: '#8B4A3A',
   accentSoft: '#A06050',
   flagPole: '#3E3C3A',
+  /** Extra cover props — still sober. */
+  cardboard: '#B59A6A',
+  cardboardDark: '#9A7F54',
+  book: '#7A6A52',
+  bookDark: '#5E5140',
+  lamp: '#6A6660',
+  lampShade: '#C8BDAA',
+  fabricAlt: '#6E655C',
 } as const
 
 export type MatKey = keyof typeof MAT
@@ -45,6 +53,13 @@ export const FINISH: Record<string, { roughness: number; metalness: number }> = 
   [MAT.accent]: { roughness: 0.68, metalness: 0.08 },
   [MAT.accentSoft]: { roughness: 0.72, metalness: 0.05 },
   [MAT.flagPole]: { roughness: 0.45, metalness: 0.55 },
+  [MAT.cardboard]: { roughness: 0.9, metalness: 0.0 },
+  [MAT.cardboardDark]: { roughness: 0.88, metalness: 0.0 },
+  [MAT.book]: { roughness: 0.82, metalness: 0.02 },
+  [MAT.bookDark]: { roughness: 0.8, metalness: 0.02 },
+  [MAT.lamp]: { roughness: 0.48, metalness: 0.45 },
+  [MAT.lampShade]: { roughness: 0.86, metalness: 0.0 },
+  [MAT.fabricAlt]: { roughness: 0.93, metalness: 0.0 },
 }
 
 export function finishFor(color: string) {

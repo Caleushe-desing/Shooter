@@ -6,6 +6,7 @@ type InputState = {
   moveX: number
   moveZ: number
   sprint: boolean
+  firing: boolean
 }
 
 type GameState = {
@@ -31,6 +32,7 @@ type GameState = {
 
   setMove: (x: number, z: number) => void
   setSprint: (on: boolean) => void
+  setFiring: (on: boolean) => void
   setCrouching: (on: boolean) => void
   toggleCrouch: () => void
   tickStamina: (dt: number, wantsSprint: boolean, moving: boolean) => boolean
@@ -58,7 +60,7 @@ function freshMap() {
 const initialMap = freshMap()
 
 export const useGameStore = create<GameState>((set, get) => ({
-  input: { moveX: 0, moveZ: 0, sprint: false },
+  input: { moveX: 0, moveZ: 0, sprint: false, firing: false },
   jumpQueued: false,
   lookDx: 0,
   lookDy: 0,
@@ -79,6 +81,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   setMove: (x, z) => set((s) => ({ input: { ...s.input, moveX: x, moveZ: z } })),
   setSprint: (on) => set((s) => ({ input: { ...s.input, sprint: on } })),
+  setFiring: (on) => set((s) => ({ input: { ...s.input, firing: on } })),
   setCrouching: (on) =>
     set((s) => ({
       isCrouching: on,
@@ -168,6 +171,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       isCrouching: false,
       isSprinting: false,
       moveSpeed: PLAYER.speed,
+      input: { ...get().input, moveX: 0, moveZ: 0, firing: false },
       runId: get().runId + 1,
     })
   },
@@ -176,7 +180,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const map = freshMap()
     set({
       status: 'playing',
-      input: { moveX: 0, moveZ: 0, sprint: false },
+      input: { moveX: 0, moveZ: 0, sprint: false, firing: false },
       stamina: 1,
       staminaRecovering: false,
       isSprinting: false,

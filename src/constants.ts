@@ -30,21 +30,23 @@ export const PLAYER = {
 } as const
 
 export const CAMERA = {
-  shoulder: 0.4,
+  /** Slight over-shoulder offset; mostly centered behind the back. */
+  shoulder: 0.18,
   height: 1.48,
   crouchHeight: 0.78,
   /** How quickly the pivot follows stand ↔ crouch. */
   headFollow: 12,
   /** How quickly the collision capsule eases stand ↔ crouch. */
   capsuleLerp: 10,
-  lift: 0.18,
-  distance: 2.8,
+  lift: 0.22,
+  /** Fixed classic TPS chase distance. */
+  distance: 3.1,
   near: 0.1,
   far: 220,
-  fov: 58,
-  minBoomLength: 0.55,
+  fov: 56,
+  minBoomLength: 1.2,
   boomSkin: 0.28,
-  boomLerp: 14,
+  boomLerp: 16,
 } as const
 
 /** Interior footprint of the giant living room (xz). */
