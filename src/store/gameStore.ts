@@ -8,7 +8,7 @@ import {
   type GameStatus,
 } from '../constants'
 import { ORB_SPAWNS } from '../map/pickupsLayout'
-import { clearZombies } from '../combat/zombies'
+import { clearGhosts } from '../combat/ghosts'
 
 type InputState = {
   moveX: number
@@ -158,7 +158,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   restartRun: () => {
-    clearZombies()
+    clearGhosts()
     set({
       status: 'playing',
       score: 0,

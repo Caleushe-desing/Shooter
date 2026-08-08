@@ -148,7 +148,7 @@ export function CombatHud() {
             <div className="text-sm tracking-[0.08em] text-white/75">
               {status === 'won'
                 ? 'Recogiste todos los orbes dorados.'
-                : 'Un zombie te atrapó.'}
+                : 'Un fantasma te atrapó.'}
             </div>
             <div className="text-sm tracking-[0.08em] text-white/70">
               Puntos: <span className="text-[#F2E08A]">{score}</span>

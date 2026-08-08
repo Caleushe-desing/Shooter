@@ -125,10 +125,10 @@ export const WEAPON_AMMO = {
   start: 6,
 } as const
 
-/** Pursuing zombies (wireframe-ish capsules). */
-export const ZOMBIE = {
-  radius: 0.4,
-  height: 1.7,
+/** Pursuing ghosts (classic dome + wavy skirt silhouette). */
+export const GHOST = {
+  radius: 0.42,
+  height: 1.65,
   speed: 2.55,
   chaseSpeed: 3.35,
   hp: 2,
@@ -137,8 +137,8 @@ export const ZOMBIE = {
   loseRange: 26,
   stunTime: 2.8,
   patrolSpeed: 1.65,
-  color: '#4A6B3A',
-  eyeColor: '#C8FF66',
+  color: '#C9D7F2',
+  eyeColor: '#1A2740',
   /** Initial spawn points (far from mid spawn). */
   spawns: [
     { x: -30, z: -16 },
