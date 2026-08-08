@@ -20,12 +20,11 @@ export const PLAYER = {
   stepHeight: 0.55,
   lookSensitivity: 0.0022,
   lookSensitivityMobile: 0.0058,
-  lookStickRate: 3.4,
-  lookStickDeadzone: 10,
-  lookStickMax: 120,
   pitchMin: -0.55,
-  pitchMax: 0.4,
-  pitchDefault: -0.28,
+  pitchMax: 0.45,
+  pitchDefault: -0.22,
+  /** How quickly the body turns toward move direction. */
+  turnRate: 12,
   spawn: { x: 0, y: 0, z: 0 },
   skin: '#C9956E',
   tunic: '#4A5D4E',
@@ -33,33 +32,25 @@ export const PLAYER = {
 } as const
 
 export const CAMERA = {
-  shoulder: 0.4,
+  shoulder: 0.45,
   height: 1.55,
-  lift: 0.18,
-  distance: 2.45,
+  lift: 0.2,
+  distance: 2.6,
   near: 0.1,
-  far: 320,
+  far: 200,
   fov: 58,
-  minBoomLength: 0.65,
-  fpHeight: 1.58,
-  fpNear: 0.05,
-  fpFov: 72,
-  fpForward: 0.12,
-  topHeight: 28,
-  topHeightMin: 10,
-  topHeightMax: 60,
-  topZoomWheel: 0.045,
-  topZoomStep: 2.2,
-  topFov: 42,
-  topNear: 1,
-  topFar: 120,
+  /** Closest the boom may pull in when blocked by geometry. */
+  minBoomLength: 0.55,
+  /** Keep the lens this far outside a hit surface. */
+  boomSkin: 0.28,
+  /** Smooth factor for boom pull-in / release. */
+  boomLerp: 14,
 } as const
 
 export const ARENA = {
   size: 80,
 } as const
 
-export type CameraMode = 'third' | 'first' | 'top'
 export type GameStatus = 'playing'
 
 export function clampToArena(x: number, z: number, radius: number) {

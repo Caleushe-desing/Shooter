@@ -3,20 +3,25 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { PerspectiveCamera } from '@react-three/drei'
 import * as THREE from 'three'
 import { PLAYER, CAMERA, clampToArena } from '../../constants'
-import { integrateVertical, resolveHorizontal } from '../../map/collision'
+import { integrateVertical, raycastSolids, resolveHorizontal } from '../../map/collision'
 import { useGameStore } from '../../store/gameStore'
 import { PlayerAvatar } from './PlayerAvatar'
-import { mobileLookStick } from '../../input/mobileLookStick'
 import { viewState } from '../../input/viewState'
 
+function lerpAngle(a: number, b: number, t: number) {
+  let d = b - a
+  while (d > Math.PI) d -= Math.PI * 2
+  while (d < -Math.PI) d += Math.PI * 2
+  return a + d * t
+}
+
 /**
- * Character controller with height-aware AABB collision.
- * Walks on roofs / crates / trench floors without sinking through solids.
+ * TPS-only controller: orbit camera with soft boom collision,
+ * body faces move direction while walking.
  */
 export function PlayerController() {
   const { gl, camera } = useThree()
   const rig = useRef<THREE.Group>(null)
-  const avatarRoot = useRef<THREE.Group>(null)
   const yawPivot = useRef<THREE.Group>(null)
   const pitchObj = useRef<THREE.Group>(null)
   const lookYaw = useRef(0)
@@ -30,39 +35,64 @@ export function PlayerController() {
   const forward = useRef(new THREE.Vector3())
   const right = useRef(new THREE.Vector3())
   const wish = useRef(new THREE.Vector3())
+  const boomScale = useRef(1)
   const runId = useRef(useGameStore.getState().runId)
-  const lastCamMode = useRef(useGameStore.getState().cameraMode)
-  const boomLen = useRef(Math.hypot(CAMERA.shoulder, CAMERA.lift, CAMERA.distance))
+  const idealOffset = useRef(new THREE.Vector3())
+  const boomDir = useRef(new THREE.Vector3())
+  const euler = useRef(new THREE.Euler(0, 0, 0, 'YXZ'))
 
   useEffect(() => {
     const el = gl.domElement
+    let dragging = false
+    let lastX = 0
+    let lastY = 0
+
     const onPointerDown = (e: PointerEvent) => {
-      if (e.button !== 0) return
+      if (e.button !== 0 && e.pointerType === 'mouse') return
+      dragging = true
+      lastX = e.clientX
+      lastY = e.clientY
       try {
         el.setPointerCapture(e.pointerId)
       } catch {
-        /* ignore InvalidStateError when capture is unavailable */
+        /* ignore */
       }
-      el.requestPointerLock?.()
+      if (e.pointerType === 'mouse') el.requestPointerLock?.()
+    }
+    const onPointerUp = (e: PointerEvent) => {
+      dragging = false
+      try {
+        el.releasePointerCapture(e.pointerId)
+      } catch {
+        /* ignore */
+      }
     }
     const onPointerMove = (e: PointerEvent) => {
-      if (document.pointerLockElement !== el && !(e.buttons & 1)) return
+      const locked = document.pointerLockElement === el
       const sens =
-        'ontouchstart' in window ? PLAYER.lookSensitivityMobile : PLAYER.lookSensitivity
-      useGameStore.getState().addLook(e.movementX * sens, e.movementY * sens)
+        e.pointerType === 'touch' ? PLAYER.lookSensitivityMobile : PLAYER.lookSensitivity
+
+      if (locked) {
+        useGameStore.getState().addLook(e.movementX * sens, e.movementY * sens)
+        return
+      }
+      if (!dragging && !(e.buttons & 1)) return
+      const dx = e.clientX - lastX
+      const dy = e.clientY - lastY
+      lastX = e.clientX
+      lastY = e.clientY
+      useGameStore.getState().addLook(dx * sens, dy * sens)
     }
-    const onWheel = (e: WheelEvent) => {
-      if (useGameStore.getState().cameraMode !== 'top') return
-      e.preventDefault()
-      useGameStore.getState().adjustTopZoom(e.deltaY * CAMERA.topZoomWheel)
-    }
+
     el.addEventListener('pointerdown', onPointerDown)
+    el.addEventListener('pointerup', onPointerUp)
+    el.addEventListener('pointercancel', onPointerUp)
     el.addEventListener('pointermove', onPointerMove)
-    el.addEventListener('wheel', onWheel, { passive: false })
     return () => {
       el.removeEventListener('pointerdown', onPointerDown)
+      el.removeEventListener('pointerup', onPointerUp)
+      el.removeEventListener('pointercancel', onPointerUp)
       el.removeEventListener('pointermove', onPointerMove)
-      el.removeEventListener('wheel', onWheel)
     }
   }, [gl])
 
@@ -90,24 +120,9 @@ export function PlayerController() {
         if (!e.repeat) useGameStore.getState().requestJump()
         return
       }
-      if (e.code === 'KeyV' && !e.repeat) {
-        e.preventDefault()
-        useGameStore.getState().toggleCameraMode()
-        return
-      }
       if (e.code === 'KeyR' && !e.repeat) {
         e.preventDefault()
         useGameStore.getState().regenerateMap()
-        return
-      }
-      if (e.code === 'Equal' || e.code === 'NumpadAdd') {
-        e.preventDefault()
-        useGameStore.getState().adjustTopZoom(-CAMERA.topZoomStep)
-        return
-      }
-      if (e.code === 'Minus' || e.code === 'NumpadSubtract') {
-        e.preventDefault()
-        useGameStore.getState().adjustTopZoom(CAMERA.topZoomStep)
         return
       }
       keys.add(e.code)
@@ -130,99 +145,38 @@ export function PlayerController() {
     if (!rig.current || !yawPivot.current || !pitchObj.current) return
 
     const game = useGameStore.getState()
-    const firstPerson = game.cameraMode === 'first'
-    const topDown = game.cameraMode === 'top'
     const { solids, trenches } = game.map
 
-    if (lastCamMode.current !== game.cameraMode) {
-      lastCamMode.current = game.cameraMode
-      if (firstPerson) lookPitch.current = 0
-      else if (topDown) lookPitch.current = -Math.PI / 2
-      else lookPitch.current = PLAYER.pitchDefault
-      boomLen.current = Math.hypot(CAMERA.shoulder, CAMERA.lift, CAMERA.distance)
-    }
     if (game.runId !== runId.current) {
       runId.current = game.runId
       pos.current.set(game.map.spawn.x, game.map.spawn.y, game.map.spawn.z)
       velY.current = 0
       grounded.current = true
       lookYaw.current = 0
-      lookPitch.current = firstPerson ? 0 : topDown ? -Math.PI / 2 : PLAYER.pitchDefault
+      lookPitch.current = PLAYER.pitchDefault
       bodyYaw.current = 0
+      boomScale.current = 1
     }
 
     const { dx, dy } = game.consumeLook()
     lookYaw.current -= dx
-    if (!topDown) {
-      lookPitch.current = THREE.MathUtils.clamp(
-        lookPitch.current - dy,
-        PLAYER.pitchMin,
-        PLAYER.pitchMax,
-      )
-    }
-
-    if (mobileLookStick.active) {
-      lookYaw.current -= mobileLookStick.x * PLAYER.lookStickRate * dt
-      if (!topDown) {
-        lookPitch.current = THREE.MathUtils.clamp(
-          lookPitch.current - mobileLookStick.y * PLAYER.lookStickRate * dt,
-          PLAYER.pitchMin,
-          PLAYER.pitchMax,
-        )
-      }
-    }
+    lookPitch.current = THREE.MathUtils.clamp(
+      lookPitch.current - dy,
+      PLAYER.pitchMin,
+      PLAYER.pitchMax,
+    )
 
     const { moveX, moveZ, sprint } = game.input
     const wishMoving = Math.abs(moveX) > 1e-6 || Math.abs(moveZ) > 1e-6
     const sprinting = game.tickStamina(dt, sprint, wishMoving)
 
-    const persp = camera as THREE.PerspectiveCamera
+    // Camera orbit (always free around the character).
+    yawPivot.current.rotation.y = lookYaw.current
+    pitchObj.current.rotation.x = lookPitch.current
+    yawPivot.current.position.y = CAMERA.height
 
-    if (topDown) {
-      yawPivot.current.rotation.y = 0
-      pitchObj.current.rotation.x = -Math.PI / 2
-      yawPivot.current.position.y = game.topCamHeight
-      camera.position.set(0, 0, 0)
-      camera.rotation.set(0, 0, 0)
-      if (persp.isPerspectiveCamera) {
-        persp.fov = CAMERA.topFov
-        persp.near = CAMERA.topNear
-        persp.far = CAMERA.topFar
-        persp.updateProjectionMatrix()
-      }
-      forward.current.set(0, 0, -1)
-      right.current.set(1, 0, 0)
-    } else if (firstPerson) {
-      yawPivot.current.rotation.y = lookYaw.current
-      pitchObj.current.rotation.x = lookPitch.current
-      yawPivot.current.position.y = CAMERA.fpHeight
-      camera.position.set(0, 0, -CAMERA.fpForward)
-      camera.rotation.set(0, 0, 0)
-      if (persp.isPerspectiveCamera) {
-        persp.fov = CAMERA.fpFov
-        persp.near = CAMERA.fpNear
-        persp.far = CAMERA.far
-        persp.updateProjectionMatrix()
-      }
-      forward.current.set(-Math.sin(lookYaw.current), 0, -Math.cos(lookYaw.current))
-      right.current.set(Math.cos(lookYaw.current), 0, -Math.sin(lookYaw.current))
-    } else {
-      yawPivot.current.rotation.y = lookYaw.current
-      pitchObj.current.rotation.x = lookPitch.current
-      yawPivot.current.position.y = CAMERA.height
-      camera.position.set(CAMERA.shoulder, CAMERA.lift, boomLen.current)
-      camera.rotation.set(0, 0, 0)
-      if (persp.isPerspectiveCamera) {
-        persp.fov = CAMERA.fov
-        persp.near = CAMERA.near
-        persp.far = CAMERA.far
-        persp.updateProjectionMatrix()
-      }
-      forward.current.set(-Math.sin(lookYaw.current), 0, -Math.cos(lookYaw.current))
-      right.current.set(Math.cos(lookYaw.current), 0, -Math.sin(lookYaw.current))
-    }
-
-    if (avatarRoot.current) avatarRoot.current.visible = !firstPerson
+    forward.current.set(-Math.sin(lookYaw.current), 0, -Math.cos(lookYaw.current))
+    right.current.set(Math.cos(lookYaw.current), 0, -Math.sin(lookYaw.current))
 
     wish.current
       .set(0, 0, 0)
@@ -231,10 +185,14 @@ export function PlayerController() {
 
     moving.current = wish.current.lengthSq() > 1e-6
     if (moving.current) {
-      const speed = PLAYER.speed * (sprinting ? PLAYER.runMul : 1)
-      wish.current.normalize().multiplyScalar(speed * dt)
+      wish.current.normalize()
+      const targetYaw = Math.atan2(-wish.current.x, -wish.current.z)
+      const turn = 1 - Math.exp(-PLAYER.turnRate * dt)
+      bodyYaw.current = lerpAngle(bodyYaw.current, targetYaw, turn)
 
-      // Separate-axis horizontal resolve against height-aware AABBs.
+      const speed = PLAYER.speed * (sprinting ? PLAYER.runMul : 1)
+      wish.current.multiplyScalar(speed * dt)
+
       let nextX = pos.current.x + wish.current.x
       let nextZ = pos.current.z
       let hit = resolveHorizontal(
@@ -259,8 +217,6 @@ export function PlayerController() {
       pos.current.x = bounded.x
       pos.current.z = bounded.z
     }
-
-    bodyYaw.current = lookYaw.current
 
     if (game.consumeJump() && grounded.current) {
       velY.current = PLAYER.jumpSpeed
@@ -287,6 +243,47 @@ export function PlayerController() {
     velY.current = vert.velY
     grounded.current = vert.grounded
 
+    // Soft boom collision: pull camera in along the shoulder arm if a wall is hit.
+    euler.current.set(lookPitch.current, lookYaw.current, 0, 'YXZ')
+    idealOffset.current.set(CAMERA.shoulder, CAMERA.lift, CAMERA.distance)
+    idealOffset.current.applyEuler(euler.current)
+    const maxLen = idealOffset.current.length()
+    const ox = pos.current.x
+    const oy = pos.current.y + CAMERA.height
+    const oz = pos.current.z
+    boomDir.current.copy(idealOffset.current).normalize()
+    const hitDist = raycastSolids(
+      ox,
+      oy,
+      oz,
+      boomDir.current.x,
+      boomDir.current.y,
+      boomDir.current.z,
+      maxLen,
+      solids,
+    )
+    let targetScale = 1
+    if (hitDist !== null) {
+      const safe = Math.max(CAMERA.minBoomLength, hitDist - CAMERA.boomSkin)
+      targetScale = THREE.MathUtils.clamp(safe / maxLen, CAMERA.minBoomLength / maxLen, 1)
+    }
+    const boomT = 1 - Math.exp(-CAMERA.boomLerp * dt)
+    boomScale.current = THREE.MathUtils.lerp(boomScale.current, targetScale, boomT)
+
+    const cam = camera as THREE.PerspectiveCamera
+    cam.position.set(
+      CAMERA.shoulder * boomScale.current,
+      CAMERA.lift * boomScale.current,
+      CAMERA.distance * boomScale.current,
+    )
+    cam.rotation.set(0, 0, 0)
+    if (cam.isPerspectiveCamera) {
+      cam.fov = CAMERA.fov
+      cam.near = CAMERA.near
+      cam.far = CAMERA.far
+      cam.updateProjectionMatrix()
+    }
+
     rig.current.position.set(pos.current.x, pos.current.y, pos.current.z)
     game.setPlayerPos(pos.current.x, pos.current.y, pos.current.z)
     viewState.lookYaw = lookYaw.current
@@ -297,9 +294,7 @@ export function PlayerController() {
 
   return (
     <group ref={rig} position={[spawn.x, spawn.y, spawn.z]}>
-      <group ref={avatarRoot}>
-        <PlayerAvatar yawRef={bodyYaw} movingRef={moving} />
-      </group>
+      <PlayerAvatar yawRef={bodyYaw} movingRef={moving} />
       <group ref={yawPivot} position={[0, CAMERA.height, 0]}>
         <group ref={pitchObj}>
           <PerspectiveCamera

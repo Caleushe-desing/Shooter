@@ -183,3 +183,86 @@ export function integrateVertical(
 
   return { x, y, z, velY, grounded }
 }
+
+/**
+ * Ray vs AABB solids. Returns the nearest hit distance along a unit direction,
+ * or null if nothing is hit within maxDist.
+ */
+export function raycastSolids(
+  ox: number,
+  oy: number,
+  oz: number,
+  dx: number,
+  dy: number,
+  dz: number,
+  maxDist: number,
+  solids: readonly SolidAABB[],
+): number | null {
+  let nearest: number | null = null
+
+  for (const s of solids) {
+    const minX = s.x - s.width * 0.5
+    const maxX = s.x + s.width * 0.5
+    const minY = solidMinY(s)
+    const maxY = solidMaxY(s)
+    const minZ = s.z - s.depth * 0.5
+    const maxZ = s.z + s.depth * 0.5
+
+    let tmin = 0
+    let tmax = maxDist
+
+    // X slab
+    if (Math.abs(dx) < 1e-8) {
+      if (ox < minX || ox > maxX) continue
+    } else {
+      let t1 = (minX - ox) / dx
+      let t2 = (maxX - ox) / dx
+      if (t1 > t2) {
+        const tmp = t1
+        t1 = t2
+        t2 = tmp
+      }
+      tmin = Math.max(tmin, t1)
+      tmax = Math.min(tmax, t2)
+      if (tmin > tmax) continue
+    }
+
+    // Y slab
+    if (Math.abs(dy) < 1e-8) {
+      if (oy < minY || oy > maxY) continue
+    } else {
+      let t1 = (minY - oy) / dy
+      let t2 = (maxY - oy) / dy
+      if (t1 > t2) {
+        const tmp = t1
+        t1 = t2
+        t2 = tmp
+      }
+      tmin = Math.max(tmin, t1)
+      tmax = Math.min(tmax, t2)
+      if (tmin > tmax) continue
+    }
+
+    // Z slab
+    if (Math.abs(dz) < 1e-8) {
+      if (oz < minZ || oz > maxZ) continue
+    } else {
+      let t1 = (minZ - oz) / dz
+      let t2 = (maxZ - oz) / dz
+      if (t1 > t2) {
+        const tmp = t1
+        t1 = t2
+        t2 = tmp
+      }
+      tmin = Math.max(tmin, t1)
+      tmax = Math.min(tmax, t2)
+      if (tmin > tmax) continue
+    }
+
+    if (tmin >= 0 && tmin <= maxDist) {
+      if (nearest === null || tmin < nearest) nearest = tmin
+    }
+  }
+
+  return nearest
+}

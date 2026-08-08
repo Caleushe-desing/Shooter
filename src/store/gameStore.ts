@@ -1,10 +1,5 @@
 import { create } from 'zustand'
-import {
-  CAMERA,
-  STAMINA,
-  type CameraMode,
-  type GameStatus,
-} from '../constants'
+import { STAMINA, type GameStatus } from '../constants'
 import { generateProceduralMap, type ProceduralMap } from '../map/proceduralLayout'
 
 type InputState = {
@@ -23,8 +18,6 @@ type GameState = {
   playerY: number
   playerZ: number
   runId: number
-  cameraMode: CameraMode
-  topCamHeight: number
   status: GameStatus
 
   stamina: number
@@ -35,7 +28,6 @@ type GameState = {
 
   setMove: (x: number, z: number) => void
   setSprint: (on: boolean) => void
-  toggleSprint: () => void
   tickStamina: (dt: number, wantsSprint: boolean, moving: boolean) => boolean
   requestJump: () => void
   consumeJump: () => boolean
@@ -44,9 +36,6 @@ type GameState = {
   setPlayerPos: (x: number, y: number, z: number) => void
   regenerateMap: () => void
   restartRun: () => void
-  setCameraMode: (mode: CameraMode) => void
-  toggleCameraMode: () => void
-  adjustTopZoom: (deltaMeters: number) => void
 }
 
 function freshMap() {
@@ -65,8 +54,6 @@ export const useGameStore = create<GameState>((set, get) => ({
   playerY: initialMap.spawn.y,
   playerZ: initialMap.spawn.z,
   runId: 1,
-  cameraMode: 'third',
-  topCamHeight: CAMERA.topHeight,
   status: 'playing',
 
   stamina: 1,
@@ -77,11 +64,6 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   setMove: (x, z) => set((s) => ({ input: { ...s.input, moveX: x, moveZ: z } })),
   setSprint: (on) => set((s) => ({ input: { ...s.input, sprint: on } })),
-  toggleSprint: () =>
-    set((s) => {
-      if (!s.input.sprint && s.staminaRecovering) return s
-      return { input: { ...s.input, sprint: !s.input.sprint } }
-    }),
 
   tickStamina: (dt, wantsSprint, moving) => {
     const s = get()
@@ -163,23 +145,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       playerX: map.spawn.x,
       playerY: map.spawn.y,
       playerZ: map.spawn.z,
-      cameraMode: 'third',
       runId: get().runId + 1,
     })
-  },
-
-  setCameraMode: (mode) => set({ cameraMode: mode }),
-  toggleCameraMode: () =>
-    set((s) => ({
-      cameraMode:
-        s.cameraMode === 'third' ? 'top' : s.cameraMode === 'top' ? 'first' : 'third',
-    })),
-  adjustTopZoom: (deltaMeters) => {
-    const s = get()
-    const next = Math.min(
-      CAMERA.topHeightMax,
-      Math.max(CAMERA.topHeightMin, s.topCamHeight + deltaMeters),
-    )
-    if (next !== s.topCamHeight) set({ topCamHeight: next })
   },
 }))
