@@ -36,6 +36,7 @@ export function PlayerController() {
   const avatarRoot = useRef<THREE.Group>(null)
   const yawPivot = useRef<THREE.Group>(null)
   const pitchObj = useRef<THREE.Group>(null)
+  /** Face toward -Z so the center portal (0,0) is ahead of spawn (0,10). */
   const lookYaw = useRef(0)
   const lookPitch = useRef<number>(PLAYER.pitchDefault)
   const bodyYaw = useRef(0)

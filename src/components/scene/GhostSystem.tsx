@@ -82,9 +82,9 @@ export function GhostSystem() {
         roughness: 0.28,
         metalness: 0.02,
         transparent: true,
-        opacity: 0.9,
-        emissive: new THREE.Color(GHOST.color),
-        emissiveIntensity: 0.2,
+        opacity: 0.95,
+        emissive: new THREE.Color('#FFFFFF'),
+        emissiveIntensity: 0.55,
         side: THREE.DoubleSide,
         depthWrite: false,
       }),
@@ -115,7 +115,7 @@ export function GhostSystem() {
       new THREE.MeshBasicMaterial({
         color: '#F2E8A0',
         transparent: true,
-        opacity: 0.16,
+        opacity: 0.28,
         depthWrite: false,
         side: THREE.DoubleSide,
       }),
@@ -126,7 +126,7 @@ export function GhostSystem() {
       new THREE.MeshBasicMaterial({
         color: '#FF4040',
         transparent: true,
-        opacity: 0.22,
+        opacity: 0.34,
         depthWrite: false,
         side: THREE.DoubleSide,
       }),
@@ -231,15 +231,22 @@ export function GhostSystem() {
   const resetAll = () => {
     clearGhosts()
     for (const id of [...meshById.current.keys()]) removeMesh(id)
+    // Emerge from the center portal and fan out to nearby patrol points
+    // so ghosts (and their vision cones) are visible right at start.
     for (let i = 0; i < GHOST.count; i++) {
       const wp = GHOST.waypoints[i % GHOST.waypoints.length]
-      spawnGhost(wp.x, wp.z, {
-        mode: 'patrol',
-        alert: false,
-        waypoint: i % GHOST.waypoints.length,
-        lastKnownX: wp.x,
-        lastKnownZ: wp.z,
-      })
+      const ang = (i / GHOST.count) * Math.PI * 2
+      spawnGhost(
+        PORTAL.x + Math.cos(ang) * 1.4,
+        PORTAL.z + Math.sin(ang) * 1.4,
+        {
+          mode: 'patrol',
+          alert: false,
+          waypoint: i % GHOST.waypoints.length,
+          lastKnownX: wp.x,
+          lastKnownZ: wp.z,
+        },
+      )
     }
     useGameStore.getState().setGhostCount(aliveGhostCount())
   }
@@ -249,10 +256,8 @@ export function GhostSystem() {
     return () => {
       clearGhosts()
       meshById.current.clear()
-      bodyGeo.dispose()
-      eyeGeo.dispose()
-      pupilGeo.dispose()
-      sectorGeo.dispose()
+      // Do not dispose shared geos here — React Strict Mode remounts
+      // would leave the next mount with dead BufferGeometry.
     }
   }, [])
 
@@ -417,23 +422,23 @@ export function GhostSystem() {
           mat.opacity = 0.95
         } else {
           mat.color.set(GHOST.color)
-          mat.emissive.set(GHOST.color)
-          mat.emissiveIntensity = 0.22
-          mat.opacity = 0.9
+          mat.emissive.set('#FFFFFF')
+          mat.emissiveIntensity = 0.55
+          mat.opacity = 0.95
         }
       }
 
       if (beam) {
         const bmat = beam.material as THREE.MeshBasicMaterial
         bmat.color.set(alert ? '#FF4040' : '#F2E8A0')
-        bmat.opacity = alert ? 0.24 : 0.14
+        bmat.opacity = alert ? 0.36 : 0.28
       }
       for (const name of ['shaftL', 'shaftR'] as const) {
         const shaft = mesh.getObjectByName(name) as THREE.Mesh | undefined
         if (!shaft) continue
         const sm = shaft.material as THREE.MeshBasicMaterial
         sm.color.set(alert ? '#FF5050' : '#FFE8A0')
-        sm.opacity = alert ? 0.14 : 0.09
+        sm.opacity = alert ? 0.22 : 0.16
       }
       for (const name of ['pupilL', 'pupilR'] as const) {
         const pupil = mesh.getObjectByName(name) as THREE.Mesh | undefined

@@ -170,20 +170,23 @@ export const GHOST = {
   alertColor: '#E03030',
   eyeColor: '#152033',
   alertEyeColor: '#FFEECC',
-  /** Patrol destinations across the map. */
+  /**
+   * Patrol loop. Includes near-mid points so ghosts stay visible around
+   * the super portal / player spawn.
+   */
   waypoints: [
-    { x: -28, z: -12 },
-    { x: -28, z: 12 },
-    { x: -22, z: 26 },
-    { x: 0, z: 36 },
-    { x: 22, z: 26 },
-    { x: 28, z: 12 },
-    { x: 28, z: -12 },
-    { x: 16, z: -28 },
-    { x: 0, z: -22 },
-    { x: -16, z: -28 },
-    { x: -34, z: 0 },
-    { x: 34, z: 0 },
+    { x: -6, z: 4 },
+    { x: 6, z: 4 },
+    { x: 8, z: -6 },
+    { x: -8, z: -6 },
+    { x: -18, z: 8 },
+    { x: 18, z: 8 },
+    { x: -22, z: -14 },
+    { x: 22, z: -14 },
+    { x: -20, z: 24 },
+    { x: 20, z: 24 },
+    { x: 0, z: 32 },
+    { x: 0, z: -18 },
   ],
 } as const
 
