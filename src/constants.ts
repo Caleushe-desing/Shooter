@@ -18,10 +18,10 @@ export const PLAYER = {
   stepHeight: 0.55,
   lookSensitivity: 0.0022,
   lookSensitivityMobile: 0.0058,
-  pitchMin: -0.55,
-  pitchMax: 0.4,
-  /** Close TPS — slight downward bias, not a high overview. */
-  pitchDefault: -0.1,
+  pitchMin: -0.62,
+  pitchMax: 0.32,
+  /** Look down over the back — OTS depth read of the room. */
+  pitchDefault: -0.26,
   /** Stiff toy turn — mechanical, not cinematic. */
   turnRate: 18,
   /** Classic army-men green plastic. */
@@ -31,27 +31,35 @@ export const PLAYER = {
 } as const
 
 export const CAMERA = {
-  /** Right over-the-shoulder offset (classic ARK / NMS close TPS). */
-  shoulder: 0.5,
-  /** Pivot at upper chest / eye line. */
-  height: 1.42,
-  crouchHeight: 0.82,
+  /**
+   * Strong right-shoulder boom so the soldier sits in the left third of
+   * the frame and the crosshair looks into clear space on the right/center.
+   */
+  shoulder: 0.92,
+  /** Pivot above the shoulders. */
+  height: 1.58,
+  crouchHeight: 0.95,
   headFollow: 14,
   capsuleLerp: 10,
-  /** Small vertical boom lift — keeps the soldier large on screen. */
-  lift: 0.15,
-  /** ~2.5 m behind the model (max ~3 m). */
-  distance: 2.55,
+  /** Raise the lens above the back for a downward OTS angle. */
+  lift: 0.62,
+  /** Close chase — still under ~3 m. */
+  distance: 2.7,
   near: 0.08,
   far: 220,
-  fov: 54,
-  minBoomLength: 0.95,
+  fov: 52,
+  minBoomLength: 1.05,
   boomSkin: 0.28,
   boomLerp: 16,
   /** World-space aim point distance for lookAt / crosshair alignment. */
-  aimDistance: 28,
-  /** Weapon / muzzle height used to align the view ray with the pistol. */
-  aimHeight: 1.22,
+  aimDistance: 32,
+  /** Muzzle / sight height. */
+  aimHeight: 1.28,
+  /**
+   * Lateral aim origin bias (along character right). Keeps the view ray
+   * off the body so the crosshair is never buried in the backpack.
+   */
+  aimShoulder: 0.42,
 } as const
 
 /** Interior footprint of the giant living room (xz). */

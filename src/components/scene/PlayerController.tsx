@@ -14,8 +14,8 @@ import { useGameStore } from '../../store/gameStore'
 import { PlasticSoldier } from './PlasticSoldier'
 
 /**
- * Close over-the-shoulder TPS: ~2.5 m boom, camera lookAt aligns
- * screen-center crosshair with the weapon aim ray.
+ * Over-the-shoulder TPS: camera right + above the back, soldier in the
+ * left third of the frame, crosshair clear into open space ahead.
  */
 export function PlayerController() {
   const { gl, camera } = useThree()
@@ -274,15 +274,17 @@ export function PlayerController() {
     velY.current = vert.velY
     grounded.current = vert.grounded
 
-    // Aim ray from weapon height — crosshair (screen center) tracks this.
-    const aimH = crouching ? CAMERA.aimHeight - 0.45 : CAMERA.aimHeight
+    // Aim ray from the gun shoulder (right) — screen center stays in open space.
+    const aimH = crouching ? CAMERA.aimHeight - 0.42 : CAMERA.aimHeight
     const cosP = Math.cos(lookPitch.current)
     aimDir.current.set(
       -Math.sin(lookYaw.current) * cosP,
       Math.sin(lookPitch.current),
       -Math.cos(lookYaw.current) * cosP,
     )
-    aimOrigin.current.set(pos.current.x, pos.current.y + aimH, pos.current.z)
+    aimOrigin.current
+      .set(pos.current.x, pos.current.y + aimH, pos.current.z)
+      .addScaledVector(right.current, CAMERA.aimShoulder)
     aimPoint.current
       .copy(aimOrigin.current)
       .addScaledVector(aimDir.current, CAMERA.aimDistance)
