@@ -26,6 +26,8 @@ export const PLAYER = {
   pitchDefault: -0.28,
   spawn: { x: 0, y: 0, z: 0 },
   skin: '#C9956E',
+  tunic: '#4A5D4E',
+  pants: '#2F3A42',
 } as const
 
 export const CAMERA = {
