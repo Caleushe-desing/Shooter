@@ -9,6 +9,7 @@ import {
   raycastSolids,
   resolveHorizontal,
 } from '../../map/collision'
+import { avatarPose } from '../../input/avatarPose'
 import { useGameStore } from '../../store/gameStore'
 import { PlayerAvatar } from './PlayerAvatar'
 import { viewState } from '../../input/viewState'
@@ -22,7 +23,8 @@ function lerpAngle(a: number, b: number, t: number) {
 
 /**
  * TPS-only controller: orbit camera with soft boom collision,
- * body faces move direction while walking, crouch via Left Control.
+ * body faces move direction while walking, tactical crouch via Left Control.
+ * Capsule height eases with lerp; camera pivot tracks the animated head bone.
  */
 export function PlayerController() {
   const { gl, camera } = useThree()
@@ -41,7 +43,9 @@ export function PlayerController() {
   const right = useRef(new THREE.Vector3())
   const wish = useRef(new THREE.Vector3())
   const boomScale = useRef(1)
-  /** Smoothed camera pivot height (stand ↔ crouch). */
+  /** Smoothed collision capsule height (stand ↔ crouch). */
+  const bodyHeight = useRef<number>(PLAYER.height)
+  /** Smoothed camera pivot Y (follows head bone). */
   const camHeight = useRef<number>(CAMERA.height)
   const runId = useRef(useGameStore.getState().runId)
   const idealOffset = useRef(new THREE.Vector3())
@@ -131,7 +135,6 @@ export function PlayerController() {
         e.preventDefault()
         const game = useGameStore.getState()
         if (game.isCrouching) {
-          // Only stand if there is clearance above the crouch capsule.
           if (
             canStandUp(
               game.playerX,
@@ -170,6 +173,7 @@ export function PlayerController() {
     }
   }, [])
 
+  // Run after the avatar mixer so headHeight reflects the current crouch pose.
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05)
     if (!rig.current || !yawPivot.current || !pitchObj.current) return
@@ -177,8 +181,6 @@ export function PlayerController() {
     const game = useGameStore.getState()
     const { solids, trenches } = game.map
     const crouching = game.isCrouching
-    // Capsule: feet stay at pos.y; top drops to crouchHeight (half standing).
-    const bodyHeight = crouching ? PLAYER.crouchHeight : PLAYER.height
 
     if (game.runId !== runId.current) {
       runId.current = game.runId
@@ -189,7 +191,10 @@ export function PlayerController() {
       lookPitch.current = PLAYER.pitchDefault
       bodyYaw.current = 0
       boomScale.current = 1
+      bodyHeight.current = PLAYER.height
       camHeight.current = CAMERA.height
+      avatarPose.headHeight = CAMERA.height
+      avatarPose.crouchBlend = 0
       game.setCrouching(false)
     }
 
@@ -204,11 +209,29 @@ export function PlayerController() {
     const { moveX, moveZ, sprint } = game.input
     const wishMoving = Math.abs(moveX) > 1e-6 || Math.abs(moveZ) > 1e-6
     const sprinting = game.tickStamina(dt, sprint && !crouching, wishMoving)
+    const speed = game.syncMoveSpeed(sprinting)
 
-    // Smooth camera pivot height (~0.2s stand ↔ crouch).
-    const targetCamH = crouching ? CAMERA.crouchHeight : CAMERA.height
-    const crouchT = 1 - Math.exp((-3 / CAMERA.crouchBlend) * dt)
-    camHeight.current = THREE.MathUtils.lerp(camHeight.current, targetCamH, crouchT)
+    // Capsule eases stand ↔ crouch (no hard snap).
+    const targetBodyH = crouching ? PLAYER.crouchHeight : PLAYER.height
+    bodyHeight.current = THREE.MathUtils.damp(
+      bodyHeight.current,
+      targetBodyH,
+      CAMERA.capsuleLerp,
+      dt,
+    )
+
+    // Camera pivot tracks animated head / eyes.
+    const targetCamH = avatarPose.ready
+      ? avatarPose.headHeight
+      : crouching
+        ? PLAYER.crouchHeight * 0.95
+        : CAMERA.height
+    camHeight.current = THREE.MathUtils.damp(
+      camHeight.current,
+      targetCamH,
+      CAMERA.headFollow,
+      dt,
+    )
 
     yawPivot.current.rotation.y = lookYaw.current
     pitchObj.current.rotation.x = lookPitch.current
@@ -229,12 +252,6 @@ export function PlayerController() {
       const turn = 1 - Math.exp(-PLAYER.turnRate * dt)
       bodyYaw.current = lerpAngle(bodyYaw.current, targetYaw, turn)
 
-      const speedMul = crouching
-        ? PLAYER.crouchSpeedMul
-        : sprinting
-          ? PLAYER.runMul
-          : 1
-      const speed = PLAYER.speed * speedMul
       wish.current.multiplyScalar(speed * dt)
 
       let nextX = pos.current.x + wish.current.x
@@ -244,7 +261,7 @@ export function PlayerController() {
         nextZ,
         pos.current.y,
         PLAYER.radius,
-        bodyHeight,
+        bodyHeight.current,
         solids,
       )
       nextX = hit.x
@@ -254,7 +271,7 @@ export function PlayerController() {
         nextZ,
         pos.current.y,
         PLAYER.radius,
-        bodyHeight,
+        bodyHeight.current,
         solids,
       )
       const bounded = clampToArena(hit.x, hit.z, PLAYER.radius)
@@ -262,7 +279,6 @@ export function PlayerController() {
       pos.current.z = bounded.z
     }
 
-    // No jump while crouching.
     if (game.consumeJump() && grounded.current && !crouching) {
       velY.current = PLAYER.jumpSpeed
       grounded.current = false
@@ -288,7 +304,6 @@ export function PlayerController() {
     velY.current = vert.velY
     grounded.current = vert.grounded
 
-    // Soft boom collision from the smoothed pivot height.
     euler.current.set(lookPitch.current, lookYaw.current, 0, 'YXZ')
     idealOffset.current.set(CAMERA.shoulder, CAMERA.lift, CAMERA.distance)
     idealOffset.current.applyEuler(euler.current)
@@ -335,7 +350,7 @@ export function PlayerController() {
     viewState.x = pos.current.x
     viewState.y = pos.current.y
     viewState.z = pos.current.z
-  }, -1)
+  }, 1)
 
   return (
     <group ref={rig} position={[spawn.x, spawn.y, spawn.z]}>

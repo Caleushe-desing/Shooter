@@ -11,12 +11,12 @@ export const STAMINA = {
 
 export const PLAYER = {
   height: 1.72,
-  /** Standing capsule height while crouching (top drops; feet stay planted). */
+  /** Capsule height while fully crouched (top drops; feet stay planted). */
   crouchHeight: 0.86,
   radius: 0.35,
   speed: 4,
-  /** Move speed multiplier while crouching. */
-  crouchSpeedMul: 0.55,
+  /** Tactical crouch move speed = 40% of normal walk. */
+  crouchSpeedMul: 0.4,
   runMul: 2,
   jumpSpeed: 7.2,
   gravity: 18,
@@ -37,11 +37,14 @@ export const PLAYER = {
 
 export const CAMERA = {
   shoulder: 0.45,
+  /** Fallback pivot height before the head bone reports. */
   height: 1.55,
-  /** Pivot height while crouching (lerped over crouchBlend). */
-  crouchHeight: 0.82,
-  /** Seconds to ease stand ↔ crouch camera height. */
-  crouchBlend: 0.2,
+  /** Eye offset above the Mixamo Head bone. */
+  headEyeOffset: 0.12,
+  /** How quickly the pivot follows the animated head. */
+  headFollow: 14,
+  /** How quickly the collision capsule eases stand ↔ crouch. */
+  capsuleLerp: 10,
   lift: 0.2,
   distance: 2.6,
   near: 0.1,

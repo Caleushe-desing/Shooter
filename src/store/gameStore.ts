@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { STAMINA, type GameStatus } from '../constants'
+import { PLAYER, STAMINA, type GameStatus } from '../constants'
 import { generateProceduralMap, type ProceduralMap } from '../map/proceduralLayout'
 
 type InputState = {
@@ -24,6 +24,8 @@ type GameState = {
   staminaRecovering: boolean
   isSprinting: boolean
   isCrouching: boolean
+  /** Effective horizontal move speed (walk / sprint / crouch). */
+  moveSpeed: number
 
   map: ProceduralMap
 
@@ -32,6 +34,8 @@ type GameState = {
   setCrouching: (on: boolean) => void
   toggleCrouch: () => void
   tickStamina: (dt: number, wantsSprint: boolean, moving: boolean) => boolean
+  /** Recompute moveSpeed from crouch / sprint state. */
+  syncMoveSpeed: (sprinting: boolean) => number
   requestJump: () => void
   consumeJump: () => boolean
   addLook: (dx: number, dy: number) => void
@@ -39,6 +43,12 @@ type GameState = {
   setPlayerPos: (x: number, y: number, z: number) => void
   regenerateMap: () => void
   restartRun: () => void
+}
+
+function computeMoveSpeed(isCrouching: boolean, isSprinting: boolean) {
+  if (isCrouching) return PLAYER.speed * PLAYER.crouchSpeedMul
+  if (isSprinting) return PLAYER.speed * PLAYER.runMul
+  return PLAYER.speed
 }
 
 function freshMap() {
@@ -63,13 +73,32 @@ export const useGameStore = create<GameState>((set, get) => ({
   staminaRecovering: false,
   isSprinting: false,
   isCrouching: false,
+  moveSpeed: PLAYER.speed,
 
   map: initialMap,
 
   setMove: (x, z) => set((s) => ({ input: { ...s.input, moveX: x, moveZ: z } })),
   setSprint: (on) => set((s) => ({ input: { ...s.input, sprint: on } })),
-  setCrouching: (on) => set({ isCrouching: on }),
-  toggleCrouch: () => set((s) => ({ isCrouching: !s.isCrouching })),
+  setCrouching: (on) =>
+    set((s) => ({
+      isCrouching: on,
+      moveSpeed: computeMoveSpeed(on, on ? false : s.isSprinting),
+    })),
+  toggleCrouch: () =>
+    set((s) => {
+      const isCrouching = !s.isCrouching
+      return {
+        isCrouching,
+        moveSpeed: computeMoveSpeed(isCrouching, isCrouching ? false : s.isSprinting),
+      }
+    }),
+
+  syncMoveSpeed: (sprinting) => {
+    const s = get()
+    const moveSpeed = computeMoveSpeed(s.isCrouching, sprinting)
+    if (moveSpeed !== s.moveSpeed) set({ moveSpeed })
+    return moveSpeed
+  },
 
   tickStamina: (dt, wantsSprint, moving) => {
     const s = get()
@@ -137,6 +166,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       playerY: map.spawn.y,
       playerZ: map.spawn.z,
       isCrouching: false,
+      isSprinting: false,
+      moveSpeed: PLAYER.speed,
       runId: get().runId + 1,
     })
   },
@@ -150,6 +181,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       staminaRecovering: false,
       isSprinting: false,
       isCrouching: false,
+      moveSpeed: PLAYER.speed,
       jumpQueued: false,
       map,
       playerX: map.spawn.x,

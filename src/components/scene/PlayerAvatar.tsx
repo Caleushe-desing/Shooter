@@ -3,7 +3,8 @@ import { useFrame } from '@react-three/fiber'
 import { useAnimations, useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js'
-import { PLAYER } from '../../constants'
+import { CAMERA, PLAYER } from '../../constants'
+import { avatarPose } from '../../input/avatarPose'
 import { useGameStore } from '../../store/gameStore'
 
 type Props = {
@@ -13,19 +14,45 @@ type Props = {
 
 const MODEL_URL = '/models/human.glb'
 const TARGET_HEIGHT = PLAYER.height
+const FADE = 0.2
+const CROUCH_FADE = 0.18
 
 useGLTF.preload(MODEL_URL)
 
-type ClipName = 'idle' | 'walk' | 'run' | 'sneak_pose'
+type ClipKind = 'idle' | 'walk' | 'run' | 'crouchIdle' | 'crouchWalk'
+
+function findHeadBone(root: THREE.Object3D): THREE.Bone | null {
+  let found: THREE.Bone | null = null
+  root.traverse((obj) => {
+    if (found || !(obj as THREE.Bone).isBone) return
+    const n = obj.name.toLowerCase()
+    if (n === 'mixamorig:head' || n.endsWith(':head') || n === 'head') {
+      found = obj as THREE.Bone
+    }
+  })
+  if (found) return found
+  root.traverse((obj) => {
+    if (found || !(obj as THREE.Bone).isBone) return
+    const n = obj.name.toLowerCase()
+    if (n.includes('headtop') || n.includes('head_top')) {
+      found = obj as THREE.Bone
+    }
+  })
+  return found
+}
 
 /**
- * Mixamo X-Bot — idle / walk / run / sneak_pose (crouch).
- * Model is never scaled for crouch; pose comes from the clip.
+ * Mixamo X-Bot — idle / walk / run + tactical crouch.
+ * Never scales the model for crouch; pose comes from sneak_pose / crouch clips.
+ * Publishes head-bone height so the TPS camera tracks the eyes.
  */
 function MixamoHuman({ yawRef, movingRef }: Props) {
   const root = useRef<THREE.Group>(null)
   const modelRef = useRef<THREE.Group>(null)
-  const currentClip = useRef<ClipName | null>(null)
+  const currentClip = useRef<ClipKind | null>(null)
+  const headBone = useRef<THREE.Bone | null>(null)
+  const worldPos = useMemo(() => new THREE.Vector3(), [])
+  const localPos = useMemo(() => new THREE.Vector3(), [])
   const { scene, animations } = useGLTF(MODEL_URL)
 
   const { clone, fitScale, footOffset } = useMemo(() => {
@@ -69,24 +96,40 @@ function MixamoHuman({ yawRef, movingRef }: Props) {
     return { clone: c, fitScale, footOffset }
   }, [scene])
 
+  const clipNames = useMemo(() => {
+    const names = animations.map((a) => a.name)
+    const has = (n: string) => names.includes(n)
+    return {
+      idle: has('idle') ? 'idle' : names.find((n) => /idle/i.test(n)) ?? null,
+      walk: has('walk') ? 'walk' : names.find((n) => /walk/i.test(n)) ?? null,
+      run: has('run') ? 'run' : names.find((n) => /run|sprint/i.test(n)) ?? null,
+      crouchIdle:
+        names.find((n) => /crouch_idle|crouchidle/i.test(n)) ??
+        (has('sneak_pose') ? 'sneak_pose' : names.find((n) => /sneak|crouch/i.test(n)) ?? null),
+      crouchWalk:
+        names.find((n) => /crouch_walk|crouchwalk|sneak_walk/i.test(n)) ?? null,
+    }
+  }, [animations])
+
   const { actions, mixer } = useAnimations(animations, clone)
-  const idleAction = actions.idle
-  const walkAction = actions.walk
-  const runAction = actions.run
-  const crouchAction = actions.sneak_pose
 
   useEffect(() => {
-    if (!idleAction) return
-    idleAction.reset().setEffectiveWeight(1).fadeIn(0.2).play()
-    idleAction.setLoop(THREE.LoopRepeat, Infinity)
+    headBone.current = findHeadBone(clone)
+    avatarPose.ready = !!headBone.current
+
+    const idle = clipNames.idle ? actions[clipNames.idle] : null
+    if (!idle) return
+    idle.reset().setEffectiveWeight(1).fadeIn(FADE).play()
+    idle.setLoop(THREE.LoopRepeat, Infinity)
     currentClip.current = 'idle'
     return () => {
       mixer.stopAllAction()
       currentClip.current = null
+      avatarPose.ready = false
     }
-  }, [idleAction, mixer])
+  }, [actions, clipNames.idle, clone, mixer])
 
-  useFrame(() => {
+  useFrame((_, dt) => {
     if (!root.current || !modelRef.current) return
     root.current.rotation.y = yawRef.current
 
@@ -95,36 +138,127 @@ function MixamoHuman({ yawRef, movingRef }: Props) {
     const { isCrouching, isSprinting } = state
     const moving = movingRef.current || Math.hypot(moveX, moveZ) > 0.05
 
-    let next: ClipName = 'idle'
-    if (isCrouching && crouchAction) {
-      next = 'sneak_pose'
-    } else if (moving && isSprinting && runAction) {
+    let next: ClipKind = 'idle'
+    if (isCrouching) {
+      next = moving ? 'crouchWalk' : 'crouchIdle'
+    } else if (moving && isSprinting) {
       next = 'run'
-    } else if (moving && walkAction) {
+    } else if (moving) {
       next = 'walk'
-    } else {
-      next = 'idle'
     }
+
+    const idleA = clipNames.idle ? actions[clipNames.idle] : null
+    const walkA = clipNames.walk ? actions[clipNames.walk] : null
+    const runA = clipNames.run ? actions[clipNames.run] : null
+    const crouchIdleA = clipNames.crouchIdle ? actions[clipNames.crouchIdle] : null
+    const crouchWalkA = clipNames.crouchWalk ? actions[clipNames.crouchWalk] : null
 
     if (next !== currentClip.current) {
-      const prev = currentClip.current ? actions[currentClip.current] : null
-      const action = actions[next]
-      if (action) {
-        action.reset().setEffectiveTimeScale(1).setEffectiveWeight(1).fadeIn(0.18).play()
-        // sneak_pose is a held crouch pose; loop so mixer keeps it applied.
-        action.setLoop(THREE.LoopRepeat, Infinity)
-        prev?.fadeOut(0.18)
-        currentClip.current = next
+      const prev = currentClip.current
+      currentClip.current = next
+
+      const fadeOutStand = () => {
+        idleA?.fadeOut(FADE)
+        walkA?.fadeOut(FADE)
+        runA?.fadeOut(FADE)
       }
+      const fadeOutCrouch = () => {
+        crouchIdleA?.fadeOut(CROUCH_FADE)
+        crouchWalkA?.fadeOut(CROUCH_FADE)
+        // Layered walk used as crouch_walk substitute
+        if (!crouchWalkA && prev === 'crouchWalk') walkA?.fadeOut(CROUCH_FADE)
+      }
+
+      if (next === 'idle' && idleA) {
+        fadeOutCrouch()
+        walkA?.fadeOut(FADE)
+        runA?.fadeOut(FADE)
+        idleA.reset().setEffectiveTimeScale(1).setEffectiveWeight(1).fadeIn(FADE).play()
+        idleA.setLoop(THREE.LoopRepeat, Infinity)
+      } else if (next === 'walk' && walkA) {
+        fadeOutCrouch()
+        idleA?.fadeOut(FADE)
+        runA?.fadeOut(FADE)
+        walkA.reset().setEffectiveTimeScale(1).setEffectiveWeight(1).fadeIn(FADE).play()
+        walkA.setLoop(THREE.LoopRepeat, Infinity)
+      } else if (next === 'run' && runA) {
+        fadeOutCrouch()
+        idleA?.fadeOut(FADE)
+        walkA?.fadeOut(FADE)
+        runA.reset().setEffectiveTimeScale(1.08).setEffectiveWeight(1).fadeIn(FADE).play()
+        runA.setLoop(THREE.LoopRepeat, Infinity)
+      } else if (next === 'crouchIdle') {
+        fadeOutStand()
+        crouchWalkA?.fadeOut(CROUCH_FADE)
+        if (!crouchWalkA && prev === 'crouchWalk') walkA?.fadeOut(CROUCH_FADE)
+        if (crouchIdleA) {
+          crouchIdleA.reset().setEffectiveTimeScale(0.05).setEffectiveWeight(1).fadeIn(FADE).play()
+          crouchIdleA.setLoop(THREE.LoopRepeat, Infinity)
+        }
+      } else if (next === 'crouchWalk') {
+        fadeOutStand()
+        if (crouchWalkA) {
+          crouchIdleA?.fadeOut(CROUCH_FADE)
+          crouchWalkA
+            .reset()
+            .setEffectiveTimeScale(1)
+            .setEffectiveWeight(1)
+            .fadeIn(CROUCH_FADE)
+            .play()
+          crouchWalkA.setLoop(THREE.LoopRepeat, Infinity)
+        } else if (crouchIdleA && walkA) {
+          // No dedicated crouch_walk in the GLB — layer sneak_pose + walk.
+          crouchIdleA
+            .reset()
+            .setEffectiveTimeScale(0.35)
+            .setEffectiveWeight(0.75)
+            .fadeIn(CROUCH_FADE)
+            .play()
+          crouchIdleA.setLoop(THREE.LoopRepeat, Infinity)
+          walkA
+            .reset()
+            .setEffectiveTimeScale(0.7)
+            .setEffectiveWeight(0.5)
+            .fadeIn(CROUCH_FADE)
+            .play()
+          walkA.setLoop(THREE.LoopRepeat, Infinity)
+        } else if (crouchIdleA) {
+          crouchIdleA.reset().setEffectiveTimeScale(0.35).setEffectiveWeight(1).fadeIn(FADE).play()
+          crouchIdleA.setLoop(THREE.LoopRepeat, Infinity)
+        }
+      }
+    } else if (next === 'crouchIdle' && crouchIdleA) {
+      crouchIdleA.setEffectiveTimeScale(0.05)
+    } else if (next === 'crouchWalk') {
+      if (crouchWalkA) {
+        crouchWalkA.setEffectiveTimeScale(1)
+      } else {
+        crouchIdleA?.setEffectiveWeight(0.75)
+        crouchIdleA?.setEffectiveTimeScale(0.35)
+        walkA?.setEffectiveWeight(0.5)
+        walkA?.setEffectiveTimeScale(0.7)
+      }
+    } else if (next === 'run' && runA) {
+      runA.setEffectiveTimeScale(1.08)
     }
 
-    const action = currentClip.current ? actions[currentClip.current] : null
-    if (action) {
-      if (currentClip.current === 'sneak_pose') {
-        action.setEffectiveTimeScale(moving ? 0.35 : 0.05)
-      } else {
-        action.setEffectiveTimeScale(isSprinting && next === 'run' ? 1.08 : 1)
-      }
+    // Head bone → local height above feet (after this frame's pose).
+    // Mixer is updated by useAnimations; sample after animation weights settle.
+    if (root.current && headBone.current) {
+      headBone.current.updateWorldMatrix(true, false)
+      headBone.current.getWorldPosition(worldPos)
+      root.current.worldToLocal(localPos.copy(worldPos))
+      const eye = localPos.y + CAMERA.headEyeOffset
+      const smoothed = THREE.MathUtils.damp(avatarPose.headHeight, eye, CAMERA.headFollow, dt)
+      avatarPose.headHeight = THREE.MathUtils.clamp(smoothed, 0.55, PLAYER.height + 0.2)
+      const standH = CAMERA.height
+      const crouchH = PLAYER.crouchHeight * 0.95
+      avatarPose.crouchBlend = THREE.MathUtils.clamp(
+        (standH - avatarPose.headHeight) / Math.max(0.01, standH - crouchH),
+        0,
+        1,
+      )
+      avatarPose.ready = true
     }
 
     // Mixamo faces +Z; flip so chase cam on +Z sees the back.
@@ -140,7 +274,7 @@ function MixamoHuman({ yawRef, movingRef }: Props) {
   )
 }
 
-/** Capsule fallback while the GLB loads — crouches by lowering the torso, not squashing. */
+/** Capsule fallback while the GLB loads — drops torso, never squashes. */
 function FallbackHuman({ yawRef, movingRef }: Props) {
   const root = useRef<THREE.Group>(null)
   const torso = useRef<THREE.Group>(null)
@@ -158,7 +292,6 @@ function FallbackHuman({ yawRef, movingRef }: Props) {
     const target = isCrouching ? 1 : 0
     crouchBlend.current = THREE.MathUtils.lerp(crouchBlend.current, target, 1 - Math.exp(-12 * dt))
 
-    // Drop torso; feet stay planted — mirrors capsule top lowering.
     torso.current.position.y = THREE.MathUtils.lerp(0, -0.55, crouchBlend.current)
     torso.current.rotation.x = THREE.MathUtils.lerp(0, 0.35, crouchBlend.current)
 
@@ -167,6 +300,16 @@ function FallbackHuman({ yawRef, movingRef }: Props) {
     const swing = Math.sin(performance.now() * 0.001 * rate) * amp * (moving ? 1 : 0)
     if (legL.current) legL.current.rotation.x = swing
     if (legR.current) legR.current.rotation.x = -swing
+
+    const headY = THREE.MathUtils.lerp(1.58, 1.03, crouchBlend.current)
+    avatarPose.headHeight = THREE.MathUtils.damp(
+      avatarPose.headHeight,
+      headY,
+      CAMERA.headFollow,
+      dt,
+    )
+    avatarPose.crouchBlend = crouchBlend.current
+    avatarPose.ready = true
   })
 
   return (
