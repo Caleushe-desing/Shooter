@@ -5,6 +5,7 @@ export type EnemyMode = 'patrol' | 'chase' | 'search'
 export type Enemy = {
   id: number
   x: number
+  y: number
   z: number
   yaw: number
   hp: number
@@ -52,6 +53,7 @@ export function spawnEnemy(x: number, z: number, opts: SpawnEnemyOpts = {}): Ene
   const enemy: Enemy = {
     id: nextId++,
     x,
+    y: 0,
     z,
     yaw: Math.random() * Math.PI * 2,
     hp: ENEMY.hp,
@@ -89,10 +91,10 @@ export function enemyHitBox(e: Enemy) {
   const r = ENEMY.radius
   return {
     minX: e.x - r,
-    minY: 0.1,
+    minY: e.y + 0.1,
     minZ: e.z - r,
     maxX: e.x + r,
-    maxY: ENEMY.height,
+    maxY: e.y + ENEMY.height,
     maxZ: e.z + r,
   }
 }

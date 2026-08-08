@@ -116,7 +116,8 @@ function MixamoHuman({ yawRef, movingRef }: Props) {
 
   return (
     <group ref={root}>
-      <group ref={modelRef} scale={fitScale} position={[0, footOffset, 0]}>
+      {/* Tiny lift so soles clear the ground mesh (avoids z-fight / sink). */}
+      <group ref={modelRef} scale={fitScale} position={[0, footOffset + 0.02, 0]}>
         <primitive object={clone} />
       </group>
     </group>

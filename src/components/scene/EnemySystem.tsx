@@ -5,6 +5,8 @@ import {
   COLLISION,
   clampToArena,
   resolveCircleSolids,
+  findSupportY,
+  resolveSunkFeet,
   hasLineOfSight,
 } from '../../constants'
 import { buildHavenInspiredMap } from '../../map/havenLayout'
@@ -19,6 +21,7 @@ import {
   type Enemy,
 } from '../../combat/enemies'
 import { buildEnemyWaypoints, randomEnemySpawns } from '../../combat/spawnPoints'
+import { createFootstepClock, playFootstep } from '../../audio/footsteps'
 import { useGameStore } from '../../store/gameStore'
 import { EnemyRig } from './EnemyRig'
 
@@ -49,13 +52,18 @@ function canSeePlayer(e: Enemy, px: number, pz: number) {
 export function EnemySystem() {
   const lastRunId = useRef(useGameStore.getState().runId)
   const waypoints = useMemo(() => buildEnemyWaypoints(), [])
+  const footClocks = useRef(new Map<number, ReturnType<typeof createFootstepClock>>())
   const [, bump] = useState(0)
 
   const resetAll = () => {
     clearEnemies()
+    footClocks.current.clear()
     const spots = randomEnemySpawns(ENEMY.count)
     spots.forEach((s, i) => {
-      spawnEnemy(s.x, s.z, { waypoint: i % Math.max(1, waypoints.length) })
+      const e = spawnEnemy(s.x, s.z, { waypoint: i % Math.max(1, waypoints.length) })
+      const support = findSupportY(e.x, e.z, 0.5, ENEMY.radius, MAP_SOLIDS, 2)
+      e.y = support
+      footClocks.current.set(e.id, createFootstepClock(0.42, 0.28))
     })
     useGameStore.getState().setEnemyCount(aliveEnemyCount())
     bump((n) => n + 1)
@@ -186,12 +194,37 @@ export function EnemySystem() {
           bounded.z,
           ENEMY.radius,
           MAP_SOLIDS,
-          0,
+          e.y,
           ENEMY.height,
           COLLISION.stepHeight,
         )
         e.x = hit.x
         e.z = hit.z
+      }
+
+      // Keep hunters on walkable tops (stairs / ledges) — no sinking.
+      const support = findSupportY(
+        e.x,
+        e.z,
+        e.y + 0.15,
+        ENEMY.radius * COLLISION.supportRadiusScale,
+        MAP_SOLIDS,
+        Math.max(0.6, COLLISION.stepHeight + 0.25),
+      )
+      e.y = support
+      e.y = resolveSunkFeet(e.x, e.z, e.y, ENEMY.radius, MAP_SOLIDS)
+
+      if (e.moving) {
+        let clock = footClocks.current.get(e.id)
+        if (!clock) {
+          clock = createFootstepClock(0.42, 0.28)
+          footClocks.current.set(e.id, clock)
+        }
+        const running = e.mode === 'chase' || e.mode === 'search'
+        const hearDist = Math.hypot(px - e.x, pz - e.z)
+        clock.tick(dt, true, running, (kind) => playFootstep(kind, hearDist))
+      } else {
+        footClocks.current.get(e.id)?.reset()
       }
 
       if (e.mode === 'chase' && e.stun <= 0 && dist <= ENEMY.catchRange) {

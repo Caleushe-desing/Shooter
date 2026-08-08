@@ -186,9 +186,11 @@ export const COLLISION = {
   /** Max lip the player can walk onto without jumping (meters). */
   stepHeight: 0.28,
   /** Extra reach when snapping feet onto a surface while falling. */
-  landSnap: 0.2,
+  landSnap: 0.45,
   /** Probe radius scale vs body radius for ground support checks. */
-  supportRadiusScale: 0.72,
+  supportRadiusScale: 0.95,
+  /** If feet sink into a top surface within this depth, snap up. */
+  antiSinkDepth: 0.9,
 } as const
 
 /**
@@ -291,7 +293,7 @@ function circleHitsSolidXZ(
 
 /**
  * Highest walkable surface under/near the feet (arena floor = 0).
- * `maxReach` limits how far above the feet we still consider a top.
+ * Multi-samples around the capsule so thin stair treads don't drop support.
  */
 export function findSupportY(
   x: number,
@@ -301,14 +303,53 @@ export function findSupportY(
   solids: readonly SolidBox[],
   maxReach: number = COLLISION.landSnap,
 ): number {
+  const probes: [number, number][] = [
+    [0, 0],
+    [radius * 0.55, 0],
+    [-radius * 0.55, 0],
+    [0, radius * 0.55],
+    [0, -radius * 0.55],
+    [radius * 0.4, radius * 0.4],
+    [-radius * 0.4, radius * 0.4],
+    [radius * 0.4, -radius * 0.4],
+    [-radius * 0.4, -radius * 0.4],
+  ]
   let best = 0
-  for (const box of solids) {
-    if (!circleHitsSolidXZ(x, z, radius, box)) continue
-    if (box.maxY <= feetY + maxReach && box.maxY > best) {
-      best = box.maxY
+  const sampleR = Math.max(0.08, radius * 0.35)
+  for (const [ox, oz] of probes) {
+    const px = x + ox
+    const pz = z + oz
+    for (const box of solids) {
+      if (!circleHitsSolidXZ(px, pz, sampleR, box)) continue
+      if (box.maxY <= feetY + maxReach && box.maxY > best) {
+        best = box.maxY
+      }
     }
   }
   return best
+}
+
+/**
+ * If feet have sunk into the top of a solid (common on stair edges),
+ * snap them onto the surface. Ignores deep wall volumes.
+ */
+export function resolveSunkFeet(
+  x: number,
+  z: number,
+  feetY: number,
+  radius: number,
+  solids: readonly SolidBox[],
+  depth: number = COLLISION.antiSinkDepth,
+): number {
+  let y = feetY
+  for (const box of solids) {
+    if (!circleHitsSolidXZ(x, z, radius * 0.9, box)) continue
+    // Feet inside the top band of this solid → pop onto the top.
+    if (y < box.maxY && y > box.maxY - depth && y >= box.minY - 0.02) {
+      y = Math.max(y, box.maxY)
+    }
+  }
+  return y
 }
 
 /** Clamp rising head against solid undersides. */

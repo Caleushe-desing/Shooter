@@ -85,7 +85,7 @@ export function EnemyRig({ enemy }: Props) {
 
   useFrame(() => {
     if (!root.current || !modelRef.current || !enemy.alive) return
-    root.current.position.set(enemy.x, 0, enemy.z)
+    root.current.position.set(enemy.x, enemy.y, enemy.z)
     root.current.rotation.y = enemy.yaw
     root.current.visible = enemy.alive
 
@@ -135,7 +135,7 @@ export function EnemyRig({ enemy }: Props) {
 
   return (
     <group ref={root}>
-      <group ref={modelRef} scale={fitScale} position={[0, footOffset, 0]}>
+      <group ref={modelRef} scale={fitScale} position={[0, footOffset + 0.02, 0]}>
         <primitive object={clone} />
       </group>
     </group>
