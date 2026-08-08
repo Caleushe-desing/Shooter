@@ -62,7 +62,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   lookDy: 0,
 
   playerX: initialMap.spawn.x,
-  playerY: 0,
+  playerY: initialMap.spawn.y,
   playerZ: initialMap.spawn.z,
   runId: 1,
   cameraMode: 'third',
@@ -144,7 +144,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({
       map,
       playerX: map.spawn.x,
-      playerY: 0,
+      playerY: map.spawn.y,
       playerZ: map.spawn.z,
       runId: get().runId + 1,
     })
@@ -161,7 +161,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       jumpQueued: false,
       map,
       playerX: map.spawn.x,
-      playerY: 0,
+      playerY: map.spawn.y,
       playerZ: map.spawn.z,
       cameraMode: 'third',
       runId: get().runId + 1,

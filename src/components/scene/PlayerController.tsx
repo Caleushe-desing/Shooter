@@ -3,14 +3,14 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { PerspectiveCamera } from '@react-three/drei'
 import * as THREE from 'three'
 import { PLAYER, CAMERA, clampToArena } from '../../constants'
-import { resolveCircleSolids } from '../../map/proceduralLayout'
+import { integrateVertical, resolveHorizontal } from '../../map/collision'
 import { useGameStore } from '../../store/gameStore'
 import { PlayerAvatar } from './PlayerAvatar'
 import { mobileLookStick } from '../../input/mobileLookStick'
 
 /**
- * Character controller: walk / run / jump + TPS / FPS / top camera.
- * Collides against procedural building solids.
+ * Character controller with height-aware AABB collision.
+ * Walks on roofs / crates / trench floors without sinking through solids.
  */
 export function PlayerController() {
   const { gl, camera } = useThree()
@@ -23,7 +23,7 @@ export function PlayerController() {
   const bodyYaw = useRef(0)
   const moving = useRef(false)
   const spawn = useGameStore.getState().map.spawn
-  const pos = useRef(new THREE.Vector3(spawn.x, 0, spawn.z))
+  const pos = useRef(new THREE.Vector3(spawn.x, spawn.y, spawn.z))
   const velY = useRef(0)
   const grounded = useRef(true)
   const forward = useRef(new THREE.Vector3())
@@ -131,6 +131,7 @@ export function PlayerController() {
     const game = useGameStore.getState()
     const firstPerson = game.cameraMode === 'first'
     const topDown = game.cameraMode === 'top'
+    const { solids, trenches } = game.map
 
     if (lastCamMode.current !== game.cameraMode) {
       lastCamMode.current = game.cameraMode
@@ -141,7 +142,7 @@ export function PlayerController() {
     }
     if (game.runId !== runId.current) {
       runId.current = game.runId
-      pos.current.set(game.map.spawn.x, 0, game.map.spawn.z)
+      pos.current.set(game.map.spawn.x, game.map.spawn.y, game.map.spawn.z)
       velY.current = 0
       grounded.current = true
       lookYaw.current = 0
@@ -174,7 +175,6 @@ export function PlayerController() {
     const wishMoving = Math.abs(moveX) > 1e-6 || Math.abs(moveZ) > 1e-6
     const sprinting = game.tickStamina(dt, sprint, wishMoving)
 
-    rig.current.position.set(pos.current.x, pos.current.y, pos.current.z)
     const persp = camera as THREE.PerspectiveCamera
 
     if (topDown) {
@@ -233,13 +233,27 @@ export function PlayerController() {
       const speed = PLAYER.speed * (sprinting ? PLAYER.runMul : 1)
       wish.current.normalize().multiplyScalar(speed * dt)
 
-      // Separate-axis resolve so walls slide instead of sticky-stop.
+      // Separate-axis horizontal resolve against height-aware AABBs.
       let nextX = pos.current.x + wish.current.x
       let nextZ = pos.current.z
-      let hit = resolveCircleSolids(nextX, nextZ, PLAYER.radius, game.map.solids)
+      let hit = resolveHorizontal(
+        nextX,
+        nextZ,
+        pos.current.y,
+        PLAYER.radius,
+        PLAYER.height,
+        solids,
+      )
       nextX = hit.x
       nextZ = pos.current.z + wish.current.z
-      hit = resolveCircleSolids(nextX, nextZ, PLAYER.radius, game.map.solids)
+      hit = resolveHorizontal(
+        nextX,
+        nextZ,
+        pos.current.y,
+        PLAYER.radius,
+        PLAYER.height,
+        solids,
+      )
       const bounded = clampToArena(hit.x, hit.z, PLAYER.radius)
       pos.current.x = bounded.x
       pos.current.z = bounded.z
@@ -252,24 +266,32 @@ export function PlayerController() {
       grounded.current = false
     }
 
-    if (!grounded.current || velY.current !== 0) {
-      velY.current -= PLAYER.gravity * dt
-      pos.current.y += velY.current * dt
-      if (velY.current <= 0 && pos.current.y <= 0) {
-        pos.current.y = 0
-        velY.current = 0
-        grounded.current = true
-      }
-    } else {
-      pos.current.y = 0
-    }
+    const vert = integrateVertical(
+      {
+        x: pos.current.x,
+        y: pos.current.y,
+        z: pos.current.z,
+        velY: velY.current,
+        grounded: grounded.current,
+      },
+      dt,
+      solids,
+      trenches,
+      PLAYER.gravity,
+      PLAYER.radius,
+    )
+    pos.current.x = vert.x
+    pos.current.y = vert.y
+    pos.current.z = vert.z
+    velY.current = vert.velY
+    grounded.current = vert.grounded
 
     rig.current.position.set(pos.current.x, pos.current.y, pos.current.z)
     game.setPlayerPos(pos.current.x, pos.current.y, pos.current.z)
   }, -1)
 
   return (
-    <group ref={rig} position={[spawn.x, 0, spawn.z]}>
+    <group ref={rig} position={[spawn.x, spawn.y, spawn.z]}>
       <group ref={avatarRoot}>
         <PlayerAvatar yawRef={bodyYaw} movingRef={moving} />
       </group>
