@@ -25,8 +25,8 @@ export const STAMINA = {
 export const PLAYER = {
   height: 1.72,
   radius: 0.35,
-  speed: 4.2,
-  runMul: 1.7,
+  speed: 4,
+  runMul: 2,
   /** Vertical launch speed (m/s) — clears ~1.3 m pads/crates. */
   jumpSpeed: 6.5,
   /** Gravity while airborne (m/s²). */
@@ -135,14 +135,14 @@ export const WEAPON_AMMO = {
 export const GHOST = {
   radius: 0.42,
   height: 1.65,
-  speed: 4.2,
-  chaseSpeed: 5.2,
+  speed: 4,
+  chaseSpeed: 5,
   hp: 2,
   catchRange: 1.05,
   visionRange: 18,
   loseRange: 26,
   stunTime: 2.8,
-  patrolSpeed: 4.2,
+  patrolSpeed: 4,
   color: '#E8F0FF',
   eyeColor: '#152033',
   /** Initial spawn points (near mid + far map edges). */

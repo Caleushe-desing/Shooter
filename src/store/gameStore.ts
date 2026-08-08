@@ -233,6 +233,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       playerX: PLAYER.spawn.x,
       playerY: 0,
       playerZ: PLAYER.spawn.z,
+      cameraMode: 'top',
       runId: get().runId + 1,
     })
   },
