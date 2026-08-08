@@ -14,6 +14,12 @@ export type Ghost = {
   /** Flash on hit. */
   hitFlash: number
   chasing: boolean
+  /**
+   * Walking from a portal to the death/spawn site of the ghost it replaces.
+   * Null when already on normal AI.
+   */
+  replaceX: number | null
+  replaceZ: number | null
 }
 
 type HitBox = {
@@ -43,7 +49,13 @@ export function aliveGhostCount() {
   return n
 }
 
-export function spawnGhost(x: number, z: number, waypoint = 0): Ghost {
+export type SpawnGhostOpts = {
+  waypoint?: number
+  replaceX?: number | null
+  replaceZ?: number | null
+}
+
+export function spawnGhost(x: number, z: number, opts: SpawnGhostOpts = {}): Ghost {
   const ghost: Ghost = {
     id: nextId++,
     x,
@@ -52,26 +64,31 @@ export function spawnGhost(x: number, z: number, waypoint = 0): Ghost {
     hp: GHOST.hp,
     alive: true,
     stun: 0,
-    waypoint,
+    waypoint: opts.waypoint ?? 0,
     hitFlash: 0,
     chasing: false,
+    replaceX: opts.replaceX ?? null,
+    replaceZ: opts.replaceZ ?? null,
   }
   ghosts.push(ghost)
   return ghost
 }
 
-/** Damage a ghost. Returns true if banished. */
-export function hurtGhost(id: number, amount: number): boolean {
+/** Damage a ghost. Returns death position if banished, else null. */
+export function hurtGhost(
+  id: number,
+  amount: number,
+): { x: number; z: number } | null {
   const g = ghosts.find((en) => en.id === id && en.alive)
-  if (!g) return false
+  if (!g) return null
   g.hp -= amount
   g.hitFlash = 0.25
   g.stun = Math.max(g.stun, GHOST.stunTime)
   if (g.hp <= 0) {
     g.alive = false
-    return true
+    return { x: g.x, z: g.z }
   }
-  return false
+  return null
 }
 
 export function ghostHitBox(g: Ghost): HitBox {

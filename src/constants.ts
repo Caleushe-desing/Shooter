@@ -131,6 +131,21 @@ export const WEAPON_AMMO = {
   start: 6,
 } as const
 
+/** Galaxy ghost portals — random placement each run. */
+export const PORTAL = {
+  count: 3,
+  /** Outer ring radius (meters). */
+  radius: 1.35,
+  /** Keep portals this far apart. */
+  minSeparation: 18,
+  /** Stay clear of player spawn. */
+  clearPlayer: 14,
+  /** Inset from arena walls when sampling. */
+  margin: 8,
+  /** Max attempts when sampling a free spot. */
+  placeAttempts: 80,
+} as const
+
 /** Pursuing ghosts (classic dome + wavy skirt silhouette). */
 export const GHOST = {
   radius: 0.42,
@@ -143,9 +158,11 @@ export const GHOST = {
   loseRange: 26,
   stunTime: 2.8,
   patrolSpeed: 4,
+  /** How many ghosts stay on the map at once. */
+  count: 8,
   color: '#E8F0FF',
   eyeColor: '#152033',
-  /** Initial spawn points (near mid + far map edges). */
+  /** Destinations used when fanning out from portals at run start. */
   spawns: [
     { x: 8, z: 4 },
     { x: -10, z: 6 },

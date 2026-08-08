@@ -8,10 +8,13 @@ import {
   resolveCircleSolids,
 } from '../../constants'
 import { buildHavenInspiredMap } from '../../map/havenLayout'
+import { takeNextPortal, ensurePortalsForRun } from '../../map/portals'
 import {
   clearGhosts,
   getGhosts,
   spawnGhost,
+  pruneDeadGhosts,
+  aliveGhostCount,
   type Ghost,
 } from '../../combat/ghosts'
 import { useGameStore } from '../../store/gameStore'
@@ -20,8 +23,8 @@ import { createGhostBodyGeometry } from './ghostGeometry'
 const MAP_SOLIDS = buildHavenInspiredMap().solids
 
 /**
- * Ghost pursuers: patrol until the player enters vision, then chase.
- * Catching the player triggers Game Over. Hits stun / banish via WeaponSystem.
+ * Ghost pursuers: emerge from galaxy portals, walk to replace sites,
+ * then patrol / chase. Deaths respawn at the next portal (round-robin).
  */
 export function GhostSystem() {
   const root = useRef<THREE.Group>(null)
@@ -114,12 +117,24 @@ export function GhostSystem() {
     meshById.current.delete(id)
   }
 
+  const spawnFromPortal = (replaceX: number, replaceZ: number, waypoint: number) => {
+    const portal = takeNextPortal()
+    spawnGhost(portal.x, portal.z, {
+      waypoint,
+      replaceX,
+      replaceZ,
+    })
+  }
+
   const resetAll = () => {
     clearGhosts()
     for (const id of [...meshById.current.keys()]) removeMesh(id)
-    GHOST.spawns.forEach((s, i) => {
-      spawnGhost(s.x, s.z, i % GHOST.waypoints.length)
+    ensurePortalsForRun(useGameStore.getState().runId)
+    const targets = GHOST.spawns.slice(0, GHOST.count)
+    targets.forEach((s, i) => {
+      spawnFromPortal(s.x, s.z, i % GHOST.waypoints.length)
     })
+    useGameStore.getState().setGhostCount(aliveGhostCount())
   }
 
   useEffect(() => {
@@ -142,13 +157,25 @@ export function GhostSystem() {
       resetAll()
     }
 
+    // Respawn replacements for any dead ghosts (round-robin portals).
+    const before = getGhosts()
+    const deaths: { x: number; z: number; waypoint: number }[] = []
+    for (const g of before) {
+      if (!g.alive) {
+        deaths.push({ x: g.x, z: g.z, waypoint: g.waypoint })
+        removeMesh(g.id)
+      }
+    }
+    if (deaths.length > 0) {
+      pruneDeadGhosts()
+      for (const d of deaths) spawnFromPortal(d.x, d.z, d.waypoint)
+    }
+
     const list = getGhosts()
     for (const g of list) ensureMesh(g)
 
-    for (const [id] of meshById.current) {
-      const g = list.find((e) => e.id === id)
-      if (!g || !g.alive) removeMesh(id)
-    }
+    const count = aliveGhostCount()
+    if (count !== game.ghostCount) game.setGhostCount(count)
 
     if (game.status !== 'playing') return
 
@@ -165,30 +192,44 @@ export function GhostSystem() {
       const dz = pz - g.z
       const dist = Math.hypot(dx, dz)
 
-      if (dist < GHOST.visionRange) g.chasing = true
-      if (dist > GHOST.loseRange) g.chasing = false
-
       if (g.stun <= 0) {
         let tx = g.x
         let tz = g.z
         let speed: number = GHOST.patrolSpeed
 
-        if (g.chasing && dist > 0.05) {
-          speed = GHOST.chaseSpeed
-          tx = g.x + (dx / dist) * speed * dt
-          tz = g.z + (dz / dist) * speed * dt
-          g.yaw = Math.atan2(-dx, -dz)
-        } else {
-          const wp = GHOST.waypoints[g.waypoint % GHOST.waypoints.length]
-          const wdx = wp.x - g.x
-          const wdz = wp.z - g.z
-          const wd = Math.hypot(wdx, wdz)
-          if (wd < 1.2) {
-            g.waypoint = (g.waypoint + 1) % GHOST.waypoints.length
+        if (g.replaceX !== null && g.replaceZ !== null) {
+          const rdx = g.replaceX - g.x
+          const rdz = g.replaceZ - g.z
+          const rd = Math.hypot(rdx, rdz)
+          if (rd < 1.1) {
+            g.replaceX = null
+            g.replaceZ = null
           } else {
-            tx = g.x + (wdx / wd) * speed * dt
-            tz = g.z + (wdz / wd) * speed * dt
-            g.yaw = Math.atan2(-wdx, -wdz)
+            tx = g.x + (rdx / rd) * speed * dt
+            tz = g.z + (rdz / rd) * speed * dt
+            g.yaw = Math.atan2(-rdx, -rdz)
+          }
+        } else {
+          if (dist < GHOST.visionRange) g.chasing = true
+          if (dist > GHOST.loseRange) g.chasing = false
+
+          if (g.chasing && dist > 0.05) {
+            speed = GHOST.chaseSpeed
+            tx = g.x + (dx / dist) * speed * dt
+            tz = g.z + (dz / dist) * speed * dt
+            g.yaw = Math.atan2(-dx, -dz)
+          } else {
+            const wp = GHOST.waypoints[g.waypoint % GHOST.waypoints.length]
+            const wdx = wp.x - g.x
+            const wdz = wp.z - g.z
+            const wd = Math.hypot(wdx, wdz)
+            if (wd < 1.2) {
+              g.waypoint = (g.waypoint + 1) % GHOST.waypoints.length
+            } else {
+              tx = g.x + (wdx / wd) * speed * dt
+              tz = g.z + (wdz / wd) * speed * dt
+              g.yaw = Math.atan2(-wdx, -wdz)
+            }
           }
         }
 
@@ -206,7 +247,12 @@ export function GhostSystem() {
         g.z = hit.z
       }
 
-      if (g.stun <= 0 && dist <= GHOST.catchRange) {
+      // Only catch once the replacement walk is done.
+      if (
+        g.replaceX === null &&
+        g.stun <= 0 &&
+        dist <= GHOST.catchRange
+      ) {
         useGameStore.getState().setLost()
       }
 

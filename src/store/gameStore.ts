@@ -10,6 +10,7 @@ import {
 } from '../constants'
 import { ORB_SPAWNS } from '../map/pickupsLayout'
 import { clearGhosts } from '../combat/ghosts'
+import { clearPortals } from '../map/portals'
 
 type InputState = {
   moveX: number
@@ -45,8 +46,11 @@ type GameState = {
   staminaRecovering: boolean
   /** Effective sprint this frame (after stamina rules). */
   isSprinting: boolean
+  /** Alive ghosts currently on the map. */
+  ghostCount: number
 
   setMove: (x: number, z: number) => void
+  setGhostCount: (n: number) => void
   setSprint: (on: boolean) => void
   toggleSprint: () => void
   /**
@@ -88,7 +92,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   playerY: 0,
   playerZ: PLAYER.spawn.z,
   runId: 1,
-  cameraMode: 'top',
+  cameraMode: 'third',
   topCamHeight: CAMERA.topHeight,
 
   status: 'playing',
@@ -100,8 +104,12 @@ export const useGameStore = create<GameState>((set, get) => ({
   stamina: 1,
   staminaRecovering: false,
   isSprinting: false,
+  ghostCount: 0,
 
   setMove: (x, z) => set((s) => ({ input: { ...s.input, moveX: x, moveZ: z } })),
+  setGhostCount: (n) => {
+    if (get().ghostCount !== n) set({ ghostCount: n })
+  },
   setSprint: (on) => set((s) => ({ input: { ...s.input, sprint: on } })),
   toggleSprint: () =>
     set((s) => {
@@ -218,6 +226,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   restartRun: () => {
     clearGhosts()
+    clearPortals()
     set({
       status: 'playing',
       score: 0,
@@ -230,6 +239,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       stamina: 1,
       staminaRecovering: false,
       isSprinting: false,
+      ghostCount: 0,
       playerX: PLAYER.spawn.x,
       playerY: 0,
       playerZ: PLAYER.spawn.z,
