@@ -2,7 +2,6 @@ import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { PORTAL } from '../../constants'
-import type { PortalSpot } from '../../map/portals'
 
 const galaxyVert = /* glsl */ `
   varying vec2 vUv;
@@ -25,68 +24,41 @@ const galaxyFrag = /* glsl */ `
     float r = length(p);
     if (r > 0.98) discard;
 
-    float angle = atan(p.y, p.x) + uTime * 0.18;
-    float arms = 0.55 + 0.45 * sin(angle * 3.0 + r * 10.0 - uTime * 0.7);
-    float core = exp(-r * 4.2) * 1.4;
-    float disk = smoothstep(0.95, 0.15, r) * arms;
+    float angle = atan(p.y, p.x) + uTime * 0.15;
+    float arms = 0.55 + 0.45 * sin(angle * 4.0 + r * 12.0 - uTime * 0.8);
+    float core = exp(-r * 3.6) * 1.55;
+    float disk = smoothstep(0.95, 0.12, r) * arms;
 
-    vec3 nebula = mix(vec3(0.12, 0.05, 0.35), vec3(0.55, 0.2, 0.85), disk);
-    nebula = mix(nebula, vec3(0.2, 0.55, 0.95), smoothstep(0.55, 0.05, r) * 0.65);
-    nebula += vec3(1.0, 0.85, 0.55) * core;
+    vec3 nebula = mix(vec3(0.08, 0.03, 0.28), vec3(0.65, 0.18, 0.9), disk);
+    nebula = mix(nebula, vec3(0.15, 0.5, 1.0), smoothstep(0.6, 0.05, r) * 0.7);
+    nebula += vec3(1.0, 0.82, 0.5) * core;
 
-    float stars = step(0.992, hash(floor(p * 48.0 + uTime * 0.05)));
-    stars += step(0.997, hash(floor(p * 90.0 - uTime * 0.02))) * 0.8;
+    float stars = step(0.99, hash(floor(p * 56.0 + uTime * 0.04)));
+    stars += step(0.996, hash(floor(p * 110.0 - uTime * 0.02))) * 0.85;
     nebula += vec3(0.95, 0.97, 1.0) * stars;
 
-    float alpha = smoothstep(0.98, 0.2, r) * (0.55 + disk * 0.4 + core * 0.25);
+    float alpha = smoothstep(0.98, 0.15, r) * (0.72 + disk * 0.35 + core * 0.2);
     gl_FragColor = vec4(nebula, alpha);
   }
 `
 
-type Props = {
-  portal: PortalSpot
-}
-
-/** Vertical stargate-like ring with a swirling galaxy disc. */
-export function GalaxyPortal({ portal }: Props) {
+/** Oversized horizontal galaxy rift at arena center. */
+export function SuperGalaxyPortal() {
   const galaxyMat = useRef<THREE.ShaderMaterial>(null)
-  const ringRef = useRef<THREE.Mesh>(null)
-  const glowRef = useRef<THREE.Mesh>(null)
+  const ringRef = useRef<THREE.Group>(null)
   const uniforms = useMemo(() => ({ uTime: { value: 0 } }), [])
+  const R = PORTAL.radius
 
   useFrame((_, dt) => {
     if (galaxyMat.current) galaxyMat.current.uniforms.uTime.value += dt
-    if (ringRef.current) ringRef.current.rotation.z += dt * 0.35
-    if (glowRef.current) {
-      const s = 1 + Math.sin(performance.now() * 0.003 + portal.id) * 0.04
-      glowRef.current.scale.setScalar(s)
-    }
+    if (ringRef.current) ringRef.current.rotation.z += dt * 0.22
   })
 
   return (
-    <group position={[portal.x, PORTAL.radius + 0.15, portal.z]} rotation={[0, portal.yaw, 0]}>
-      <mesh castShadow>
-        <torusGeometry args={[PORTAL.radius, 0.22, 10, 40]} />
-        <meshStandardMaterial
-          color="#2A2438"
-          metalness={0.65}
-          roughness={0.35}
-          emissive="#3A2060"
-          emissiveIntensity={0.35}
-        />
-      </mesh>
-      <mesh ref={ringRef}>
-        <torusGeometry args={[PORTAL.radius, 0.12, 12, 48]} />
-        <meshStandardMaterial
-          color="#6B4CFF"
-          metalness={0.4}
-          roughness={0.25}
-          emissive="#7A5CFF"
-          emissiveIntensity={0.85}
-        />
-      </mesh>
-      <mesh>
-        <circleGeometry args={[PORTAL.radius * 0.92, 48]} />
+    <group position={[PORTAL.x, 0.04, PORTAL.z]}>
+      {/* Floor galaxy disc */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
+        <circleGeometry args={[R * 0.95, 64]} />
         <shaderMaterial
           ref={galaxyMat}
           vertexShader={galaxyVert}
@@ -97,21 +69,57 @@ export function GalaxyPortal({ portal }: Props) {
           side={THREE.DoubleSide}
         />
       </mesh>
-      <mesh ref={glowRef}>
-        <ringGeometry args={[PORTAL.radius * 0.88, PORTAL.radius * 1.2, 40]} />
+
+      {/* Outer stone ring */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.06, 0]}>
+        <ringGeometry args={[R * 0.95, R * 1.18, 56]} />
+        <meshStandardMaterial
+          color="#1E1830"
+          metalness={0.7}
+          roughness={0.3}
+          emissive="#3A2068"
+          emissiveIntensity={0.45}
+        />
+      </mesh>
+
+      {/* Spinning energy rim */}
+      <group ref={ringRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.08, 0]}>
+        <mesh>
+          <torusGeometry args={[R * 1.02, 0.1, 10, 64]} />
+          <meshStandardMaterial
+            color="#7B5CFF"
+            emissive="#8A6CFF"
+            emissiveIntensity={1.1}
+            metalness={0.35}
+            roughness={0.2}
+          />
+        </mesh>
+      </group>
+
+      {/* Vertical stargate arch for silhouettes emerging */}
+      <mesh position={[0, R * 0.85, 0]} rotation={[0, 0, 0]}>
+        <torusGeometry args={[R * 0.72, 0.16, 12, 48, Math.PI]} />
+        <meshStandardMaterial
+          color="#2A2040"
+          metalness={0.6}
+          roughness={0.35}
+          emissive="#5A30A0"
+          emissiveIntensity={0.55}
+        />
+      </mesh>
+      <mesh position={[0, R * 0.85, 0.02]}>
+        <circleGeometry args={[R * 0.68, 40]} />
         <meshBasicMaterial
-          color="#7B5CFF"
+          color="#4A20A0"
           transparent
-          opacity={0.28}
+          opacity={0.35}
           side={THREE.DoubleSide}
           depthWrite={false}
         />
       </mesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -PORTAL.radius - 0.12, 0]}>
-        <circleGeometry args={[PORTAL.radius * 1.15, 28]} />
-        <meshBasicMaterial color="#4A2A90" transparent opacity={0.22} depthWrite={false} />
-      </mesh>
-      <pointLight color="#8B6CFF" intensity={2.2} distance={8} decay={2} position={[0, 0.2, 0.4]} />
+
+      <pointLight color="#9B70FF" intensity={4.5} distance={16} decay={2} position={[0, 1.2, 0]} />
+      <pointLight color="#60A0FF" intensity={2.2} distance={10} decay={2} position={[0, 0.4, 0]} />
     </group>
   )
 }

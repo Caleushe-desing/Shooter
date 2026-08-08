@@ -1,5 +1,7 @@
 import { GHOST } from '../constants'
 
+export type GhostMode = 'patrol' | 'chase' | 'search'
+
 export type Ghost = {
   id: number
   x: number
@@ -7,28 +9,22 @@ export type Ghost = {
   yaw: number
   hp: number
   alive: boolean
-  /** Seconds remaining of stun (cannot move / catch). */
   stun: number
-  /** Patrol waypoint index. */
   waypoint: number
-  /** Flash on hit. */
   hitFlash: number
-  chasing: boolean
+  mode: GhostMode
+  /** Last place the player was seen / heard / reported. */
+  lastKnownX: number
+  lastKnownZ: number
   /**
-   * Walking from a portal to the death/spawn site of the ghost it replaces.
-   * Null when already on normal AI.
+   * Search countdown (seconds).
+   * For chase→search: starts when LOS lost.
+   * For kill-spawns: starts after arriving at last-known.
    */
-  replaceX: number | null
-  replaceZ: number | null
-}
-
-type HitBox = {
-  minX: number
-  minY: number
-  minZ: number
-  maxX: number
-  maxY: number
-  maxZ: number
+  searchTimer: number
+  /** Kill-spawn: waiting to arrive before starting the 10s search clock. */
+  awaitArrival: boolean
+  alert: boolean
 }
 
 let nextId = 1
@@ -51,8 +47,12 @@ export function aliveGhostCount() {
 
 export type SpawnGhostOpts = {
   waypoint?: number
-  replaceX?: number | null
-  replaceZ?: number | null
+  mode?: GhostMode
+  lastKnownX?: number
+  lastKnownZ?: number
+  awaitArrival?: boolean
+  searchTimer?: number
+  alert?: boolean
 }
 
 export function spawnGhost(x: number, z: number, opts: SpawnGhostOpts = {}): Ghost {
@@ -66,9 +66,12 @@ export function spawnGhost(x: number, z: number, opts: SpawnGhostOpts = {}): Gho
     stun: 0,
     waypoint: opts.waypoint ?? 0,
     hitFlash: 0,
-    chasing: false,
-    replaceX: opts.replaceX ?? null,
-    replaceZ: opts.replaceZ ?? null,
+    mode: opts.mode ?? 'patrol',
+    lastKnownX: opts.lastKnownX ?? x,
+    lastKnownZ: opts.lastKnownZ ?? z,
+    searchTimer: opts.searchTimer ?? 0,
+    awaitArrival: opts.awaitArrival ?? false,
+    alert: opts.alert ?? (opts.mode === 'chase' || opts.mode === 'search'),
   }
   ghosts.push(ghost)
   return ghost
@@ -91,7 +94,7 @@ export function hurtGhost(
   return null
 }
 
-export function ghostHitBox(g: Ghost): HitBox {
+export function ghostHitBox(g: Ghost) {
   const r = GHOST.radius
   return {
     minX: g.x - r,
@@ -106,5 +109,21 @@ export function ghostHitBox(g: Ghost): HitBox {
 export function pruneDeadGhosts() {
   for (let i = ghosts.length - 1; i >= 0; i--) {
     if (!ghosts[i].alive) ghosts.splice(i, 1)
+  }
+}
+
+export function alertGhost(
+  g: Ghost,
+  lx: number,
+  lz: number,
+  mode: GhostMode = 'chase',
+) {
+  g.mode = mode
+  g.alert = true
+  g.lastKnownX = lx
+  g.lastKnownZ = lz
+  if (mode === 'search') {
+    g.searchTimer = GHOST.searchTime
+    g.awaitArrival = false
   }
 }

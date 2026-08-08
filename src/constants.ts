@@ -84,7 +84,11 @@ export const CAMERA = {
   topFar: 120,
 } as const
 
-export type CameraMode = 'third' | 'first' | 'top'
+/**
+ * Shared visibility distance (meters) — matches fog near so ghosts see
+ * the player at the same range the player can clearly see them.
+ */
+export const VIEW_RANGE = 55
 
 /**
  * Third-person aim: tiny off-center point; shots leave the character
@@ -131,62 +135,60 @@ export const WEAPON_AMMO = {
   start: 6,
 } as const
 
-/** Galaxy ghost portals — random placement each run. */
+/** Single super galaxy portal at arena center. */
 export const PORTAL = {
-  count: 3,
+  x: 0,
+  z: 0,
   /** Outer ring radius (meters). */
-  radius: 1.35,
-  /** Keep portals this far apart. */
-  minSeparation: 18,
-  /** Stay clear of player spawn. */
-  clearPlayer: 14,
-  /** Inset from arena walls when sampling. */
-  margin: 8,
-  /** Max attempts when sampling a free spot. */
-  placeAttempts: 80,
+  radius: 2.6,
 } as const
 
 /** Pursuing ghosts (classic dome + wavy skirt silhouette). */
 export const GHOST = {
   radius: 0.42,
   height: 1.65,
-  speed: 4,
   chaseSpeed: 5,
   hp: 2,
   catchRange: 1.05,
-  visionRange: 18,
-  loseRange: 26,
+  /** Same clear-sight range as the player (fog near). */
+  visionRange: VIEW_RANGE,
+  /** Drawn cone length (full visionRange still used for detection). */
+  visionBeamLength: 28,
+  /** Half-angle of forward vision cone (radians). */
+  visionHalfAngle: (40 * Math.PI) / 180,
+  /** Hear sprinting player within this radius (meters / “pasos”). */
+  hearRadius: 15,
+  /** Seconds to keep searching after losing sight / arriving at last known. */
+  searchTime: 10,
   stunTime: 2.8,
   patrolSpeed: 4,
-  /** How many ghosts stay on the map at once. */
+  /** Starting ghosts on the map. */
   count: 8,
-  color: '#E8F0FF',
+  /** Spawned from portal per ghost kill. */
+  killSpawn: 2,
+  color: '#F5F7FA',
+  alertColor: '#E03030',
   eyeColor: '#152033',
-  /** Destinations used when fanning out from portals at run start. */
-  spawns: [
-    { x: 8, z: 4 },
-    { x: -10, z: 6 },
-    { x: -30, z: -16 },
-    { x: 30, z: -16 },
-    { x: -24, z: 26 },
-    { x: 24, z: 26 },
-    { x: 0, z: -30 },
-    { x: 0, z: 40 },
-  ],
-  /** Shared patrol corners around the map. */
+  alertEyeColor: '#FFEECC',
+  /** Patrol destinations across the map. */
   waypoints: [
     { x: -28, z: -12 },
     { x: -28, z: 12 },
-    { x: 0, z: 20 },
+    { x: -22, z: 26 },
+    { x: 0, z: 36 },
+    { x: 22, z: 26 },
     { x: 28, z: 12 },
     { x: 28, z: -12 },
-    { x: 0, z: -20 },
-    { x: -18, z: 30 },
-    { x: 18, z: 30 },
+    { x: 16, z: -28 },
+    { x: 0, z: -22 },
+    { x: -16, z: -28 },
+    { x: -34, z: 0 },
+    { x: 34, z: 0 },
   ],
 } as const
 
 export type GameStatus = 'playing' | 'won' | 'lost'
+export type CameraMode = 'third' | 'first' | 'top'
 
 export function clampToArena(x: number, z: number, radius: number) {
   const half = ARENA.size / 2 - radius
@@ -358,4 +360,34 @@ export function resolveCeiling(
     }
   }
   return { feetY: y, velY: vy }
+}
+
+/** Line-of-sight on XZ at eye height — blocked by tall solids. */
+export function hasLineOfSight(
+  ax: number,
+  az: number,
+  bx: number,
+  bz: number,
+  solids: readonly SolidBox[],
+  eyeY: number = 1.4,
+): boolean {
+  const dx = bx - ax
+  const dz = bz - az
+  const dist = Math.hypot(dx, dz)
+  if (dist < 0.05) return true
+  const steps = Math.max(4, Math.ceil(dist / 0.55))
+  for (let i = 1; i < steps; i++) {
+    const t = i / steps
+    const x = ax + dx * t
+    const z = az + dz * t
+    for (const box of solids) {
+      if (box.maxY < eyeY || box.minY > eyeY + 0.4) continue
+      const halfW = box.w * 0.5
+      const halfD = box.d * 0.5
+      if (x >= box.x - halfW && x <= box.x + halfW && z >= box.z - halfD && z <= box.z + halfD) {
+        return false
+      }
+    }
+  }
+  return true
 }
