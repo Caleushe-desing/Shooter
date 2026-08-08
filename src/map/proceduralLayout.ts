@@ -1,4 +1,4 @@
-import { ARENA } from '../constants'
+import { MAT } from './materials'
 
 /** Axis-aligned solid with explicit vertical extent (y = minY, height → maxY). */
 export type SolidAABB = {
@@ -31,12 +31,21 @@ export type FlagMarker = {
   z: number
 }
 
+export type SettlementZone = 'lower' | 'inner' | 'upper'
+
 export type ProceduralMap = {
   seed: number
   solids: SolidAABB[]
   trenches: Trench[]
   flag: FlagMarker
   spawn: { x: number; y: number; z: number }
+  /** Circular control arena in the Upper Quarter. */
+  arena: {
+    x: number
+    z: number
+    radius: number
+    floorY: number
+  }
   hq: {
     x: number
     z: number
@@ -46,20 +55,17 @@ export type ProceduralMap = {
   }
 }
 
-const WOOD = ['#8B5A2B', '#A06B3A', '#7A4E28', '#9C6B3F'] as const
-const CONCRETE = ['#8A8D88', '#7A7E79', '#959990', '#6E726E'] as const
-const WALL = ['#6E675C', '#7A7368', '#5C564C', '#8A8276'] as const
-const FLOOR = '#9A9184'
-const ROOF = '#6B6054'
-
-export const HQ = {
-  width: 12,
-  depth: 12,
-  floorH: 0.28,
-  story: 3.2,
-  stories: 2,
-  wallT: 0.45,
+/** Zone layout (Z increases south → north inverted: we use +Z as south for spawn). */
+export const ZONES = {
+  /** Outer / Lower Quarter — south approach */
+  lower: { zMin: 8, zMax: 34, y: 0 },
+  /** Mid / Inner Quarter — defense corridors */
+  inner: { zMin: -10, zMax: 8, y: 0.15 },
+  /** Upper Quarter — elevated keep + circular arena */
+  upper: { zMin: -32, zMax: -10, y: 2.4 },
 } as const
+
+const ARENA_RADIUS = 7.5
 
 /** Mulberry32 — deterministic PRNG from a 32-bit seed. */
 function createRng(seed: number) {
@@ -72,8 +78,10 @@ function createRng(seed: number) {
   }
 }
 
-function pick<T>(rng: () => number, arr: readonly T[]): T {
-  return arr[Math.floor(rng() * arr.length)]!
+let _id = 0
+function nid(prefix: string) {
+  _id += 1
+  return `${prefix}-${_id}`
 }
 
 function box(
@@ -91,304 +99,574 @@ function box(
   return { id, x, y, z, width, height, depth, color, walkable, kind }
 }
 
-function xzOverlap(
-  ax: number,
-  az: number,
-  aw: number,
-  ad: number,
-  bx: number,
-  bz: number,
-  bw: number,
-  bd: number,
-  gap = 0,
+function add(solids: SolidAABB[], s: SolidAABB) {
+  solids.push(s)
+}
+
+/** Wide door gap on one cardinal side; interior is open for walking. */
+function addHouse(
+  solids: SolidAABB[],
+  opts: {
+    x: number
+    z: number
+    w: number
+    d: number
+    stories: number
+    baseY: number
+    door: 'n' | 's' | 'e' | 'w'
+    stone?: boolean
+    roofAccess?: boolean
+  },
 ) {
-  return (
-    Math.abs(ax - bx) < aw * 0.5 + bw * 0.5 + gap &&
-    Math.abs(az - bz) < ad * 0.5 + bd * 0.5 + gap
-  )
-}
+  const { x, z, w, d, stories, baseY, door } = opts
+  const wallT = 0.4
+  const storyH = 2.85
+  const floorH = 0.22
+  const wallColor = opts.stone ? MAT.stone : MAT.adobe
+  const wallDark = opts.stone ? MAT.stoneDark : MAT.adobeDark
+  const roofColor = opts.stone ? MAT.roofTile : MAT.roofThatch
+  const doorW = Math.min(2.8, w * 0.42)
+  const hw = w * 0.5
+  const hd = d * 0.5
 
-function overlapsHq(x: number, z: number, w: number, d: number, margin = 2) {
-  return xzOverlap(x, z, w, d, 0, 0, HQ.width + margin * 2, HQ.depth + margin * 2, 0)
-}
-
-/** Multi-floor HQ tower with south stair run and rooftop capture deck. */
-function buildHeadquarters(rng: () => number, solids: SolidAABB[]) {
-  const roofY = HQ.story * HQ.stories + HQ.floorH
-  const hw = HQ.width * 0.5
-  const hd = HQ.depth * 0.5
-  const t = HQ.wallT
-
-  // Ground plinth
-  solids.push(
-    box('hq-plinth', 0, 0, 0, HQ.width + 1.2, 0.2, HQ.depth + 1.2, '#8C8476', true, 'floor'),
+  // Ground floor slab (slight raise so interior feels enclosed)
+  add(
+    solids,
+    box(nid('fl'), x, baseY, z, w - 0.15, floorH, d - 0.15, MAT.stoneLight, true, 'floor'),
   )
 
-  // Intermediate floors + roof deck
-  for (let story = 1; story <= HQ.stories; story++) {
-    const y = HQ.story * story
-    solids.push(
-      box(`hq-floor-${story}`, 0, y, 0, HQ.width - 0.2, HQ.floorH, HQ.depth - 0.2, FLOOR, true, 'floor'),
-    )
-  }
-  solids.push(
-    box('hq-roof', 0, roofY, 0, HQ.width, HQ.floorH, HQ.depth, ROOF, true, 'roof'),
-  )
+  for (let story = 0; story < stories; story++) {
+    const y0 = baseY + floorH + story * storyH
+    const wallH = story < stories - 1 ? storyH : storyH * 0.95
 
-  // Perimeter walls per story with a south door gap on ground and stair cutouts.
-  for (let story = 0; story < HQ.stories; story++) {
-    const y0 = story === 0 ? 0.2 : HQ.story * story + HQ.floorH
-    const y1 = HQ.story * (story + 1)
-    const h = y1 - y0
-    const door = story === 0 ? 2.6 : 2.2
+    const makeWall = (
+      wx: number,
+      wz: number,
+      ww: number,
+      wd: number,
+      color: string,
+    ) => add(solids, box(nid('hw'), wx, y0, wz, ww, wallH, wd, color, false, 'wall'))
 
-    // North wall
-    solids.push(box(`hq-n-${story}`, 0, y0, -hd + t * 0.5, HQ.width, h, t, pick(rng, WALL), false, 'wall'))
-    // East / West
-    solids.push(box(`hq-e-${story}`, hw - t * 0.5, y0, 0, t, h, HQ.depth - t * 2, pick(rng, WALL), false, 'wall'))
-    solids.push(box(`hq-w-${story}`, -hw + t * 0.5, y0, 0, t, h, HQ.depth - t * 2, pick(rng, WALL), false, 'wall'))
-    // South split around doorway / stair opening
-    const sideW = (HQ.width - door) * 0.5
-    solids.push(
-      box(`hq-sL-${story}`, -hw + sideW * 0.5, y0, hd - t * 0.5, sideW, h, t, pick(rng, WALL), false, 'wall'),
-    )
-    solids.push(
-      box(`hq-sR-${story}`, hw - sideW * 0.5, y0, hd - t * 0.5, sideW, h, t, pick(rng, WALL), false, 'wall'),
-    )
-  }
+    // North
+    if (door === 'n' && story === 0) {
+      const side = (w - doorW) * 0.5
+      makeWall(x - hw + side * 0.5, z - hd + wallT * 0.5, side, wallT, wallColor)
+      makeWall(x + hw - side * 0.5, z - hd + wallT * 0.5, side, wallT, wallDark)
+    } else {
+      makeWall(x, z - hd + wallT * 0.5, w, wallT, wallColor)
+    }
+    // South
+    if (door === 's' && story === 0) {
+      const side = (w - doorW) * 0.5
+      makeWall(x - hw + side * 0.5, z + hd - wallT * 0.5, side, wallT, wallColor)
+      makeWall(x + hw - side * 0.5, z + hd - wallT * 0.5, side, wallT, wallDark)
+    } else {
+      makeWall(x, z + hd - wallT * 0.5, w, wallT, wallColor)
+    }
+    // East
+    if (door === 'e' && story === 0) {
+      const side = (d - doorW) * 0.5
+      makeWall(x + hw - wallT * 0.5, z - hd + side * 0.5, wallT, side, wallColor)
+      makeWall(x + hw - wallT * 0.5, z + hd - side * 0.5, wallT, side, wallDark)
+    } else {
+      makeWall(x + hw - wallT * 0.5, z, wallT, d - wallT * 2, wallDark)
+    }
+    // West
+    if (door === 'w' && story === 0) {
+      const side = (d - doorW) * 0.5
+      makeWall(x - hw + wallT * 0.5, z - hd + side * 0.5, wallT, side, wallColor)
+      makeWall(x - hw + wallT * 0.5, z + hd - side * 0.5, wallT, side, wallDark)
+    } else {
+      makeWall(x - hw + wallT * 0.5, z, wallT, d - wallT * 2, wallColor)
+    }
 
-  // Rooftop parapet (low walls) — walkable roof stays open in the middle for the flag.
-  const parapetH = 0.85
-  const py = roofY + HQ.floorH
-  solids.push(box('hq-par-n', 0, py, -hd + 0.2, HQ.width - 0.4, parapetH, 0.35, ROOF, false, 'wall'))
-  solids.push(box('hq-par-e', hw - 0.2, py, 0, 0.35, parapetH, HQ.depth - 0.8, ROOF, false, 'wall'))
-  solids.push(box('hq-par-w', -hw + 0.2, py, 0, 0.35, parapetH, HQ.depth - 0.8, ROOF, false, 'wall'))
-  // South parapet open in the middle for stair arrival
-  solids.push(box('hq-par-sL', -3.2, py, hd - 0.2, 4.2, parapetH, 0.35, ROOF, false, 'wall'))
-  solids.push(box('hq-par-sR', 3.2, py, hd - 0.2, 4.2, parapetH, 0.35, ROOF, false, 'wall'))
-
-  // Exterior switchback stairs on the south face up to the roof.
-  const stepH = 0.4
-  const stepD = 0.62
-  const stepW = 2.5
-  const stepsPerFlight = 7
-  const steps = Math.ceil((roofY + HQ.floorH) / stepH)
-  for (let i = 0; i < steps; i++) {
-    const y = i * stepH
-    const flight = Math.floor(i / stepsPerFlight)
-    const local = i % stepsPerFlight
-    const x = flight % 2 === 0 ? -1.15 : 1.15
-    const zBase = hd + 0.85
-    const z =
-      flight % 2 === 0 ? zBase + local * stepD : zBase + (stepsPerFlight - 1 - local) * stepD
-    solids.push(box(`hq-step-${i}`, x, y, z, stepW, stepH, stepD, '#7D7468', true, 'step'))
-
-    // Landing at the end of each flight
-    if (local === stepsPerFlight - 1) {
-      const landY = y + stepH
-      solids.push(
-        box(
-          `hq-flight-land-${flight}`,
-          0,
-          landY,
-          zBase + (stepsPerFlight - 1) * stepD * 0.5,
-          4.2,
-          HQ.floorH,
-          stepsPerFlight * stepD * 0.55,
-          '#8A8276',
-          true,
-          'floor',
-        ),
+    // Upper floor deck
+    if (story < stories - 1) {
+      const fy = y0 + storyH
+      add(
+        solids,
+        box(nid('fl'), x, fy, z, w - 0.2, floorH, d - 0.2, MAT.woodPale, true, 'floor'),
       )
     }
   }
 
-  // Bridging landings into each floor doorway / roof
-  for (let story = 1; story <= HQ.stories; story++) {
-    const y = HQ.story * story
-    solids.push(
-      box(`hq-land-${story}`, 0, y, hd + 0.9, 3.4, HQ.floorH, 1.8, FLOOR, true, 'floor'),
-    )
+  const roofY = baseY + floorH + stories * storyH
+  add(solids, box(nid('rf'), x, roofY, z, w + 0.35, 0.28, d + 0.35, roofColor, true, 'roof'))
+
+  // Low parapet on stone houses
+  if (opts.stone) {
+    const py = roofY + 0.28
+    add(solids, box(nid('pp'), x, py, z - hd, w, 0.55, 0.3, MAT.stoneDark, false, 'wall'))
+    add(solids, box(nid('pp'), x, py, z + hd, w, 0.55, 0.3, MAT.stoneDark, false, 'wall'))
   }
-  solids.push(
-    box('hq-land-roof', 0, roofY, hd + 0.9, 3.4, HQ.floorH, 1.8, ROOF, true, 'floor'),
-  )
 
-  return {
-    x: 0,
-    z: 0,
-    width: HQ.width,
-    depth: HQ.depth,
-    roofY: roofY + HQ.floorH,
-  }
-}
+  // Rooftop access: crate/step stack outside near the door
+  if (opts.roofAccess !== false) {
+    const stepH = 0.48
+    const steps = Math.ceil((roofY - baseY) / stepH)
+    let sx = x
+    let sz = z
+    if (door === 's') sz = z + hd + 0.9
+    if (door === 'n') sz = z - hd - 0.9
+    if (door === 'e') sx = x + hw + 0.9
+    if (door === 'w') sx = x - hw - 0.9
 
-function buildTrenches(rng: () => number, trenches: Trench[], solids: SolidAABB[]) {
-  const specs = [
-    { x: -18, z: -14, w: 10, d: 3.2 },
-    { x: 16, z: -18, w: 8, d: 3.4 },
-    { x: -15, z: 17, w: 11, d: 3 },
-    { x: 18, z: 14, w: 9, d: 3.2 },
-    { x: 0, z: 22, w: 12, d: 2.8 },
-  ]
-
-  for (let i = 0; i < specs.length; i++) {
-    const s = specs[i]!
-    const jitterX = (rng() * 2 - 1) * 2.5
-    const jitterZ = (rng() * 2 - 1) * 2.5
-    const x = s.x + jitterX
-    const z = s.z + jitterZ
-    const width = s.w + rng() * 2
-    const depth = s.d
-    const floorY = -1.35 - rng() * 0.25
-    if (overlapsHq(x, z, width, depth, 4)) continue
-
-    trenches.push({
-      id: `trench-${i}`,
-      x,
-      z,
-      width,
-      depth,
-      floorY,
-      color: '#5A4A32',
-    })
-
-    // Trench walls (from floor up to ground)
-    const wallH = -floorY
-    const t = 0.35
-    const hw = width * 0.5
-    const hd = depth * 0.5
-    solids.push(box(`tw-n-${i}`, x, floorY, z - hd + t * 0.5, width, wallH, t, '#4A3C28', false, 'wall'))
-    solids.push(box(`tw-s-${i}`, x, floorY, z + hd - t * 0.5, width, wallH, t, '#4A3C28', false, 'wall'))
-    solids.push(box(`tw-e-${i}`, x + hw - t * 0.5, floorY, z, t, wallH, depth - t * 2, '#4A3C28', false, 'wall'))
-    solids.push(box(`tw-w-${i}`, x - hw + t * 0.5, floorY, z, t, wallH, depth - t * 2, '#4A3C28', false, 'wall'))
-    // Walkable trench floor slab
-    solids.push(
-      box(`tf-${i}`, x, floorY, z, width - t * 2, 0.12, depth - t * 2, '#6B5538', true, 'floor'),
-    )
-  }
-}
-
-function buildCrateStacks(rng: () => number, solids: SolidAABB[]) {
-  const sites = [
-    { x: -8, z: 10 },
-    { x: 9, z: 9 },
-    { x: -10, z: -9 },
-    { x: 11, z: -8 },
-    { x: -22, z: 4 },
-    { x: 22, z: -5 },
-    { x: 6, z: 18 },
-    { x: -5, z: -20 },
-    { x: 14, z: 6 },
-    { x: -14, z: 0 },
-  ]
-
-  let n = 0
-  for (const site of sites) {
-    const x0 = site.x + (rng() * 2 - 1) * 1.5
-    const z0 = site.z + (rng() * 2 - 1) * 1.5
-    if (overlapsHq(x0, z0, 3, 3, 1.5)) continue
-
-    const stackH = 1 + Math.floor(rng() * 3)
-    let y = 0
-    for (let i = 0; i < stackH; i++) {
-      const isConcrete = rng() > 0.55
-      const w = isConcrete ? 1.1 + rng() * 0.5 : 0.85 + rng() * 0.35
-      const d = isConcrete ? 1.0 + rng() * 0.45 : 0.8 + rng() * 0.3
-      const h = isConcrete ? 0.9 + rng() * 0.35 : 0.7 + rng() * 0.25
-      const ox = (rng() * 2 - 1) * 0.12
-      const oz = (rng() * 2 - 1) * 0.12
-      solids.push(
+    for (let i = 0; i < steps; i++) {
+      const along = i * 0.52
+      const px = door === 'e' || door === 'w' ? sx + (door === 'e' ? along * 0.05 : -along * 0.05) : sx + (i % 2 === 0 ? -0.55 : 0.55)
+      const pz = door === 'n' || door === 's' ? sz + (door === 's' ? along * 0.08 : -along * 0.08) : sz
+      add(
+        solids,
         box(
-          `obs-${n++}`,
-          x0 + ox,
-          y,
-          z0 + oz,
-          w,
-          h,
-          d,
-          isConcrete ? pick(rng, CONCRETE) : pick(rng, WOOD),
-          true,
-          isConcrete ? 'concrete' : 'crate',
-        ),
-      )
-      y += h
-    }
-
-    // Side step crate for parkour approach toward HQ
-    if (rng() > 0.4) {
-      const h = 0.65 + rng() * 0.2
-      solids.push(
-        box(
-          `obs-${n++}`,
-          x0 + 1.2,
-          0,
-          z0 + 0.9,
-          0.9,
-          h,
-          0.9,
-          pick(rng, WOOD),
+          nid('st'),
+          px,
+          baseY + i * stepH,
+          pz,
+          1.15,
+          stepH,
+          1.05,
+          i % 2 === 0 ? MAT.wood : MAT.woodOld,
           true,
           'crate',
         ),
       )
     }
   }
+
+  return roofY + 0.28
 }
 
-function buildCoverBlocks(rng: () => number, solids: SolidAABB[]) {
-  const half = ARENA.size * 0.5 - 4
-  let placed = 0
-  for (let i = 0; i < 80 && placed < 14; i++) {
-    const w = 2.5 + rng() * 4
-    const d = 2.5 + rng() * 4
-    const h = 2.2 + rng() * 3.5
-    const x = (rng() * 2 - 1) * half
-    const z = (rng() * 2 - 1) * half
-    if (overlapsHq(x, z, w, d, 5)) continue
-    // Keep south stair approach relatively open
-    if (Math.abs(x) < 4 && z > 0 && z < 22) continue
-    if (
-      solids.some(
-        (s) =>
-          s.kind !== 'step' &&
-          xzOverlap(x, z, w, d, s.x, s.z, s.width, s.depth, 1.8),
-      )
-    ) {
-      continue
-    }
-    solids.push(box(`cover-${placed}`, x, 0, z, w, h, d, pick(rng, WALL), true, 'wall'))
-    placed++
+/** Watchtower with interior climb via stacked platforms. */
+function addWatchtower(
+  solids: SolidAABB[],
+  x: number,
+  z: number,
+  baseY: number,
+  h: number,
+) {
+  const w = 3.6
+  const t = 0.4
+  const hw = w * 0.5
+  // Shell walls with south door
+  add(solids, box(nid('tw'), x, baseY, z - hw + t * 0.5, w, h, t, MAT.stoneDark, false, 'wall'))
+  add(solids, box(nid('tw'), x + hw - t * 0.5, baseY, z, t, h, w - t * 2, MAT.stone, false, 'wall'))
+  add(solids, box(nid('tw'), x - hw + t * 0.5, baseY, z, t, h, w - t * 2, MAT.stone, false, 'wall'))
+  const doorW = 1.8
+  const side = (w - doorW) * 0.5
+  add(
+    solids,
+    box(nid('tw'), x - hw + side * 0.5, baseY, z + hw - t * 0.5, side, h, t, MAT.stoneDark, false, 'wall'),
+  )
+  add(
+    solids,
+    box(nid('tw'), x + hw - side * 0.5, baseY, z + hw - t * 0.5, side, h, t, MAT.stoneDark, false, 'wall'),
+  )
+
+  // Interior decks
+  for (let y = baseY + 2.6; y < baseY + h - 1; y += 2.6) {
+    add(solids, box(nid('td'), x, y, z, w - 0.5, 0.22, w - 0.5, MAT.woodPale, true, 'floor'))
+  }
+  // Roof deck
+  add(solids, box(nid('tr'), x, baseY + h, z, w + 0.4, 0.3, w + 0.4, MAT.stoneLight, true, 'roof'))
+  // Exterior crate climb
+  const steps = Math.ceil(h / 0.5)
+  for (let i = 0; i < steps; i++) {
+    add(
+      solids,
+      box(
+        nid('ts'),
+        x + (i % 2 === 0 ? 1.1 : -1.1),
+        baseY + i * 0.5,
+        z + hw + 0.85 + i * 0.05,
+        1.2,
+        0.5,
+        1.1,
+        MAT.wood,
+        true,
+        'crate',
+      ),
+    )
   }
 }
 
+/** Double-wall defense line with a narrow corridor between (ref. points 8 / 10). */
+function addDefenseCorridor(
+  solids: SolidAABB[],
+  opts: {
+    x: number
+    z: number
+    length: number
+    axis: 'x' | 'z'
+    baseY: number
+    gap?: number
+    height?: number
+  },
+) {
+  const gap = opts.gap ?? 2.3
+  const h = opts.height ?? 3.4
+  const t = 0.7
+  const halfGap = gap * 0.5 + t * 0.5
+
+  if (opts.axis === 'x') {
+    add(
+      solids,
+      box(nid('dw'), opts.x, opts.baseY, opts.z - halfGap, opts.length, h, t, MAT.stoneDark, true, 'wall'),
+    )
+    add(
+      solids,
+      box(nid('dw'), opts.x, opts.baseY, opts.z + halfGap, opts.length, h, t, MAT.stone, true, 'wall'),
+    )
+    // Occasional buttress blocks creating hide spots
+    for (let i = -1; i <= 1; i++) {
+      add(
+        solids,
+        box(
+          nid('db'),
+          opts.x + i * (opts.length * 0.28),
+          opts.baseY,
+          opts.z,
+          1.1,
+          h * 0.55,
+          gap - 0.3,
+          MAT.adobeDark,
+          true,
+          'prop',
+        ),
+      )
+    }
+  } else {
+    add(
+      solids,
+      box(nid('dw'), opts.x - halfGap, opts.baseY, opts.z, t, h, opts.length, MAT.stoneDark, true, 'wall'),
+    )
+    add(
+      solids,
+      box(nid('dw'), opts.x + halfGap, opts.baseY, opts.z, t, h, opts.length, MAT.stone, true, 'wall'),
+    )
+  }
+}
+
+/** Elevated Upper Quarter terrace + circular control arena (ref. point 18). */
+function addUpperQuarter(solids: SolidAABB[], rng: () => number) {
+  const terraceY = ZONES.upper.y
+  const arenaX = 0
+  const arenaZ = -20
+  const radius = ARENA_RADIUS
+
+  // Raised packed-earth / stone terrace for the whole Upper Quarter
+  add(
+    solids,
+    box(
+      nid('terrace'),
+      0,
+      0,
+      (ZONES.upper.zMin + ZONES.upper.zMax) * 0.5,
+      36,
+      terraceY,
+      ZONES.upper.zMax - ZONES.upper.zMin + 2,
+      MAT.packedEarth,
+      true,
+      'floor',
+    ),
+  )
+  // Stone rim on terrace edge (south lip toward Inner Quarter)
+  add(
+    solids,
+    box(nid('lip'), 0, terraceY, ZONES.upper.zMax - 0.35, 34, 0.55, 0.7, MAT.stoneDark, false, 'wall'),
+  )
+
+  // Access ramps from Inner → Upper (east & west)
+  const rampSteps = 8
+  const stepH = terraceY / rampSteps
+  for (let side of [-1, 1] as const) {
+    for (let i = 0; i < rampSteps; i++) {
+      add(
+        solids,
+        box(
+          nid('ramp'),
+          side * 10,
+          i * stepH,
+          ZONES.upper.zMax + 1.2 + i * 0.55,
+          3.2,
+          stepH,
+          1.1,
+          MAT.stone,
+          true,
+          'step',
+        ),
+      )
+    }
+  }
+
+  // Circular arena floor (approximated with walkable cross + octagon boxes for collision)
+  const floorY = terraceY
+  add(
+    solids,
+    box(nid('arena-floor'), arenaX, floorY, arenaZ, radius * 1.7, 0.25, radius * 1.7, MAT.arenaSand, true, 'floor'),
+  )
+  // Inner raised dais
+  add(
+    solids,
+    box(nid('arena-dais'), arenaX, floorY + 0.25, arenaZ, 4.2, 0.35, 4.2, MAT.arenaStone, true, 'floor'),
+  )
+
+  // Arena ring walls — octagon segments (solid corridors around the control point)
+  const ringR = radius + 0.6
+  const segs = 8
+  for (let i = 0; i < segs; i++) {
+    const a0 = (i / segs) * Math.PI * 2
+    const a1 = ((i + 1) / segs) * Math.PI * 2
+    const mid = (a0 + a1) * 0.5
+    // Leave south gap as entrance into the arena
+    if (i === 2) continue
+    const wx = arenaX + Math.sin(mid) * ringR
+    const wz = arenaZ + Math.cos(mid) * ringR
+    const len = 2 * ringR * Math.sin(Math.PI / segs) + 0.35
+    add(
+      solids,
+      box(
+        nid('arena-ring'),
+        wx,
+        floorY + 0.25,
+        wz,
+        Math.abs(Math.cos(mid)) > 0.5 ? 0.65 : len,
+        2.1,
+        Math.abs(Math.cos(mid)) > 0.5 ? len : 0.65,
+        i % 2 === 0 ? MAT.stone : MAT.stoneDark,
+        true,
+        'wall',
+      ),
+    )
+  }
+
+  // Flanking watchtowers
+  addWatchtower(solids, -12 + rng() * 0.4, -14, terraceY, 6.5)
+  addWatchtower(solids, 12 - rng() * 0.4, -14, terraceY, 6.2)
+
+  // Side keep buildings
+  addHouse(solids, {
+    x: -14,
+    z: -26,
+    w: 6.5,
+    d: 5.5,
+    stories: 2,
+    baseY: terraceY,
+    door: 's',
+    stone: true,
+  })
+  addHouse(solids, {
+    x: 14,
+    z: -26,
+    w: 6.5,
+    d: 5.5,
+    stories: 2,
+    baseY: terraceY,
+    door: 's',
+    stone: true,
+  })
+
+  const flagY = floorY + 0.25 + 0.35
+  return {
+    arena: { x: arenaX, z: arenaZ, radius, floorY },
+    flag: { x: arenaX, y: flagY, z: arenaZ },
+    hq: {
+      x: arenaX,
+      z: arenaZ,
+      width: radius * 2,
+      depth: radius * 2,
+      roofY: flagY,
+    },
+  }
+}
+
+function addInnerQuarter(solids: SolidAABB[], rng: () => number) {
+  const y = ZONES.inner.y
+
+  // East–west defense corridors (points 8 / 10 style)
+  addDefenseCorridor(solids, {
+    x: -8,
+    z: -2,
+    length: 16,
+    axis: 'x',
+    baseY: y,
+    gap: 2.4,
+    height: 3.6,
+  })
+  addDefenseCorridor(solids, {
+    x: 10,
+    z: 3,
+    length: 14,
+    axis: 'x',
+    baseY: y,
+    gap: 2.2,
+    height: 3.5,
+  })
+  // North–south corridor linking Lower → Upper
+  addDefenseCorridor(solids, {
+    x: 0,
+    z: 0,
+    length: 14,
+    axis: 'z',
+    baseY: y,
+    gap: 3.2,
+    height: 3.3,
+  })
+
+  // Inner houses flanking the main street
+  const houses: Array<{ x: number; z: number; door: 'n' | 's' | 'e' | 'w'; stories: number }> = [
+    { x: -12 + rng() * 0.6, z: 4, door: 'e', stories: 2 },
+    { x: 12 - rng() * 0.6, z: 4, door: 'w', stories: 2 },
+    { x: -14, z: -6 + rng() * 0.5, door: 's', stories: 1 },
+    { x: 14, z: -5, door: 's', stories: 2 },
+    { x: -6, z: 6.5, door: 'n', stories: 1 },
+    { x: 7, z: 6.2, door: 'n', stories: 1 },
+  ]
+  for (const h of houses) {
+    addHouse(solids, {
+      x: h.x,
+      z: h.z,
+      w: 5.2 + rng() * 1.4,
+      d: 4.6 + rng() * 1.2,
+      stories: h.stories,
+      baseY: y,
+      door: h.door,
+      stone: rng() > 0.45,
+    })
+  }
+
+  addWatchtower(solids, -18, 2, y, 7.2)
+  addWatchtower(solids, 18, -1, y, 6.8)
+}
+
+function addLowerQuarter(solids: SolidAABB[], trenches: Trench[], rng: () => number) {
+  const y = ZONES.lower.y
+
+  // Outer curtain wall segments with gate openings
+  const wallH = 3.8
+  const wallT = 1.1
+  // South outer wall (gate in center)
+  add(solids, box(nid('ow'), -14, y, 32, 18, wallH, wallT, MAT.stoneDark, true, 'wall'))
+  add(solids, box(nid('ow'), 14, y, 32, 18, wallH, wallT, MAT.stone, true, 'wall'))
+  // East / west outer walls
+  add(solids, box(nid('ow'), -30, y, 20, wallT, wallH, 22, MAT.stoneDark, true, 'wall'))
+  add(solids, box(nid('ow'), 30, y, 20, wallT, wallH, 22, MAT.stone, true, 'wall'))
+
+  // Gate towers
+  addWatchtower(solids, -5.5, 31, y, 5.5)
+  addWatchtower(solids, 5.5, 31, y, 5.5)
+
+  // Lower Quarter houses — denser, mostly adobe
+  const plots = [
+    { x: -16, z: 18, door: 'e' as const, stories: 1 },
+    { x: -16, z: 12, door: 'e' as const, stories: 1 },
+    { x: 16, z: 18, door: 'w' as const, stories: 1 },
+    { x: 16, z: 12, door: 'w' as const, stories: 2 },
+    { x: -8, z: 22, door: 's' as const, stories: 1 },
+    { x: 9, z: 22, door: 's' as const, stories: 1 },
+    { x: -22, z: 24, door: 's' as const, stories: 1 },
+    { x: 22, z: 24, door: 's' as const, stories: 1 },
+    { x: 0, z: 14, door: 's' as const, stories: 1 },
+  ]
+  for (const p of plots) {
+    addHouse(solids, {
+      x: p.x + (rng() * 2 - 1) * 0.5,
+      z: p.z + (rng() * 2 - 1) * 0.4,
+      w: 4.8 + rng() * 1.6,
+      d: 4.2 + rng() * 1.2,
+      stories: p.stories,
+      baseY: y,
+      door: p.door,
+      stone: false,
+    })
+  }
+
+  // Loose crate / concrete cover near the main street
+  for (let i = 0; i < 8; i++) {
+    const x = (rng() * 2 - 1) * 6
+    const z = 16 + rng() * 10
+    if (Math.abs(x) < 2.2) continue
+    const stack = 1 + Math.floor(rng() * 3)
+    let yy = y
+    for (let s = 0; s < stack; s++) {
+      const h = 0.7 + rng() * 0.25
+      add(
+        solids,
+        box(
+          nid('cr'),
+          x + (rng() * 2 - 1) * 0.15,
+          yy,
+          z + (rng() * 2 - 1) * 0.15,
+          0.95,
+          h,
+          0.9,
+          rng() > 0.5 ? MAT.wood : MAT.woodOld,
+          true,
+          'crate',
+        ),
+      )
+      yy += h
+    }
+  }
+
+  // Shallow defensive ditches flanking the approach
+  const ditchSpecs = [
+    { x: -20, z: 28, w: 8, d: 2.6 },
+    { x: 20, z: 28, w: 8, d: 2.6 },
+  ]
+  ditchSpecs.forEach((s, i) => {
+    const floorY = -1.1
+    trenches.push({
+      id: `ditch-${i}`,
+      x: s.x,
+      z: s.z,
+      width: s.w,
+      depth: s.d,
+      floorY,
+      color: MAT.dirt,
+    })
+    const t = 0.35
+    const hw = s.w * 0.5
+    const hd = s.d * 0.5
+    const wallH = -floorY
+    add(solids, box(nid('dw'), s.x, floorY, s.z - hd + t * 0.5, s.w, wallH, t, MAT.dirt, false, 'wall'))
+    add(solids, box(nid('dw'), s.x, floorY, s.z + hd - t * 0.5, s.w, wallH, t, MAT.dirt, false, 'wall'))
+    add(solids, box(nid('dw'), s.x + hw - t * 0.5, floorY, s.z, t, wallH, s.d - t * 2, MAT.dirt, false, 'wall'))
+    add(solids, box(nid('dw'), s.x - hw + t * 0.5, floorY, s.z, t, wallH, s.d - t * 2, MAT.dirt, false, 'wall'))
+    add(
+      solids,
+      box(nid('df'), s.x, floorY, s.z, s.w - t * 2, 0.12, s.d - t * 2, MAT.dirt, true, 'floor'),
+    )
+  })
+}
+
 /**
- * Vertical tactical training field: trenches, crates, cover blocks,
- * and a central multi-floor HQ with the KotH flag on the rooftop.
+ * Fortified settlement layout: Lower → Inner → Upper Quarters
+ * with a circular control arena (KotH flag) in the Upper Quarter.
+ * Seed only jitters props/houses slightly; the zone structure stays coherent.
  */
 export function generateProceduralMap(seed = (Math.random() * 0xffffffff) >>> 0): ProceduralMap {
+  _id = 0
   const rng = createRng(seed || 1)
   const solids: SolidAABB[] = []
   const trenches: Trench[] = []
 
-  const hq = buildHeadquarters(rng, solids)
-  buildTrenches(rng, trenches, solids)
-  buildCrateStacks(rng, solids)
-  buildCoverBlocks(rng, solids)
+  addLowerQuarter(solids, trenches, rng)
+  addInnerQuarter(solids, rng)
+  const upper = addUpperQuarter(solids, rng)
 
-  // Spawn south of the HQ, on open ground facing the stair approach.
   const spawn = {
-    x: (rng() * 2 - 1) * 1.5,
+    x: (rng() * 2 - 1) * 1.2,
     y: 0,
-    z: HQ.depth * 0.5 + 8 + rng() * 2,
+    z: 27,
   }
 
   return {
     seed,
     solids,
     trenches,
-    flag: { x: 0, y: hq.roofY, z: 0 },
+    flag: upper.flag,
     spawn,
-    hq,
+    arena: upper.arena,
+    hq: upper.hq,
   }
 }

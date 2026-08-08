@@ -10,20 +10,23 @@ function Scene() {
   return (
     <>
       <color attach="background" args={[COLORS.sky]} />
-      <fog attach="fog" args={[COLORS.sky, 35, 90]} />
-      <hemisphereLight intensity={0.55} color="#dfe7ef" groundColor="#3a4038" />
+      <fog attach="fog" args={[COLORS.sky, 40, 95]} />
+      <hemisphereLight intensity={0.48} color="#d9e2e8" groundColor="#4a4030" />
       <directionalLight
         castShadow
-        position={[16, 28, 10]}
-        intensity={1.15}
+        position={[22, 34, 14]}
+        intensity={1.05}
+        color="#f2e6d4"
         shadow-mapSize={[2048, 2048]}
-        shadow-camera-far={80}
-        shadow-camera-left={-40}
-        shadow-camera-right={40}
-        shadow-camera-top={40}
-        shadow-camera-bottom={-40}
+        shadow-bias={-0.00025}
+        shadow-normalBias={0.035}
+        shadow-camera-far={100}
+        shadow-camera-left={-45}
+        shadow-camera-right={45}
+        shadow-camera-top={45}
+        shadow-camera-bottom={-45}
       />
-      <ambientLight intensity={0.22} />
+      <ambientLight intensity={0.2} />
       <ProceduralMap />
       <PlayerController />
     </>

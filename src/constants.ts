@@ -1,7 +1,7 @@
 export const COLORS = {
-  sky: '#7BA8C4',
-  skyHaze: '#A8BCC8',
-  ground: '#6A8A58',
+  sky: '#8AA6B5',
+  skyHaze: '#A8B8C0',
+  ground: '#5F7A4A',
 } as const
 
 /** Sprint stamina: full drain and full recharge share the same duration. */
