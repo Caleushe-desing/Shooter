@@ -1,13 +1,17 @@
 import { useMemo } from 'react'
-import { ARENA } from '../../constants'
+import { HANGAR } from '../../map/hangar'
 import { MAT } from '../../map/materials'
+import { rubikOuterHalf } from '../../map/rubiksWall'
 
-const CEILING_Y = 22
 const PANEL_GAP = 14
 
-/** Closed hangar roof with LED panels and even artificial fill lighting. */
+/** Closed hangar roof that fully covers past the Rubik perimeter — no edge gap. */
 export function HangarCeiling() {
-  const size = ARENA.size + 6
+  const outer = rubikOuterHalf()
+  // Overhang past the outer cube faces so the wall butts into / under the slab.
+  const size = outer * 2 + 2
+  const ceilingY = HANGAR.ceilingY
+
   const panels = useMemo(() => {
     const half = size * 0.5 - 8
     const list: { x: number; z: number }[] = []
@@ -21,26 +25,41 @@ export function HangarCeiling() {
 
   return (
     <group>
-      <mesh position={[0, CEILING_Y, 0]} receiveShadow>
-        <boxGeometry args={[size, 0.55, size]} />
+      <mesh position={[0, ceilingY, 0]} receiveShadow>
+        <boxGeometry args={[size, HANGAR.thickness, size]} />
         <meshStandardMaterial color={MAT.hangar} roughness={0.72} metalness={0.1} />
       </mesh>
 
+      {/* Edge skirt under the ceiling rim — seals any remaining seam against the wall. */}
+      {(
+        [
+          [0, outer - 0.2, size, 0.9],
+          [0, -(outer - 0.2), size, 0.9],
+          [outer - 0.2, 0, 0.9, size - 1.6],
+          [-(outer - 0.2), 0, 0.9, size - 1.6],
+        ] as const
+      ).map(([x, z, w, d], i) => (
+        <mesh key={`skirt-${i}`} position={[x, ceilingY - HANGAR.thickness * 0.5 - 0.35, z]}>
+          <boxGeometry args={[w, 0.9, d]} />
+          <meshStandardMaterial color={MAT.hangarBeam} roughness={0.65} metalness={0.15} />
+        </mesh>
+      ))}
+
       {[-20, 0, 20].map((z) => (
-        <mesh key={`bz${z}`} position={[0, CEILING_Y - 0.4, z]}>
-          <boxGeometry args={[size - 4, 0.4, 0.5]} />
+        <mesh key={`bz${z}`} position={[0, ceilingY - 0.4, z]}>
+          <boxGeometry args={[size - 6, 0.4, 0.5]} />
           <meshStandardMaterial color={MAT.hangarBeam} roughness={0.6} metalness={0.18} />
         </mesh>
       ))}
       {[-20, 0, 20].map((x) => (
-        <mesh key={`bx${x}`} position={[x, CEILING_Y - 0.4, 0]}>
-          <boxGeometry args={[0.5, 0.4, size - 4]} />
+        <mesh key={`bx${x}`} position={[x, ceilingY - 0.4, 0]}>
+          <boxGeometry args={[0.5, 0.4, size - 6]} />
           <meshStandardMaterial color={MAT.hangarBeam} roughness={0.6} metalness={0.18} />
         </mesh>
       ))}
 
       {panels.map((p, i) => (
-        <group key={`led-${i}`} position={[p.x, CEILING_Y - 0.5, p.z]}>
+        <group key={`led-${i}`} position={[p.x, ceilingY - 0.5, p.z]}>
           <mesh>
             <boxGeometry args={[4.2, 0.1, 2.4]} />
             <meshStandardMaterial
