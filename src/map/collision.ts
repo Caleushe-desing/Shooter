@@ -266,3 +266,28 @@ export function raycastSolids(
 
   return nearest
 }
+
+/**
+ * True if the standing capsule (full height) would overlap a solid above the
+ * current crouch capsule — used to block standing up under low ceilings.
+ */
+export function canStandUp(
+  x: number,
+  feetY: number,
+  z: number,
+  radius: number,
+  crouchHeight: number,
+  standHeight: number,
+  solids: readonly SolidAABB[],
+) {
+  const expandMin = feetY + crouchHeight - 0.02
+  const expandMax = feetY + standHeight
+  for (const s of solids) {
+    if (s.walkable && solidMaxY(s) <= feetY + PLAYER.stepHeight) continue
+    const minY = solidMinY(s)
+    const maxY = solidMaxY(s)
+    if (maxY <= expandMin || minY >= expandMax) continue
+    if (circleHitsSolid(x, z, radius * 0.9, s)) return false
+  }
+  return true
+}

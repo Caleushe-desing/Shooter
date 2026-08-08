@@ -11,8 +11,12 @@ export const STAMINA = {
 
 export const PLAYER = {
   height: 1.72,
+  /** Standing capsule height while crouching (top drops; feet stay planted). */
+  crouchHeight: 0.86,
   radius: 0.35,
   speed: 4,
+  /** Move speed multiplier while crouching. */
+  crouchSpeedMul: 0.55,
   runMul: 2,
   jumpSpeed: 7.2,
   gravity: 18,
@@ -34,6 +38,10 @@ export const PLAYER = {
 export const CAMERA = {
   shoulder: 0.45,
   height: 1.55,
+  /** Pivot height while crouching (lerped over crouchBlend). */
+  crouchHeight: 0.82,
+  /** Seconds to ease stand ↔ crouch camera height. */
+  crouchBlend: 0.2,
   lift: 0.2,
   distance: 2.6,
   near: 0.1,

@@ -3,7 +3,12 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { PerspectiveCamera } from '@react-three/drei'
 import * as THREE from 'three'
 import { PLAYER, CAMERA, clampToArena } from '../../constants'
-import { integrateVertical, raycastSolids, resolveHorizontal } from '../../map/collision'
+import {
+  canStandUp,
+  integrateVertical,
+  raycastSolids,
+  resolveHorizontal,
+} from '../../map/collision'
 import { useGameStore } from '../../store/gameStore'
 import { PlayerAvatar } from './PlayerAvatar'
 import { viewState } from '../../input/viewState'
@@ -17,7 +22,7 @@ function lerpAngle(a: number, b: number, t: number) {
 
 /**
  * TPS-only controller: orbit camera with soft boom collision,
- * body faces move direction while walking.
+ * body faces move direction while walking, crouch via Left Control.
  */
 export function PlayerController() {
   const { gl, camera } = useThree()
@@ -36,6 +41,8 @@ export function PlayerController() {
   const right = useRef(new THREE.Vector3())
   const wish = useRef(new THREE.Vector3())
   const boomScale = useRef(1)
+  /** Smoothed camera pivot height (stand ↔ crouch). */
+  const camHeight = useRef<number>(CAMERA.height)
   const runId = useRef(useGameStore.getState().runId)
   const idealOffset = useRef(new THREE.Vector3())
   const boomDir = useRef(new THREE.Vector3())
@@ -120,6 +127,29 @@ export function PlayerController() {
         if (!e.repeat) useGameStore.getState().requestJump()
         return
       }
+      if (e.code === 'ControlLeft' && !e.repeat) {
+        e.preventDefault()
+        const game = useGameStore.getState()
+        if (game.isCrouching) {
+          // Only stand if there is clearance above the crouch capsule.
+          if (
+            canStandUp(
+              game.playerX,
+              game.playerY,
+              game.playerZ,
+              PLAYER.radius,
+              PLAYER.crouchHeight,
+              PLAYER.height,
+              game.map.solids,
+            )
+          ) {
+            game.setCrouching(false)
+          }
+        } else {
+          game.setCrouching(true)
+        }
+        return
+      }
       if (e.code === 'KeyR' && !e.repeat) {
         e.preventDefault()
         useGameStore.getState().regenerateMap()
@@ -146,6 +176,9 @@ export function PlayerController() {
 
     const game = useGameStore.getState()
     const { solids, trenches } = game.map
+    const crouching = game.isCrouching
+    // Capsule: feet stay at pos.y; top drops to crouchHeight (half standing).
+    const bodyHeight = crouching ? PLAYER.crouchHeight : PLAYER.height
 
     if (game.runId !== runId.current) {
       runId.current = game.runId
@@ -156,6 +189,8 @@ export function PlayerController() {
       lookPitch.current = PLAYER.pitchDefault
       bodyYaw.current = 0
       boomScale.current = 1
+      camHeight.current = CAMERA.height
+      game.setCrouching(false)
     }
 
     const { dx, dy } = game.consumeLook()
@@ -168,12 +203,16 @@ export function PlayerController() {
 
     const { moveX, moveZ, sprint } = game.input
     const wishMoving = Math.abs(moveX) > 1e-6 || Math.abs(moveZ) > 1e-6
-    const sprinting = game.tickStamina(dt, sprint, wishMoving)
+    const sprinting = game.tickStamina(dt, sprint && !crouching, wishMoving)
 
-    // Camera orbit (always free around the character).
+    // Smooth camera pivot height (~0.2s stand ↔ crouch).
+    const targetCamH = crouching ? CAMERA.crouchHeight : CAMERA.height
+    const crouchT = 1 - Math.exp((-3 / CAMERA.crouchBlend) * dt)
+    camHeight.current = THREE.MathUtils.lerp(camHeight.current, targetCamH, crouchT)
+
     yawPivot.current.rotation.y = lookYaw.current
     pitchObj.current.rotation.x = lookPitch.current
-    yawPivot.current.position.y = CAMERA.height
+    yawPivot.current.position.y = camHeight.current
 
     forward.current.set(-Math.sin(lookYaw.current), 0, -Math.cos(lookYaw.current))
     right.current.set(Math.cos(lookYaw.current), 0, -Math.sin(lookYaw.current))
@@ -190,7 +229,12 @@ export function PlayerController() {
       const turn = 1 - Math.exp(-PLAYER.turnRate * dt)
       bodyYaw.current = lerpAngle(bodyYaw.current, targetYaw, turn)
 
-      const speed = PLAYER.speed * (sprinting ? PLAYER.runMul : 1)
+      const speedMul = crouching
+        ? PLAYER.crouchSpeedMul
+        : sprinting
+          ? PLAYER.runMul
+          : 1
+      const speed = PLAYER.speed * speedMul
       wish.current.multiplyScalar(speed * dt)
 
       let nextX = pos.current.x + wish.current.x
@@ -200,7 +244,7 @@ export function PlayerController() {
         nextZ,
         pos.current.y,
         PLAYER.radius,
-        PLAYER.height,
+        bodyHeight,
         solids,
       )
       nextX = hit.x
@@ -210,7 +254,7 @@ export function PlayerController() {
         nextZ,
         pos.current.y,
         PLAYER.radius,
-        PLAYER.height,
+        bodyHeight,
         solids,
       )
       const bounded = clampToArena(hit.x, hit.z, PLAYER.radius)
@@ -218,7 +262,8 @@ export function PlayerController() {
       pos.current.z = bounded.z
     }
 
-    if (game.consumeJump() && grounded.current) {
+    // No jump while crouching.
+    if (game.consumeJump() && grounded.current && !crouching) {
       velY.current = PLAYER.jumpSpeed
       grounded.current = false
     }
@@ -243,13 +288,13 @@ export function PlayerController() {
     velY.current = vert.velY
     grounded.current = vert.grounded
 
-    // Soft boom collision: pull camera in along the shoulder arm if a wall is hit.
+    // Soft boom collision from the smoothed pivot height.
     euler.current.set(lookPitch.current, lookYaw.current, 0, 'YXZ')
     idealOffset.current.set(CAMERA.shoulder, CAMERA.lift, CAMERA.distance)
     idealOffset.current.applyEuler(euler.current)
     const maxLen = idealOffset.current.length()
     const ox = pos.current.x
-    const oy = pos.current.y + CAMERA.height
+    const oy = pos.current.y + camHeight.current
     const oz = pos.current.z
     boomDir.current.copy(idealOffset.current).normalize()
     const hitDist = raycastSolids(

@@ -23,11 +23,14 @@ type GameState = {
   stamina: number
   staminaRecovering: boolean
   isSprinting: boolean
+  isCrouching: boolean
 
   map: ProceduralMap
 
   setMove: (x: number, z: number) => void
   setSprint: (on: boolean) => void
+  setCrouching: (on: boolean) => void
+  toggleCrouch: () => void
   tickStamina: (dt: number, wantsSprint: boolean, moving: boolean) => boolean
   requestJump: () => void
   consumeJump: () => boolean
@@ -59,18 +62,23 @@ export const useGameStore = create<GameState>((set, get) => ({
   stamina: 1,
   staminaRecovering: false,
   isSprinting: false,
+  isCrouching: false,
 
   map: initialMap,
 
   setMove: (x, z) => set((s) => ({ input: { ...s.input, moveX: x, moveZ: z } })),
   setSprint: (on) => set((s) => ({ input: { ...s.input, sprint: on } })),
+  setCrouching: (on) => set({ isCrouching: on }),
+  toggleCrouch: () => set((s) => ({ isCrouching: !s.isCrouching })),
 
   tickStamina: (dt, wantsSprint, moving) => {
     const s = get()
     const rate = 1 / STAMINA.duration
     let stamina = s.stamina
     let recovering = s.staminaRecovering
-    const isSprinting = wantsSprint && moving && stamina > 0 && !recovering
+    // No sprint while crouching.
+    const isSprinting =
+      wantsSprint && moving && stamina > 0 && !recovering && !s.isCrouching
 
     if (isSprinting) {
       stamina = Math.max(0, stamina - dt * rate)
@@ -128,6 +136,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       playerX: map.spawn.x,
       playerY: map.spawn.y,
       playerZ: map.spawn.z,
+      isCrouching: false,
       runId: get().runId + 1,
     })
   },
@@ -140,6 +149,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       stamina: 1,
       staminaRecovering: false,
       isSprinting: false,
+      isCrouching: false,
       jumpQueued: false,
       map,
       playerX: map.spawn.x,
