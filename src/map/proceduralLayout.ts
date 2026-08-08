@@ -1,6 +1,7 @@
 import { ARENA } from '../constants'
 import { MAT } from './materials'
 import { createRubikCollisionSolids } from './rubiksWall'
+import { addStraightStairs } from './stairs'
 
 /** Axis-aligned solid with explicit vertical extent (y = minY, height → maxY). */
 export type SolidAABB = {
@@ -285,77 +286,50 @@ function addHouse(
 
   const roofY = baseY + floorH + stories * storyH
 
-  // Interior staircase along the wall opposite the door (open well through floors).
-  const stepH = 0.4
-  const stepD = 0.55
-  const stepW = 1.25
-  const steps = Math.ceil((roofY - baseY - floorH) / stepH) + 1
-  const inset = wallT + 0.85
-  for (let i = 0; i < steps; i++) {
-    const yy = baseY + floorH + i * stepH
-    let sx = x
-    let sz = z
-    if (door === 's') {
-      // stairs on north interior wall, run +X
-      sx = x - hw + inset + 0.7 + (i % 6) * stepD * 0.15
-      sz = z - hd + inset + (i % 2) * 0.05
-    } else if (door === 'n') {
-      sx = x - hw + inset + 0.7 + (i % 6) * stepD * 0.15
-      sz = z + hd - inset
-    } else if (door === 'e') {
-      sx = x - hw + inset
-      sz = z - hd + inset + 0.7 + (i % 6) * stepD * 0.15
-    } else {
-      sx = x + hw - inset
-      sz = z - hd + inset + 0.7 + (i % 6) * stepD * 0.15
-    }
+  // Solid upper floors + full rooftop (access via exterior modular stairs).
+  for (let story = 1; story < stories; story++) {
+    const fy = baseY + floorH + story * storyH
     add(
       solids,
-      box(nid('stair'), sx, yy, sz, stepW, stepH, stepD, i % 2 ? MAT.wood : MAT.woodOld, true, 'step'),
+      box(nid('fl'), x, fy, z, w - 0.25, floorH, d - 0.25, MAT.woodPale, true, 'floor'),
     )
   }
+  add(solids, box(nid('rf'), x, roofY, z, w + 0.3, 0.26, d + 0.3, roofColor, true, 'roof'))
 
-  // Upper floors with stairwell cutout (two slabs leaving a gap by the stairs)
-  for (let story = 1; story <= stories; story++) {
-    const fy = baseY + floorH + story * storyH
-    const isRoof = story === stories
-    const color = isRoof ? roofColor : MAT.woodPale
-    const kind = isRoof ? 'roof' : 'floor'
-    const thick = isRoof ? 0.28 : floorH
-
-    if (door === 'n' || door === 's') {
-      // Gap on the stair side (north if door south)
-      const gapZ = door === 's' ? z - hd * 0.35 : z + hd * 0.35
-      const mainZ = door === 's' ? z + hd * 0.18 : z - hd * 0.18
-      add(
-        solids,
-        box(nid('fl'), x, fy, mainZ, w - 0.25, thick, d * 0.55, color, true, kind),
-      )
-      add(
-        solids,
-        box(nid('fl'), x + w * 0.22, fy, gapZ, w * 0.45, thick, d * 0.28, color, true, kind),
-      )
-    } else {
-      const gapX = door === 'e' ? x - hw * 0.35 : x + hw * 0.35
-      const mainX = door === 'e' ? x + hw * 0.18 : x - hw * 0.18
-      add(
-        solids,
-        box(nid('fl'), mainX, fy, z, w * 0.55, thick, d - 0.25, color, true, kind),
-      )
-      add(
-        solids,
-        box(nid('fl'), gapX, fy, z + d * 0.22, w * 0.28, thick, d * 0.45, color, true, kind),
-      )
-    }
+  // Contrasting door-frame posts for readable entrances
+  const frameH = 2.2
+  const frameY = baseY + floorH
+  const fw = 0.18
+  if (door === 's' || door === 'n') {
+    const fz = door === 's' ? z + hd - wallT * 0.5 : z - hd + wallT * 0.5
+    add(solids, box(nid('df'), x - doorW * 0.5, frameY, fz, fw, frameH, wallT + 0.08, MAT.trim, false, 'prop'))
+    add(solids, box(nid('df'), x + doorW * 0.5, frameY, fz, fw, frameH, wallT + 0.08, MAT.trim, false, 'prop'))
+  } else {
+    const fx = door === 'e' ? x + hw - wallT * 0.5 : x - hw + wallT * 0.5
+    add(solids, box(nid('df'), fx, frameY, z - doorW * 0.5, wallT + 0.08, frameH, fw, MAT.trim, false, 'prop'))
+    add(solids, box(nid('df'), fx, frameY, z + doorW * 0.5, wallT + 0.08, frameH, fw, MAT.trim, false, 'prop'))
   }
 
   if (opts.stone) {
-    const py = roofY + 0.28
-    add(solids, box(nid('pp'), x, py, z - hd, w * 0.9, 0.5, 0.28, MAT.stoneDark, false, 'wall'))
-    add(solids, box(nid('pp'), x, py, z + hd, w * 0.9, 0.5, 0.28, MAT.stoneDark, false, 'wall'))
+    const py = roofY + 0.26
+    add(solids, box(nid('pp'), x, py, z - hd, w * 0.9, 0.45, 0.26, MAT.stoneDark, false, 'wall'))
+    add(solids, box(nid('pp'), x, py, z + hd, w * 0.9, 0.45, 0.26, MAT.stoneDark, false, 'wall'))
   }
 
-  return roofY + 0.28
+  addStraightStairs(solids, {
+    buildingX: x,
+    buildingZ: z,
+    buildingW: w,
+    buildingD: d,
+    baseY,
+    topY: roofY + 0.26,
+    side: door,
+    box,
+    nid,
+    add: (s) => add(solids, s),
+  })
+
+  return roofY + 0.26
 }
 
 /** Watchtower with door, windows, and interior stairs to the roof deck. */
@@ -427,32 +401,25 @@ function addWatchtower(
     })
   }
 
-  // Interior stairs
-  const stepH = 0.42
-  const steps = Math.ceil(h / stepH)
-  for (let i = 0; i < steps; i++) {
-    add(
-      solids,
-      box(
-        nid('ts'),
-        x + ((i % 4) - 1.5) * 0.35,
-        baseY + 0.2 + i * stepH,
-        z - 0.2 + (i % 2) * 0.4,
-        1.15,
-        stepH,
-        0.55,
-        MAT.wood,
-        true,
-        'step',
-      ),
-    )
-  }
-
-  // Partial decks + roof
+  // Interior decks + roof
   for (let y = baseY + 2.9; y < baseY + h - 0.5; y += 2.9) {
-    add(solids, box(nid('td'), x + 0.35, y, z, w - 1.1, 0.22, w - 0.5, MAT.woodPale, true, 'floor'))
+    add(solids, box(nid('td'), x, y, z, w - 0.55, 0.22, w - 0.55, MAT.woodPale, true, 'floor'))
   }
-  add(solids, box(nid('tr'), x, baseY + h, z, w + 0.35, 0.3, w + 0.35, MAT.stoneLight, true, 'roof'))
+  const roofY = baseY + h
+  add(solids, box(nid('tr'), x, roofY, z, w + 0.35, 0.28, w + 0.35, MAT.stoneLight, true, 'roof'))
+
+  addStraightStairs(solids, {
+    buildingX: x,
+    buildingZ: z,
+    buildingW: w,
+    buildingD: w,
+    baseY,
+    topY: roofY + 0.28,
+    side: 's',
+    box,
+    nid,
+    add: (s) => add(solids, s),
+  })
 }
 
 /** Double-wall defense line with a narrow corridor between (ref. points 8 / 10). */

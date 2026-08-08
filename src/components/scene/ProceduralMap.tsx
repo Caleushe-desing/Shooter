@@ -4,7 +4,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import { ARENA } from '../../constants'
 import { MAT } from '../../map/materials'
 import { useGameStore } from '../../store/gameStore'
-import { GalaxySky } from './GalaxySky'
+import { HangarCeiling } from './HangarCeiling'
 import { RubiksWall } from './RubiksWall'
 
 function CaptureFlag() {
@@ -144,18 +144,18 @@ function MergedSolids() {
     <group>
       {batches.map((b) => (
         <mesh key={b.color} geometry={b.geometry} castShadow receiveShadow>
-          <meshStandardMaterial color={b.color} roughness={0.9} metalness={0.04} />
+          <meshStandardMaterial color={b.color} roughness={0.78} metalness={0.05} />
         </mesh>
       ))}
     </group>
   )
 }
 
-/** Fortified settlement + Rubik perimeter + galaxy sky. */
+/** Fortified settlement + Rubik perimeter + hangar ceiling lights. */
 export function ProceduralMap() {
   return (
     <group>
-      <GalaxySky />
+      <HangarCeiling />
       <GroundWithTrenches />
       <TrenchFloors />
       <MergedSolids />

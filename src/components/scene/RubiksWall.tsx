@@ -53,10 +53,10 @@ function RubikBatch({
       <boxGeometry args={[size, size, size]} />
       <meshStandardMaterial
         color={color}
-        roughness={0.42}
-        metalness={0.18}
+        roughness={0.38}
+        metalness={0.14}
         emissive={color}
-        emissiveIntensity={0.06}
+        emissiveIntensity={0.12}
       />
     </instancedMesh>
   )
