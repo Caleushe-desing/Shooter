@@ -1,17 +1,28 @@
 import { create } from 'zustand'
-import { PLAYER, STAMINA, type GameStatus } from '../constants'
-import { generateProceduralMap, type ProceduralMap } from '../map/proceduralLayout'
+import {
+  PLAYER,
+  CAMERA,
+  WEAPON_AMMO,
+  PICKUPS,
+  STAMINA,
+  type CameraMode,
+  type GameStatus,
+} from '../constants'
+import { ORB_SPAWNS } from '../map/pickupsLayout'
+import { clearGhosts } from '../combat/ghosts'
+import { clearPortals } from '../map/portals'
 
 type InputState = {
   moveX: number
   moveZ: number
   sprint: boolean
-  firing: boolean
 }
 
 type GameState = {
   input: InputState
   jumpQueued: boolean
+  fireQueued: number
+  shotId: number
   lookDx: number
   lookDy: number
 
@@ -19,98 +30,105 @@ type GameState = {
   playerY: number
   playerZ: number
   runId: number
+  cameraMode: CameraMode
+  /** Bird's-eye camera height (meters). User-adjustable zoom. */
+  topCamHeight: number
+
   status: GameStatus
-
+  score: number
+  orbsRemaining: number
+  orbsTotal: number
+  ammo: number
+  ammoMax: number
+  /** 0..1 sprint stamina. */
   stamina: number
+  /** True while refilling — sprint blocked until 100%. */
   staminaRecovering: boolean
+  /** Effective sprint this frame (after stamina rules). */
   isSprinting: boolean
-  isCrouching: boolean
-  /** Effective horizontal move speed (walk / sprint / crouch). */
-  moveSpeed: number
-
-  map: ProceduralMap
+  /** Alive ghosts currently on the map. */
+  ghostCount: number
 
   setMove: (x: number, z: number) => void
+  setGhostCount: (n: number) => void
   setSprint: (on: boolean) => void
-  setFiring: (on: boolean) => void
-  setCrouching: (on: boolean) => void
-  toggleCrouch: () => void
+  toggleSprint: () => void
+  /**
+   * Drain while sprinting, refill while walking/idle.
+   * Returns whether the player is effectively sprinting this frame.
+   */
   tickStamina: (dt: number, wantsSprint: boolean, moving: boolean) => boolean
-  /** Recompute moveSpeed from crouch / sprint state. */
-  syncMoveSpeed: (sprinting: boolean) => number
   requestJump: () => void
   consumeJump: () => boolean
+  requestFire: () => void
+  consumeFire: () => boolean
   addLook: (dx: number, dy: number) => void
   consumeLook: () => { dx: number; dy: number }
+
   setPlayerPos: (x: number, y: number, z: number) => void
-  regenerateMap: () => void
+  /** Spend one round; returns false if empty / not playing. */
+  tryFireAmmo: () => boolean
+  collectOrb: () => void
+  collectAmmo: () => void
+  setLost: () => void
   restartRun: () => void
+  setCameraMode: (mode: CameraMode) => void
+  toggleCameraMode: () => void
+  /** Positive delta = zoom out (higher cam). */
+  adjustTopZoom: (deltaMeters: number) => void
 }
 
-function computeMoveSpeed(isCrouching: boolean, isSprinting: boolean) {
-  if (isCrouching) return PLAYER.speed * PLAYER.crouchSpeedMul
-  if (isSprinting) return PLAYER.speed * PLAYER.runMul
-  return PLAYER.speed
-}
-
-function freshMap() {
-  return generateProceduralMap((Math.random() * 0xffffffff) >>> 0)
-}
-
-const initialMap = freshMap()
+const totalOrbs = ORB_SPAWNS.length
 
 export const useGameStore = create<GameState>((set, get) => ({
-  input: { moveX: 0, moveZ: 0, sprint: false, firing: false },
+  input: { moveX: 0, moveZ: 0, sprint: false },
   jumpQueued: false,
+  fireQueued: 0,
+  shotId: 0,
   lookDx: 0,
   lookDy: 0,
 
-  playerX: initialMap.spawn.x,
-  playerY: initialMap.spawn.y,
-  playerZ: initialMap.spawn.z,
+  playerX: PLAYER.spawn.x,
+  playerY: 0,
+  playerZ: PLAYER.spawn.z,
   runId: 1,
-  status: 'playing',
+  cameraMode: 'third',
+  topCamHeight: CAMERA.topHeight,
 
+  status: 'playing',
+  score: 0,
+  orbsRemaining: totalOrbs,
+  orbsTotal: totalOrbs,
+  ammo: WEAPON_AMMO.start,
+  ammoMax: WEAPON_AMMO.max,
   stamina: 1,
   staminaRecovering: false,
   isSprinting: false,
-  isCrouching: false,
-  moveSpeed: PLAYER.speed,
-
-  map: initialMap,
+  ghostCount: 0,
 
   setMove: (x, z) => set((s) => ({ input: { ...s.input, moveX: x, moveZ: z } })),
-  setSprint: (on) => set((s) => ({ input: { ...s.input, sprint: on } })),
-  setFiring: (on) => set((s) => ({ input: { ...s.input, firing: on } })),
-  setCrouching: (on) =>
-    set((s) => ({
-      isCrouching: on,
-      moveSpeed: computeMoveSpeed(on, on ? false : s.isSprinting),
-    })),
-  toggleCrouch: () =>
-    set((s) => {
-      const isCrouching = !s.isCrouching
-      return {
-        isCrouching,
-        moveSpeed: computeMoveSpeed(isCrouching, isCrouching ? false : s.isSprinting),
-      }
-    }),
-
-  syncMoveSpeed: (sprinting) => {
-    const s = get()
-    const moveSpeed = computeMoveSpeed(s.isCrouching, sprinting)
-    if (moveSpeed !== s.moveSpeed) set({ moveSpeed })
-    return moveSpeed
+  setGhostCount: (n) => {
+    if (get().ghostCount !== n) set({ ghostCount: n })
   },
+  setSprint: (on) => set((s) => ({ input: { ...s.input, sprint: on } })),
+  toggleSprint: () =>
+    set((s) => {
+      // Ignore sprint-on while recovering; allow toggling off anytime.
+      if (!s.input.sprint && s.staminaRecovering) return s
+      return { input: { ...s.input, sprint: !s.input.sprint } }
+    }),
 
   tickStamina: (dt, wantsSprint, moving) => {
     const s = get()
+    if (s.status !== 'playing') {
+      if (s.isSprinting) set({ isSprinting: false })
+      return false
+    }
+
     const rate = 1 / STAMINA.duration
     let stamina = s.stamina
     let recovering = s.staminaRecovering
-    // No sprint while crouching.
-    const isSprinting =
-      wantsSprint && moving && stamina > 0 && !recovering && !s.isCrouching
+    const isSprinting = wantsSprint && moving && stamina > 0 && !recovering
 
     if (isSprinting) {
       stamina = Math.max(0, stamina - dt * rate)
@@ -140,10 +158,23 @@ export const useGameStore = create<GameState>((set, get) => ({
     return isSprinting
   },
 
-  requestJump: () => set({ jumpQueued: true }),
+  requestJump: () => {
+    if (get().status !== 'playing') return
+    set({ jumpQueued: true })
+  },
   consumeJump: () => {
     if (!get().jumpQueued) return false
     set({ jumpQueued: false })
+    return true
+  },
+
+  requestFire: () => {
+    if (get().status !== 'playing') return
+    set((s) => ({ fireQueued: s.fireQueued + 1, shotId: s.shotId + 1 }))
+  },
+  consumeFire: () => {
+    if (get().fireQueued <= 0) return false
+    set((s) => ({ fireQueued: Math.max(0, s.fireQueued - 1) }))
     return true
   },
 
@@ -161,37 +192,74 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   setPlayerPos: (x, y, z) => set({ playerX: x, playerY: y, playerZ: z }),
 
-  regenerateMap: () => {
-    const map = freshMap()
+  tryFireAmmo: () => {
+    const s = get()
+    if (s.status !== 'playing' || s.ammo <= 0) return false
+    set({ ammo: s.ammo - 1 })
+    return true
+  },
+
+  collectOrb: () => {
+    const s = get()
+    if (s.status !== 'playing' || s.orbsRemaining <= 0) return
+    const orbsRemaining = s.orbsRemaining - 1
+    const score = s.score + PICKUPS.orbPoints
     set({
-      map,
-      playerX: map.spawn.x,
-      playerY: map.spawn.y,
-      playerZ: map.spawn.z,
-      isCrouching: false,
+      orbsRemaining,
+      score,
+      status: orbsRemaining <= 0 ? 'won' : 'playing',
+    })
+  },
+
+  collectAmmo: () => {
+    const s = get()
+    if (s.status !== 'playing') return
+    set({
+      ammo: Math.min(s.ammoMax, s.ammo + PICKUPS.ammoPerBox),
+    })
+  },
+
+  setLost: () => {
+    if (get().status !== 'playing') return
+    set({ status: 'lost' })
+  },
+
+  restartRun: () => {
+    clearGhosts()
+    clearPortals()
+    set({
+      status: 'playing',
+      score: 0,
+      orbsRemaining: totalOrbs,
+      orbsTotal: totalOrbs,
+      ammo: WEAPON_AMMO.start,
+      fireQueued: 0,
+      jumpQueued: false,
+      input: { moveX: 0, moveZ: 0, sprint: false },
+      stamina: 1,
+      staminaRecovering: false,
       isSprinting: false,
-      moveSpeed: PLAYER.speed,
-      input: { ...get().input, moveX: 0, moveZ: 0, firing: false },
+      ghostCount: 0,
+      playerX: PLAYER.spawn.x,
+      playerY: 0,
+      playerZ: PLAYER.spawn.z,
+      cameraMode: 'third',
       runId: get().runId + 1,
     })
   },
 
-  restartRun: () => {
-    const map = freshMap()
-    set({
-      status: 'playing',
-      input: { moveX: 0, moveZ: 0, sprint: false, firing: false },
-      stamina: 1,
-      staminaRecovering: false,
-      isSprinting: false,
-      isCrouching: false,
-      moveSpeed: PLAYER.speed,
-      jumpQueued: false,
-      map,
-      playerX: map.spawn.x,
-      playerY: map.spawn.y,
-      playerZ: map.spawn.z,
-      runId: get().runId + 1,
-    })
+  setCameraMode: (mode) => set({ cameraMode: mode }),
+  toggleCameraMode: () =>
+    set((s) => ({
+      cameraMode:
+        s.cameraMode === 'third' ? 'top' : s.cameraMode === 'top' ? 'first' : 'third',
+    })),
+  adjustTopZoom: (deltaMeters) => {
+    const s = get()
+    const next = Math.min(
+      CAMERA.topHeightMax,
+      Math.max(CAMERA.topHeightMin, s.topCamHeight + deltaMeters),
+    )
+    if (next !== s.topCamHeight) set({ topCamHeight: next })
   },
 }))
