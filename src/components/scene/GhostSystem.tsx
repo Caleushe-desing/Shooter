@@ -38,24 +38,25 @@ export function GhostSystem() {
     () =>
       new THREE.MeshStandardMaterial({
         color: GHOST.color,
-        roughness: 0.35,
-        metalness: 0.05,
+        roughness: 0.28,
+        metalness: 0.02,
         transparent: true,
-        opacity: 0.82,
-        emissive: GHOST.color,
-        emissiveIntensity: 0.22,
+        opacity: 0.88,
+        emissive: new THREE.Color('#A8C4F0'),
+        emissiveIntensity: 0.55,
         flatShading: false,
         side: THREE.DoubleSide,
+        depthWrite: false,
       }),
     [],
   )
   const eyeMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
-        color: '#F7FBFF',
-        emissive: '#DCEBFF',
-        emissiveIntensity: 0.35,
-        roughness: 0.45,
+        color: '#FFFFFF',
+        emissive: '#FFFFFF',
+        emissiveIntensity: 0.4,
+        roughness: 0.4,
       }),
     [],
   )
@@ -64,7 +65,7 @@ export function GhostSystem() {
       new THREE.MeshStandardMaterial({
         color: GHOST.eyeColor,
         emissive: GHOST.eyeColor,
-        emissiveIntensity: 0.85,
+        emissiveIntensity: 0.55,
         roughness: 0.35,
       }),
     [],
@@ -82,16 +83,16 @@ export function GhostSystem() {
     body.receiveShadow = false
     group.add(body)
 
-    const eyeY = GHOST.height * 0.72
-    const eyeX = GHOST.radius * 0.32
-    const eyeZ = GHOST.radius * 0.72
+    const eyeY = GHOST.height * 0.7
+    const eyeX = GHOST.radius * 0.34
+    const eyeZ = GHOST.radius * 0.55
 
     for (const side of [-1, 1] as const) {
       const eye = new THREE.Mesh(eyeGeo, eyeMat)
       eye.position.set(side * eyeX, eyeY, eyeZ)
       group.add(eye)
       const pupil = new THREE.Mesh(pupilGeo, pupilMat)
-      pupil.position.set(side * eyeX, eyeY - 0.02, eyeZ + GHOST.radius * 0.12)
+      pupil.position.set(side * eyeX, eyeY - 0.015, eyeZ + GHOST.radius * 0.1)
       group.add(pupil)
     }
 
@@ -226,12 +227,12 @@ export function GhostSystem() {
       if (mat?.isMeshStandardMaterial) {
         if (g.hitFlash > 0 || g.stun > 0) {
           mat.emissive.set(g.stun > 0 ? '#88CCFF' : '#FFAA66')
-          mat.emissiveIntensity = g.stun > 0 ? 0.7 : 1.1
-          mat.opacity = g.stun > 0 ? 0.55 : 0.9
+          mat.emissiveIntensity = g.stun > 0 ? 0.95 : 1.25
+          mat.opacity = g.stun > 0 ? 0.5 : 0.95
         } else {
-          mat.emissive.set(GHOST.color)
-          mat.emissiveIntensity = g.chasing ? 0.45 : 0.22
-          mat.opacity = g.chasing ? 0.9 : 0.82
+          mat.emissive.set('#A8C4F0')
+          mat.emissiveIntensity = g.chasing ? 0.85 : 0.55
+          mat.opacity = g.chasing ? 0.95 : 0.88
         }
       }
     }

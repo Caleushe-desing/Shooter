@@ -137,18 +137,18 @@ export const GHOST = {
   loseRange: 26,
   stunTime: 2.8,
   patrolSpeed: 1.65,
-  color: '#C9D7F2',
-  eyeColor: '#1A2740',
-  /** Initial spawn points (far from mid spawn). */
+  color: '#E8F0FF',
+  eyeColor: '#152033',
+  /** Initial spawn points (near mid + far map edges). */
   spawns: [
+    { x: 8, z: 4 },
+    { x: -10, z: 6 },
     { x: -30, z: -16 },
     { x: 30, z: -16 },
     { x: -24, z: 26 },
     { x: 24, z: 26 },
     { x: 0, z: -30 },
     { x: 0, z: 40 },
-    { x: -34, z: 8 },
-    { x: 34, z: 8 },
   ],
   /** Shared patrol corners around the map. */
   waypoints: [
