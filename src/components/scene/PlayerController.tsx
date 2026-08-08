@@ -3,13 +3,14 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { PerspectiveCamera } from '@react-three/drei'
 import * as THREE from 'three'
 import { PLAYER, CAMERA, clampToArena } from '../../constants'
+import { resolveCircleSolids } from '../../map/proceduralLayout'
 import { useGameStore } from '../../store/gameStore'
 import { PlayerAvatar } from './PlayerAvatar'
 import { mobileLookStick } from '../../input/mobileLookStick'
 
 /**
  * Character controller: walk / run / jump + TPS / FPS / top camera.
- * Open ground only — no weapons, enemies, or map collision.
+ * Collides against procedural building solids.
  */
 export function PlayerController() {
   const { gl, camera } = useThree()
@@ -21,7 +22,8 @@ export function PlayerController() {
   const lookPitch = useRef<number>(PLAYER.pitchDefault)
   const bodyYaw = useRef(0)
   const moving = useRef(false)
-  const pos = useRef(new THREE.Vector3(PLAYER.spawn.x, 0, PLAYER.spawn.z))
+  const spawn = useGameStore.getState().map.spawn
+  const pos = useRef(new THREE.Vector3(spawn.x, 0, spawn.z))
   const velY = useRef(0)
   const grounded = useRef(true)
   const forward = useRef(new THREE.Vector3())
@@ -92,6 +94,11 @@ export function PlayerController() {
         useGameStore.getState().toggleCameraMode()
         return
       }
+      if (e.code === 'KeyR' && !e.repeat) {
+        e.preventDefault()
+        useGameStore.getState().regenerateMap()
+        return
+      }
       if (e.code === 'Equal' || e.code === 'NumpadAdd') {
         e.preventDefault()
         useGameStore.getState().adjustTopZoom(-CAMERA.topZoomStep)
@@ -134,7 +141,7 @@ export function PlayerController() {
     }
     if (game.runId !== runId.current) {
       runId.current = game.runId
-      pos.current.set(PLAYER.spawn.x, 0, PLAYER.spawn.z)
+      pos.current.set(game.map.spawn.x, 0, game.map.spawn.z)
       velY.current = 0
       grounded.current = true
       lookYaw.current = 0
@@ -225,11 +232,15 @@ export function PlayerController() {
     if (moving.current) {
       const speed = PLAYER.speed * (sprinting ? PLAYER.runMul : 1)
       wish.current.normalize().multiplyScalar(speed * dt)
-      const bounded = clampToArena(
-        pos.current.x + wish.current.x,
-        pos.current.z + wish.current.z,
-        PLAYER.radius,
-      )
+
+      // Separate-axis resolve so walls slide instead of sticky-stop.
+      let nextX = pos.current.x + wish.current.x
+      let nextZ = pos.current.z
+      let hit = resolveCircleSolids(nextX, nextZ, PLAYER.radius, game.map.solids)
+      nextX = hit.x
+      nextZ = pos.current.z + wish.current.z
+      hit = resolveCircleSolids(nextX, nextZ, PLAYER.radius, game.map.solids)
+      const bounded = clampToArena(hit.x, hit.z, PLAYER.radius)
       pos.current.x = bounded.x
       pos.current.z = bounded.z
     }
@@ -258,7 +269,7 @@ export function PlayerController() {
   }, -1)
 
   return (
-    <group ref={rig} position={[PLAYER.spawn.x, 0, PLAYER.spawn.z]}>
+    <group ref={rig} position={[spawn.x, 0, spawn.z]}>
       <group ref={avatarRoot}>
         <PlayerAvatar yawRef={bodyYaw} movingRef={moving} />
       </group>

@@ -1,11 +1,11 @@
 import { create } from 'zustand'
 import {
-  PLAYER,
   CAMERA,
   STAMINA,
   type CameraMode,
   type GameStatus,
 } from '../constants'
+import { generateProceduralMap, type ProceduralMap } from '../map/proceduralLayout'
 
 type InputState = {
   moveX: number
@@ -31,6 +31,8 @@ type GameState = {
   staminaRecovering: boolean
   isSprinting: boolean
 
+  map: ProceduralMap
+
   setMove: (x: number, z: number) => void
   setSprint: (on: boolean) => void
   toggleSprint: () => void
@@ -40,11 +42,18 @@ type GameState = {
   addLook: (dx: number, dy: number) => void
   consumeLook: () => { dx: number; dy: number }
   setPlayerPos: (x: number, y: number, z: number) => void
+  regenerateMap: () => void
   restartRun: () => void
   setCameraMode: (mode: CameraMode) => void
   toggleCameraMode: () => void
   adjustTopZoom: (deltaMeters: number) => void
 }
+
+function freshMap() {
+  return generateProceduralMap((Math.random() * 0xffffffff) >>> 0)
+}
+
+const initialMap = freshMap()
 
 export const useGameStore = create<GameState>((set, get) => ({
   input: { moveX: 0, moveZ: 0, sprint: false },
@@ -52,9 +61,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   lookDx: 0,
   lookDy: 0,
 
-  playerX: PLAYER.spawn.x,
+  playerX: initialMap.spawn.x,
   playerY: 0,
-  playerZ: PLAYER.spawn.z,
+  playerZ: initialMap.spawn.z,
   runId: 1,
   cameraMode: 'third',
   topCamHeight: CAMERA.topHeight,
@@ -63,6 +72,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   stamina: 1,
   staminaRecovering: false,
   isSprinting: false,
+
+  map: initialMap,
 
   setMove: (x, z) => set((s) => ({ input: { ...s.input, moveX: x, moveZ: z } })),
   setSprint: (on) => set((s) => ({ input: { ...s.input, sprint: on } })),
@@ -128,7 +139,19 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   setPlayerPos: (x, y, z) => set({ playerX: x, playerY: y, playerZ: z }),
 
+  regenerateMap: () => {
+    const map = freshMap()
+    set({
+      map,
+      playerX: map.spawn.x,
+      playerY: 0,
+      playerZ: map.spawn.z,
+      runId: get().runId + 1,
+    })
+  },
+
   restartRun: () => {
+    const map = freshMap()
     set({
       status: 'playing',
       input: { moveX: 0, moveZ: 0, sprint: false },
@@ -136,9 +159,10 @@ export const useGameStore = create<GameState>((set, get) => ({
       staminaRecovering: false,
       isSprinting: false,
       jumpQueued: false,
-      playerX: PLAYER.spawn.x,
+      map,
+      playerX: map.spawn.x,
       playerY: 0,
-      playerZ: PLAYER.spawn.z,
+      playerZ: map.spawn.z,
       cameraMode: 'third',
       runId: get().runId + 1,
     })

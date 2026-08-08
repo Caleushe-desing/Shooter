@@ -31,11 +31,11 @@ body,
   z-index: 20;
 }
 
-.camera-hint {
+.camera-hint,
+.map-regen {
   pointer-events: auto;
   position: absolute;
   top: 12px;
-  left: 12px;
   border: 1px solid rgba(255, 255, 255, 0.35);
   background: rgba(20, 28, 36, 0.55);
   color: rgba(255, 255, 255, 0.92);
@@ -44,6 +44,14 @@ body,
   padding: 8px 12px;
   border-radius: 8px;
   cursor: pointer;
+}
+
+.camera-hint {
+  left: 12px;
+}
+
+.map-regen {
+  left: 168px;
 }
 
 .stamina {

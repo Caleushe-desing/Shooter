@@ -4,6 +4,7 @@ import { COLORS } from '../constants'
 import { useGameStore } from '../store/gameStore'
 import { MobileControls } from './ui/MobileControls'
 import { PlayerController } from './scene/PlayerController'
+import { ProceduralMap } from './scene/ProceduralMap'
 
 function Ground() {
   return (
@@ -33,6 +34,7 @@ function Scene() {
       />
       <ambientLight intensity={0.22} />
       <Ground />
+      <ProceduralMap />
       <PlayerController />
     </>
   )
@@ -43,11 +45,15 @@ function Hud() {
   const stamina = useGameStore((s) => s.stamina)
   const recovering = useGameStore((s) => s.staminaRecovering)
   const toggle = useGameStore((s) => s.toggleCameraMode)
+  const regenerateMap = useGameStore((s) => s.regenerateMap)
 
   return (
     <div className="hud">
       <button type="button" className="camera-hint" onClick={toggle}>
         Cámara: {mode.toUpperCase()} (V)
+      </button>
+      <button type="button" className="map-regen" onClick={regenerateMap}>
+        Nuevo mapa (R)
       </button>
       <div className="stamina">
         <div className="stamina-label">{recovering ? 'Recuperando' : 'Resistencia'}</div>
