@@ -135,6 +135,31 @@ export const WEAPON_AMMO = {
   start: 6,
 } as const
 
+/** Hostile Mixamo hunters that guard orbs and chase the player. */
+export const ENEMY = {
+  radius: 0.38,
+  height: 1.72,
+  count: 6,
+  hp: 3,
+  catchRange: 1.15,
+  patrolSpeed: 3.2,
+  chaseSpeed: 5.4,
+  visionRange: VIEW_RANGE,
+  visionHalfAngle: (50 * Math.PI) / 180,
+  hearRadius: 14,
+  searchTime: 9,
+  stunTime: 1.6,
+  clearPlayer: 12,
+  minSeparation: 7,
+  /** How close to an orb they consider “guarding”. */
+  orbGuardRadius: 9,
+  /** Tint — hostile dark kit vs player skin. */
+  skin: '#8B5A4A',
+  suit: '#3A2A32',
+  accent: '#8B2E2E',
+  alertAccent: '#E04040',
+} as const
+
 export type GameStatus = 'playing' | 'won' | 'lost'
 export type CameraMode = 'third' | 'first' | 'top'
 

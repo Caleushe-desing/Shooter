@@ -21,6 +21,7 @@ export function CombatHud() {
   const staminaRecovering = useGameStore((s) => s.staminaRecovering)
   const isSprinting = useGameStore((s) => s.isSprinting)
   const score = useGameStore((s) => s.score)
+  const enemyCount = useGameStore((s) => s.enemyCount)
   const status = useGameStore((s) => s.status)
   const restartRun = useGameStore((s) => s.restartRun)
   const ammoLow = ammo <= 1
@@ -108,6 +109,12 @@ export function CombatHud() {
             />
           </div>
         </div>
+        <div className="rounded bg-black/50 px-2.5 py-1.5 backdrop-blur-sm">
+          <div className="text-[10px] font-semibold tracking-[0.14em] text-white/65">
+            CAZADORES
+          </div>
+          <div className="text-lg font-bold tracking-wide text-[#E07070]">{enemyCount}</div>
+        </div>
         <div className="rounded bg-black/45 px-2.5 py-1 text-[11px] tracking-[0.12em] text-white/80 backdrop-blur-sm">
           PUNTOS <span className="font-semibold text-[#F2E08A]">{score}</span>
         </div>
@@ -185,7 +192,7 @@ export function CombatHud() {
             <div className="text-sm tracking-[0.08em] text-white/75">
               {status === 'won'
                 ? 'Recogiste todos los orbes dorados.'
-                : 'Has perdido esta partida.'}
+                : 'Un cazador te atrapó antes de completar los orbes.'}
             </div>
             <div className="text-sm tracking-[0.08em] text-white/70">
               Puntos: <span className="text-[#F2E08A]">{score}</span>

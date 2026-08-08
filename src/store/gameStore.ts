@@ -9,6 +9,7 @@ import {
   type GameStatus,
 } from '../constants'
 import { ORB_SPAWNS } from '../map/pickupsLayout'
+import { clearEnemies } from '../combat/enemies'
 
 type InputState = {
   moveX: number
@@ -44,8 +45,11 @@ type GameState = {
   staminaRecovering: boolean
   /** Effective sprint this frame (after stamina rules). */
   isSprinting: boolean
+  /** Alive Mixamo hunters currently on the map. */
+  enemyCount: number
 
   setMove: (x: number, z: number) => void
+  setEnemyCount: (n: number) => void
   setSprint: (on: boolean) => void
   toggleSprint: () => void
   /**
@@ -99,8 +103,12 @@ export const useGameStore = create<GameState>((set, get) => ({
   stamina: 1,
   staminaRecovering: false,
   isSprinting: false,
+  enemyCount: 0,
 
   setMove: (x, z) => set((s) => ({ input: { ...s.input, moveX: x, moveZ: z } })),
+  setEnemyCount: (n) => {
+    if (get().enemyCount !== n) set({ enemyCount: n })
+  },
   setSprint: (on) => set((s) => ({ input: { ...s.input, sprint: on } })),
   toggleSprint: () =>
     set((s) => {
@@ -216,6 +224,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   restartRun: () => {
+    clearEnemies()
     set({
       status: 'playing',
       score: 0,
@@ -228,6 +237,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       stamina: 1,
       staminaRecovering: false,
       isSprinting: false,
+      enemyCount: 0,
       playerX: PLAYER.spawn.x,
       playerY: 0,
       playerZ: PLAYER.spawn.z,

@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import { Arena } from './scene/Arena'
 import { PlayerController } from './scene/PlayerController'
 import { PickupSystem } from './scene/PickupSystem'
+import { EnemySystem } from './scene/EnemySystem'
 import { MobileControls } from './ui/MobileControls'
 import { Crosshair } from './ui/Crosshair'
 import { CombatHud } from './ui/CombatHud'
@@ -84,6 +85,7 @@ function Scene() {
       />
       <Arena />
       <PickupSystem />
+      <EnemySystem />
       <PlayerController />
     </>
   )
