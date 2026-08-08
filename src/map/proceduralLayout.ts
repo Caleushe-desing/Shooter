@@ -41,17 +41,6 @@ export type ProceduralMap = {
   }
 }
 
-function mulberry32(seed: number) {
-  let a = seed >>> 0
-  return () => {
-    a |= 0
-    a = (a + 0x6d2b79f5) | 0
-    let t = Math.imul(a ^ (a >>> 15), 1 | a)
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
-  }
-}
-
 type BoxOpts = {
   walkable?: boolean
   kind?: SolidAABB['kind']
@@ -83,65 +72,51 @@ function pushBox(
   })
 }
 
-/** Stack of oversized books used as climbable steps. */
-function addBookStack(
+/**
+ * Single integrated wood ramp: same material as the table, even rise/run.
+ * Returns the top surface Y of the last step (should meet the tabletop).
+ */
+function addWoodRamp(
   solids: SolidAABB[],
   id: string,
+  /** Center X of the ramp. */
   x: number,
-  z: number,
-  baseY: number,
-  steps: number,
-  dir: 'n' | 's' | 'e' | 'w',
-  colors: string[],
+  /** Z of the first (lowest) tread center. */
+  zStart: number,
+  tableTopY: number,
+  /** Direction the ramp climbs toward (into the table). */
+  dir: 'n' | 's',
+  width: number,
 ) {
-  const stepH = 0.42
-  const stepD = 0.95
-  const stepW = 1.35
+  const steps = 5
+  const stepH = tableTopY / steps
+  const stepD = 1.05
+  const sign = dir === 'n' ? -1 : 1
+
   for (let i = 0; i < steps; i++) {
-    const y = baseY + i * stepH
-    let bx = x
-    let bz = z
-    let w = stepW
-    let d = stepD
-    if (dir === 'n') bz = z - i * stepD
-    if (dir === 's') bz = z + i * stepD
-    if (dir === 'e') {
-      bx = x + i * stepD
-      w = stepD
-      d = stepW
-    }
-    if (dir === 'w') {
-      bx = x - i * stepD
-      w = stepD
-      d = stepW
-    }
-    pushBox(
-      solids,
-      `${id}-${i}`,
-      bx,
-      y,
-      bz,
-      w,
-      stepH,
-      d,
-      colors[i % colors.length],
-      { walkable: true, kind: 'step' },
-    )
+    const y = i * stepH
+    const h = stepH
+    const z = zStart + sign * i * stepD
+    // Slightly deeper treads so lips are forgiving under stepHeight.
+    pushBox(solids, `${id}-${i}`, x, y, z, width, h, stepD + 0.08, MAT.wood, {
+      walkable: true,
+      kind: 'step',
+    })
   }
-  return baseY + steps * stepH
+
+  return steps * stepH
 }
 
 /**
- * Giant living-room battlefield: furniture as cover, flag on a tall table.
- * Player scale feels small — sofa backs tower overhead, books are stairs.
+ * Clean giant living room — three solid scale anchors only:
+ * wood table (+ ramp), charcoal sofa, industrial bookshelf.
  */
 export function generateProceduralMap(seed: number): ProceduralMap {
-  const rng = mulberry32(seed)
   const solids: SolidAABB[] = []
   const trenches: Trench[] = []
   const half = ARENA.size * 0.5
-  const wallT = 0.7
-  const ceilingY = 16
+  const wallT = 0.65
+  const ceilingY = 14
 
   // —— Room shell ——
   pushBox(solids, 'wall-n', 0, 0, -half + wallT * 0.5, ARENA.size, ceilingY, wallT, MAT.wall, {
@@ -150,203 +125,260 @@ export function generateProceduralMap(seed: number): ProceduralMap {
   pushBox(solids, 'wall-s', 0, 0, half - wallT * 0.5, ARENA.size, ceilingY, wallT, MAT.wall, {
     kind: 'wall',
   })
-  pushBox(solids, 'wall-e', half - wallT * 0.5, 0, 0, wallT, ceilingY, ARENA.size - wallT * 2, MAT.wall, {
-    kind: 'wall',
-  })
-  pushBox(solids, 'wall-w', -half + wallT * 0.5, 0, 0, wallT, ceilingY, ARENA.size - wallT * 2, MAT.wall, {
-    kind: 'wall',
-  })
-  // Door gap on south wall — carve by not blocking the doorway with an extra solid;
-  // instead leave a thinner opening via side jambs (south wall still spans; spawn inside).
-  pushBox(solids, 'baseboard-n', 0, 0, -half + wallT + 0.15, ARENA.size - 2, 0.35, 0.3, MAT.baseboard, {
+  pushBox(
+    solids,
+    'wall-e',
+    half - wallT * 0.5,
+    0,
+    0,
+    wallT,
+    ceilingY,
+    ARENA.size - wallT * 2,
+    MAT.wallDirty,
+    { kind: 'wall' },
+  )
+  pushBox(
+    solids,
+    'wall-w',
+    -half + wallT * 0.5,
+    0,
+    0,
+    wallT,
+    ceilingY,
+    ARENA.size - wallT * 2,
+    MAT.wallDirty,
+    { kind: 'wall' },
+  )
+  pushBox(
+    solids,
+    'baseboard',
+    0,
+    0,
+    0,
+    ARENA.size - wallT * 2 - 0.4,
+    0.28,
+    ARENA.size - wallT * 2 - 0.4,
+    MAT.baseboard,
+    { kind: 'prop' },
+  )
+  // Hollow the baseboard footprint: actually a thin perimeter only would be nicer,
+  // but a flush floor trim slab at y=0 with tiny height is fine as visual skirt —
+  // make it non-blocking thin strips instead.
+  solids.pop()
+  const trim = 0.28
+  const trimH = 0.32
+  pushBox(solids, 'trim-n', 0, 0, -half + wallT + trim * 0.5, ARENA.size - 2, trimH, trim, MAT.baseboard, {
     kind: 'prop',
   })
+  pushBox(solids, 'trim-s', 0, 0, half - wallT - trim * 0.5, ARENA.size - 2, trimH, trim, MAT.baseboard, {
+    kind: 'prop',
+  })
+  pushBox(
+    solids,
+    'trim-e',
+    half - wallT - trim * 0.5,
+    0,
+    0,
+    trim,
+    trimH,
+    ARENA.size - wallT * 2 - 1,
+    MAT.baseboard,
+    { kind: 'prop' },
+  )
+  pushBox(
+    solids,
+    'trim-w',
+    -half + wallT + trim * 0.5,
+    0,
+    0,
+    trim,
+    trimH,
+    ARENA.size - wallT * 2 - 1,
+    MAT.baseboard,
+    { kind: 'prop' },
+  )
 
-  // Ceiling (walkable roof collision for boom rays / stand checks)
-  pushBox(solids, 'ceiling', 0, ceilingY, 0, ARENA.size - 0.4, 0.4, ARENA.size - 0.4, MAT.ceiling, {
+  pushBox(solids, 'ceiling', 0, ceilingY, 0, ARENA.size - 0.5, 0.35, ARENA.size - 0.5, MAT.ceiling, {
     kind: 'roof',
   })
 
-  // —— Rug “trench” cover pits (low carpet dips between furniture) ——
-  trenches.push({
-    id: 'rug-pit-living',
-    x: -6,
-    z: 4,
-    width: 10,
-    depth: 7,
-    floorY: -0.35,
-    color: MAT.rug,
-  })
-  trenches.push({
-    id: 'rug-pit-hall',
-    x: 10,
-    z: -2,
-    width: 6,
-    depth: 5,
-    floorY: -0.28,
-    color: MAT.floorDark,
-  })
+  // —— 1) Main wood table (uniform) — flag sits flush on the top ——
+  const tableX = 0
+  const tableZ = -10
+  const tableW = 9.0
+  const tableD = 5.0
+  const topThick = 0.28
+  const tableTopY = 2.35
+  const apronH = 0.35
 
-  // —— Giant sofa (north-west) — seat cover + tall back ——
-  const sofaX = -14
-  const sofaZ = -8
-  pushBox(solids, 'sofa-seat', sofaX, 0, sofaZ, 14, 1.9, 4.2, MAT.sofa, {
+  // Top slab
+  pushBox(solids, 'table-top', tableX, tableTopY, tableZ, tableW, topThick, tableD, MAT.wood, {
     walkable: true,
     kind: 'prop',
   })
-  pushBox(solids, 'sofa-back', sofaX, 1.9, sofaZ - 1.7, 14, 2.8, 1.0, MAT.sofaCushion, {
-    kind: 'prop',
-  })
-  pushBox(solids, 'sofa-arm-l', sofaX - 6.3, 1.9, sofaZ, 1.2, 1.4, 4.2, MAT.sofa, {
-    walkable: true,
-    kind: 'prop',
-  })
-  pushBox(solids, 'sofa-arm-r', sofaX + 6.3, 1.9, sofaZ, 1.2, 1.4, 4.2, MAT.sofa, {
-    walkable: true,
-    kind: 'prop',
-  })
-  // Cushions (visual height bump / cover lips)
-  pushBox(solids, 'sofa-cush-1', sofaX - 3.5, 1.9, sofaZ + 0.3, 4.2, 0.45, 3.0, MAT.sofaCushion, {
-    walkable: true,
-    kind: 'prop',
-  })
-  pushBox(solids, 'sofa-cush-2', sofaX + 3.5, 1.9, sofaZ + 0.3, 4.2, 0.45, 3.0, MAT.sofaCushion, {
-    walkable: true,
-    kind: 'prop',
-  })
-
-  // —— Coffee table (center living) — crawl/cover under is trench; top is mid platform ——
-  pushBox(solids, 'coffee-top', -6, 1.55, 5, 6.5, 0.28, 3.6, MAT.woodPale, {
-    walkable: true,
-    kind: 'prop',
-  })
-  pushBox(solids, 'coffee-leg-1', -8.4, 0, 3.6, 0.45, 1.55, 0.45, MAT.woodDark, { kind: 'prop' })
-  pushBox(solids, 'coffee-leg-2', -3.6, 0, 3.6, 0.45, 1.55, 0.45, MAT.woodDark, { kind: 'prop' })
-  pushBox(solids, 'coffee-leg-3', -8.4, 0, 6.4, 0.45, 1.55, 0.45, MAT.woodDark, { kind: 'prop' })
-  pushBox(solids, 'coffee-leg-4', -3.6, 0, 6.4, 0.45, 1.55, 0.45, MAT.woodDark, { kind: 'prop' })
-
-  // —— Armchair ——
-  pushBox(solids, 'chair-seat', 4, 0, 8, 3.2, 1.7, 3.2, MAT.fabric, {
-    walkable: true,
-    kind: 'prop',
-  })
-  pushBox(solids, 'chair-back', 4, 1.7, 6.7, 3.2, 2.4, 0.7, MAT.fabric, { kind: 'prop' })
-
-  // —— Bed (east) ——
-  pushBox(solids, 'bed-frame', 18, 0, 6, 7.5, 0.9, 11, MAT.wood, { walkable: true, kind: 'prop' })
-  pushBox(solids, 'bed-mattress', 18, 0.9, 6, 7.0, 0.7, 10.2, MAT.mattress, {
-    walkable: true,
-    kind: 'prop',
-  })
-  pushBox(solids, 'bed-pillow', 18, 1.6, 1.4, 5.5, 0.45, 1.6, MAT.sheet, {
-    walkable: true,
-    kind: 'prop',
-  })
-
-  // —— Kitchen island / counter (west) — mid-high cover ——
-  pushBox(solids, 'counter-base', -20, 0, 14, 10, 2.6, 3.4, MAT.counter, {
-    walkable: true,
-    kind: 'prop',
-  })
-  pushBox(solids, 'counter-top', -20, 2.6, 14, 10.4, 0.25, 3.8, MAT.ceramic, {
-    walkable: true,
-    kind: 'prop',
-  })
-
-  // —— Dining table (center-north) — FLAG lives on top ——
-  const tableX = 2
-  const tableZ = -18
-  const tableH = 3.4
-  pushBox(solids, 'dining-top', tableX, tableH, tableZ, 8.5, 0.32, 5.2, MAT.wood, {
-    walkable: true,
-    kind: 'prop',
-  })
-  pushBox(solids, 'dining-leg-1', tableX - 3.6, 0, tableZ - 2.0, 0.55, tableH, 0.55, MAT.woodDark, {
-    kind: 'prop',
-  })
-  pushBox(solids, 'dining-leg-2', tableX + 3.6, 0, tableZ - 2.0, 0.55, tableH, 0.55, MAT.woodDark, {
-    kind: 'prop',
-  })
-  pushBox(solids, 'dining-leg-3', tableX - 3.6, 0, tableZ + 2.0, 0.55, tableH, 0.55, MAT.woodDark, {
-    kind: 'prop',
-  })
-  pushBox(solids, 'dining-leg-4', tableX + 3.6, 0, tableZ + 2.0, 0.55, tableH, 0.55, MAT.woodDark, {
-    kind: 'prop',
-  })
-
-  // Capture volume on the tabletop
-  const flag = {
-    x: tableX,
-    y: tableH + 0.32,
-    z: tableZ,
+  // Apron under top (visual mass, not walkable)
+  pushBox(
+    solids,
+    'table-apron',
+    tableX,
+    tableTopY - apronH,
+    tableZ,
+    tableW - 0.5,
+    apronH,
+    tableD - 0.5,
+    MAT.woodDark,
+    { kind: 'prop' },
+  )
+  // Four square legs
+  const leg = 0.42
+  const legH = tableTopY - apronH
+  const insetX = tableW * 0.5 - 0.7
+  const insetZ = tableD * 0.5 - 0.7
+  for (const [sx, sz, i] of [
+    [-1, -1, 0],
+    [1, -1, 1],
+    [-1, 1, 2],
+    [1, 1, 3],
+  ] as const) {
+    pushBox(
+      solids,
+      `table-leg-${i}`,
+      tableX + sx * insetX,
+      0,
+      tableZ + sz * insetZ,
+      leg,
+      legH,
+      leg,
+      MAT.woodDark,
+      { kind: 'prop' },
+    )
   }
+
+  // Single south ramp — same wood, clean climb onto the tabletop
+  const rampWidth = 3.4
+  const rampZ0 = tableZ + tableD * 0.5 + 0.55
+  addWoodRamp(solids, 'table-ramp', tableX, rampZ0, tableTopY, 'n', rampWidth)
+  // Landing lip flush with table edge (same height as top)
+  pushBox(
+    solids,
+    'table-ramp-lip',
+    tableX,
+    tableTopY,
+    tableZ + tableD * 0.5 - 0.15,
+    rampWidth,
+    topThick,
+    0.55,
+    MAT.wood,
+    { walkable: true, kind: 'step' },
+  )
+
+  const flagY = tableTopY + topThick
+  const flag = { x: tableX, y: flagY, z: tableZ }
   const arena = {
     x: tableX,
     z: tableZ,
-    radius: 3.6,
-    floorY: tableH + 0.32,
+    radius: 2.8,
+    floorY: flagY,
   }
 
-  // —— Climb route A: books from south up onto the table ——
-  const bookColors = [MAT.bookRed, MAT.bookBlue, MAT.bookGreen, MAT.bookTan]
-  addBookStack(solids, 'books-s', tableX, tableZ + 5.8, 0, 5, 'n', bookColors)
-  // Final lip onto table from the top book
-  pushBox(solids, 'books-lip', tableX, 2.1, tableZ + 2.9, 1.5, 1.3, 1.1, MAT.bookTan, {
+  // —— 2) Charcoal sofa (west) — sober fabric mass for scale / cover ——
+  const sofaX = -16
+  const sofaZ = 4
+  const sofaW = 12
+  const sofaD = 4.4
+  const seatH = 1.75
+  pushBox(solids, 'sofa-seat', sofaX, 0, sofaZ, sofaW, seatH, sofaD, MAT.fabric, {
     walkable: true,
-    kind: 'step',
-  })
-
-  // —— Climb route B: chairs as intermediate platforms from the east ——
-  pushBox(solids, 'dine-chair-1', tableX + 6.2, 0, tableZ + 1.5, 2.2, 1.55, 2.2, MAT.woodPale, {
-    walkable: true,
-    kind: 'step',
-  })
-  pushBox(solids, 'dine-chair-1b', tableX + 6.2, 1.55, tableZ + 2.3, 2.2, 1.1, 0.55, MAT.wood, {
     kind: 'prop',
   })
-  pushBox(solids, 'dine-chair-2', tableX + 5.4, 0, tableZ - 0.2, 2.4, 2.35, 2.4, MAT.woodPale, {
-    walkable: true,
-    kind: 'step',
+  pushBox(solids, 'sofa-back', sofaX, seatH, sofaZ - sofaD * 0.5 + 0.45, sofaW, 2.4, 0.9, MAT.fabricDark, {
+    kind: 'prop',
   })
-  pushBox(solids, 'dine-chair-bridge', tableX + 4.0, 2.35, tableZ - 0.2, 2.0, 0.35, 1.8, MAT.bookBlue, {
+  pushBox(solids, 'sofa-arm-l', sofaX - sofaW * 0.5 + 0.55, seatH, sofaZ, 1.1, 1.15, sofaD, MAT.fabric, {
     walkable: true,
-    kind: 'step',
+    kind: 'prop',
   })
-  pushBox(solids, 'dine-chair-lip', tableX + 3.2, 2.7, tableZ - 0.2, 1.4, 0.7, 1.6, MAT.bookGreen, {
+  pushBox(solids, 'sofa-arm-r', sofaX + sofaW * 0.5 - 0.55, seatH, sofaZ, 1.1, 1.15, sofaD, MAT.fabric, {
     walkable: true,
-    kind: 'step',
-  })
-
-  // —— Climb route C: books from west near kitchen ——
-  addBookStack(solids, 'books-w', tableX - 6.5, tableZ, 0, 4, 'e', bookColors)
-  pushBox(solids, 'books-w-lip', tableX - 3.5, 1.68, tableZ, 1.2, 1.72, 1.5, MAT.bookRed, {
-    walkable: true,
-    kind: 'step',
+    kind: 'prop',
   })
 
-  // —— Scattered crates / toy boxes as low cover ——
-  const crates = [
-    { x: 12, z: 18, w: 2.2, h: 1.4, d: 2.2 },
-    { x: 15, z: 16, w: 1.8, h: 1.1, d: 1.8 },
-    { x: -8, z: 18, w: 2.5, h: 1.6, d: 2.0 },
-    { x: 8, z: -6, w: 2.0, h: 1.2, d: 2.0 },
+  // —— 3) Industrial bookshelf (east wall) — open frame, tall scale reference ——
+  const shelfX = 20
+  const shelfZ = -4
+  const shelfW = 5.5
+  const shelfD = 1.6
+  const shelfH = 9.5
+  const upright = 0.38
+  // Back panel
+  pushBox(
+    solids,
+    'shelf-back',
+    shelfX,
+    0,
+    shelfZ - shelfD * 0.5 + 0.12,
+    shelfW,
+    shelfH,
+    0.24,
+    MAT.steelDark,
+    { kind: 'prop' },
+  )
+  // Side uprights
+  pushBox(
+    solids,
+    'shelf-upright-l',
+    shelfX - shelfW * 0.5 + upright * 0.5,
+    0,
+    shelfZ,
+    upright,
+    shelfH,
+    shelfD,
+    MAT.steel,
+    { kind: 'prop' },
+  )
+  pushBox(
+    solids,
+    'shelf-upright-r',
+    shelfX + shelfW * 0.5 - upright * 0.5,
+    0,
+    shelfZ,
+    upright,
+    shelfH,
+    shelfD,
+    MAT.steel,
+    { kind: 'prop' },
+  )
+  // Top lintel
+  pushBox(solids, 'shelf-top', shelfX, shelfH - 0.28, shelfZ, shelfW, 0.28, shelfD, MAT.steel, {
+    kind: 'prop',
+  })
+  // Horizontal planks
+  const plankT = 0.2
+  const levels = [0.15, 2.2, 4.2, 6.2, 8.2]
+  levels.forEach((y, i) => {
+    pushBox(
+      solids,
+      `shelf-plank-${i}`,
+      shelfX,
+      y,
+      shelfZ,
+      shelfW - upright * 2,
+      plankT,
+      shelfD - 0.1,
+      MAT.shelf,
+      { walkable: true, kind: 'prop' },
+    )
+  })
+
+  const spawn = { x: 0, y: 0, z: 20 }
+
+  void seed
+
+  const minimapBuildings = [
+    { x: tableX, z: tableZ, w: tableW, d: tableD },
+    { x: sofaX, z: sofaZ, w: sofaW, d: sofaD },
+    { x: shelfX, z: shelfZ, w: shelfW, d: shelfD },
   ]
-  crates.forEach((c, i) => {
-    pushBox(solids, `crate-${i}`, c.x, 0, c.z, c.w, c.h, c.d, MAT.woodPale, {
-      walkable: true,
-      kind: 'crate',
-    })
-  })
-
-  // Mild seed jitter so regenerate feels alive without breaking climbs
-  void rng
-
-  const spawn = { x: 0, y: 0, z: 22 }
-
-  const minimapBuildings = solids
-    .filter((s) => s.kind === 'prop' || s.kind === 'crate')
-    .filter((s) => s.height >= 1.2)
-    .map((s) => ({ x: s.x, z: s.z, w: s.width, d: s.depth }))
 
   return {
     seed,
@@ -358,9 +390,9 @@ export function generateProceduralMap(seed: number): ProceduralMap {
     hq: {
       x: tableX,
       z: tableZ,
-      width: 8.5,
-      depth: 5.2,
-      roofY: tableH + 0.32,
+      width: tableW,
+      depth: tableD,
+      roofY: flagY,
     },
     minimap: {
       size: ARENA.size,

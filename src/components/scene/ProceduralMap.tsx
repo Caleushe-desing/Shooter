@@ -2,47 +2,55 @@ import { useEffect, useMemo } from 'react'
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import { ARENA } from '../../constants'
-import { MAT } from '../../map/materials'
+import { FINISH, MAT, finishFor } from '../../map/materials'
 import { useGameStore } from '../../store/gameStore'
 
 function CaptureFlag() {
   const flag = useGameStore((s) => s.map.flag)
-  const poleH = 2.8
+  const poleH = 2.4
   return (
     <group position={[flag.x, flag.y, flag.z]}>
       <mesh position={[0, poleH * 0.5, 0]} castShadow>
-        <cylinderGeometry args={[0.05, 0.06, poleH, 8]} />
-        <meshStandardMaterial color={MAT.flagPole} roughness={0.6} metalness={0.2} />
+        <cylinderGeometry args={[0.045, 0.055, poleH, 10]} />
+        <meshStandardMaterial
+          color={MAT.flagPole}
+          roughness={FINISH[MAT.flagPole].roughness}
+          metalness={FINISH[MAT.flagPole].metalness}
+        />
       </mesh>
-      <mesh position={[0, 0.04, 0]} castShadow>
-        <cylinderGeometry args={[0.22, 0.28, 0.08, 12]} />
-        <meshStandardMaterial color={MAT.woodDark} roughness={0.85} />
+      <mesh position={[0, 0.03, 0]} castShadow>
+        <cylinderGeometry args={[0.18, 0.22, 0.06, 12]} />
+        <meshStandardMaterial
+          color={MAT.woodDark}
+          roughness={FINISH[MAT.woodDark].roughness}
+          metalness={FINISH[MAT.woodDark].metalness}
+        />
       </mesh>
-      <mesh position={[0.42, poleH - 0.35, 0]} castShadow>
-        <boxGeometry args={[0.85, 0.48, 0.04]} />
-        <meshStandardMaterial color={MAT.flagRed} roughness={0.75} metalness={0.04} />
-      </mesh>
-      <mesh position={[0.78, poleH - 0.35, 0]} rotation={[0, 0, Math.PI / 2]} castShadow>
-        <coneGeometry args={[0.18, 0.28, 3]} />
-        <meshStandardMaterial color={MAT.flagRed} roughness={0.75} metalness={0.04} />
+      <mesh position={[0.38, poleH - 0.32, 0]} castShadow>
+        <boxGeometry args={[0.78, 0.42, 0.035]} />
+        <meshStandardMaterial
+          color={MAT.accent}
+          roughness={FINISH[MAT.accent].roughness}
+          metalness={FINISH[MAT.accent].metalness}
+        />
       </mesh>
     </group>
   )
 }
 
-/** Soft capture ring painted on the tabletop around the flag. */
+/** Quiet capture ring flush on the tabletop. */
 function ArenaAccent() {
   const arena = useGameStore((s) => s.map.arena)
   return (
-    <group position={[arena.x, arena.floorY + 0.02, arena.z]}>
+    <group position={[arena.x, arena.floorY + 0.015, arena.z]}>
       <mesh rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[arena.radius - 0.45, arena.radius, 48]} />
+        <ringGeometry args={[arena.radius - 0.35, arena.radius, 56]} />
         <meshStandardMaterial
-          color={MAT.flagRed}
-          roughness={0.7}
-          metalness={0.05}
+          color={MAT.accentSoft}
+          roughness={0.75}
+          metalness={0.06}
           transparent
-          opacity={0.55}
+          opacity={0.4}
         />
       </mesh>
     </group>
@@ -50,68 +58,16 @@ function ArenaAccent() {
 }
 
 function RoomFloor() {
-  const trenches = useGameStore((s) => s.map.trenches)
-  const geometry = useMemo(() => {
-    const half = ARENA.size * 0.5
-    const shape = new THREE.Shape()
-    shape.moveTo(-half, -half)
-    shape.lineTo(half, -half)
-    shape.lineTo(half, half)
-    shape.lineTo(-half, half)
-    shape.closePath()
-
-    for (const t of trenches) {
-      const hw = t.width * 0.5
-      const hd = t.depth * 0.5
-      const hole = new THREE.Path()
-      hole.moveTo(t.x - hw, t.z - hd)
-      hole.lineTo(t.x - hw, t.z + hd)
-      hole.lineTo(t.x + hw, t.z + hd)
-      hole.lineTo(t.x + hw, t.z - hd)
-      hole.closePath()
-      shape.holes.push(hole)
-    }
-
-    const geo = new THREE.ShapeGeometry(shape, 4)
-    geo.rotateX(-Math.PI / 2)
-    return geo
-  }, [trenches])
-
+  const size = ARENA.size - 0.2
   return (
-    <mesh geometry={geometry} receiveShadow>
-      <meshStandardMaterial color={MAT.floor} roughness={0.92} metalness={0.02} />
+    <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+      <planeGeometry args={[size, size]} />
+      <meshStandardMaterial
+        color={MAT.floor}
+        roughness={FINISH[MAT.floor].roughness}
+        metalness={FINISH[MAT.floor].metalness}
+      />
     </mesh>
-  )
-}
-
-function TrenchFloors() {
-  const trenches = useGameStore((s) => s.map.trenches)
-  return (
-    <group>
-      {trenches.map((t) => (
-        <group key={t.id}>
-          <mesh
-            position={[t.x, t.floorY + 0.01, t.z]}
-            rotation={[-Math.PI / 2, 0, 0]}
-            receiveShadow
-          >
-            <planeGeometry args={[t.width - 0.2, t.depth - 0.2]} />
-            <meshStandardMaterial color={t.color} roughness={0.96} />
-          </mesh>
-          {/* Soft rug border lip */}
-          <mesh position={[t.x, 0.02, t.z]} rotation={[-Math.PI / 2, 0, 0]}>
-            <ringGeometry
-              args={[
-                Math.min(t.width, t.depth) * 0.35,
-                Math.min(t.width, t.depth) * 0.5,
-                32,
-              ]}
-            />
-            <meshStandardMaterial color={MAT.rugBorder} roughness={0.95} transparent opacity={0.35} />
-          </mesh>
-        </group>
-      ))}
-    </group>
   )
 }
 
@@ -120,7 +76,6 @@ function MergedSolids() {
   const batches = useMemo(() => {
     const groups = new Map<string, THREE.BufferGeometry[]>()
     for (const s of solids) {
-      // Ceiling is a large slab — draw as a separate simple plane for lighting feel.
       if (s.id === 'ceiling') continue
       const geo = new THREE.BoxGeometry(s.width, s.height, s.depth)
       geo.translate(s.x, s.y + s.height * 0.5, s.z)
@@ -146,32 +101,42 @@ function MergedSolids() {
 
   return (
     <group>
-      {batches.map((b) => (
-        <mesh key={b.color} geometry={b.geometry} castShadow receiveShadow>
-          <meshStandardMaterial color={b.color} roughness={0.82} metalness={0.04} />
-        </mesh>
-      ))}
+      {batches.map((b) => {
+        const finish = finishFor(b.color)
+        return (
+          <mesh key={b.color} geometry={b.geometry} castShadow receiveShadow>
+            <meshStandardMaterial
+              color={b.color}
+              roughness={finish.roughness}
+              metalness={finish.metalness}
+            />
+          </mesh>
+        )
+      })}
     </group>
   )
 }
 
 function RoomCeiling() {
-  const y = 16
+  const y = 14
   const size = ARENA.size - 1
   return (
     <mesh position={[0, y, 0]} receiveShadow>
-      <boxGeometry args={[size, 0.35, size]} />
-      <meshStandardMaterial color={MAT.ceiling} roughness={0.95} metalness={0.01} />
+      <boxGeometry args={[size, 0.3, size]} />
+      <meshStandardMaterial
+        color={MAT.ceiling}
+        roughness={FINISH[MAT.ceiling].roughness}
+        metalness={FINISH[MAT.ceiling].metalness}
+      />
     </mesh>
   )
 }
 
-/** Giant house interior — furniture cover, flag on the dining table. */
+/** Giant house — table, sofa, bookshelf only. */
 export function ProceduralMap() {
   return (
     <group>
       <RoomFloor />
-      <TrenchFloors />
       <MergedSolids />
       <RoomCeiling />
       <ArenaAccent />

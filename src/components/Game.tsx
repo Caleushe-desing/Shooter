@@ -6,27 +6,27 @@ import { ProceduralMap } from './scene/ProceduralMap'
 function Scene() {
   return (
     <>
-      <color attach="background" args={['#d8d2c8']} />
-      <fog attach="fog" args={['#d8d2c8', 55, 95]} />
-      <hemisphereLight intensity={0.7} color="#fff8f0" groundColor="#b8a888" />
-      <ambientLight intensity={0.5} color="#f4eee6" />
-      {/* Warm window light from the east */}
+      <color attach="background" args={['#cfc7bb']} />
+      <fog attach="fog" args={['#cfc7bb', 48, 88]} />
+      <hemisphereLight intensity={0.55} color="#f2ebe2" groundColor="#8a8070" />
+      <ambientLight intensity={0.38} color="#ebe4da" />
+      {/* Soft window key — warm, not blown out */}
       <directionalLight
         castShadow
-        position={[28, 22, 8]}
-        intensity={0.85}
-        color="#ffe8c8"
+        position={[24, 20, 10]}
+        intensity={0.95}
+        color="#f0e2cc"
         shadow-mapSize={[1024, 1024]}
         shadow-bias={-0.0002}
-        shadow-normalBias={0.04}
-        shadow-camera-far={80}
-        shadow-camera-left={-36}
-        shadow-camera-right={36}
-        shadow-camera-top={36}
-        shadow-camera-bottom={-36}
+        shadow-normalBias={0.035}
+        shadow-camera-far={75}
+        shadow-camera-left={-32}
+        shadow-camera-right={32}
+        shadow-camera-top={32}
+        shadow-camera-bottom={-32}
       />
-      <directionalLight position={[-16, 14, -10]} intensity={0.22} color="#e8f0ff" />
-      <pointLight position={[2, 12, -18]} intensity={0.55} color="#fff2d8" distance={40} />
+      <directionalLight position={[-18, 12, -8]} intensity={0.2} color="#d8dde6" />
+      <pointLight position={[0, 10, -10]} intensity={0.35} color="#f2e8d8" distance={36} />
       <ProceduralMap />
       <PlayerController />
     </>
