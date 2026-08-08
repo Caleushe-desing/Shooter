@@ -1,6 +1,6 @@
 export const COLORS = {
-  sky: '#8AA6B5',
-  skyHaze: '#A8B8C0',
+  sky: '#1a0a3a',
+  skyHaze: '#2a1048',
   ground: '#5F7A4A',
 } as const
 
@@ -38,7 +38,7 @@ export const CAMERA = {
   lift: 0.18,
   distance: 2.45,
   near: 0.1,
-  far: 220,
+  far: 320,
   fov: 58,
   minBoomLength: 0.65,
   fpHeight: 1.58,

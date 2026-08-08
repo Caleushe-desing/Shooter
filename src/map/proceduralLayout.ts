@@ -1,4 +1,6 @@
+import { ARENA } from '../constants'
 import { MAT } from './materials'
+import { createRubikCollisionSolids } from './rubiksWall'
 
 /** Axis-aligned solid with explicit vertical extent (y = minY, height → maxY). */
 export type SolidAABB = {
@@ -31,6 +33,13 @@ export type FlagMarker = {
   z: number
 }
 
+export type MinimapBuilding = {
+  x: number
+  z: number
+  w: number
+  d: number
+}
+
 export type SettlementZone = 'lower' | 'inner' | 'upper'
 
 export type ProceduralMap = {
@@ -52,6 +61,11 @@ export type ProceduralMap = {
     width: number
     depth: number
     roofY: number
+  }
+  minimap: {
+    size: number
+    buildings: MinimapBuilding[]
+    arena: { x: number; z: number; r: number }
   }
 }
 
@@ -103,9 +117,83 @@ function add(solids: SolidAABB[], s: SolidAABB) {
   solids.push(s)
 }
 
-/** Wide door gap on one cardinal side; interior is open for walking. */
+type DoorSide = 'n' | 's' | 'e' | 'w'
+
+/** Wall face with optional door (ground) and window opening. */
+function addWallFace(
+  solids: SolidAABB[],
+  opts: {
+    x: number
+    y: number
+    z: number
+    length: number
+    height: number
+    thickness: number
+    axis: 'x' | 'z'
+    color: string
+    door?: boolean
+    doorW?: number
+    window?: boolean
+  },
+) {
+  const { x, y, z, length, height, thickness, axis, color } = opts
+  const doorW = opts.doorW ?? Math.min(2.6, length * 0.4)
+  const winW = Math.min(1.35, length * 0.32)
+  const winH = 1.05
+  const sill = 1.05
+  const t = thickness
+
+  const place = (cx: number, cy: number, cz: number, along: number, h: number) => {
+    if (along < 0.08 || h < 0.08) return
+    if (axis === 'x') {
+      add(solids, box(nid('hw'), cx, cy, cz, along, h, t, color, false, 'wall'))
+    } else {
+      add(solids, box(nid('hw'), cx, cy, cz, t, h, along, color, false, 'wall'))
+    }
+  }
+
+  if (opts.door) {
+    const side = (length - doorW) * 0.5
+    if (axis === 'x') {
+      place(x - length * 0.5 + side * 0.5, y, z, side, height)
+      place(x + length * 0.5 - side * 0.5, y, z, side, height)
+      // Lintel over door
+      place(x, y + 2.15, z, doorW + 0.1, Math.max(0.2, height - 2.15))
+    } else {
+      place(x, y, z - length * 0.5 + side * 0.5, side, height)
+      place(x, y, z + length * 0.5 - side * 0.5, side, height)
+      place(x, y + 2.15, z, doorW + 0.1, Math.max(0.2, height - 2.15))
+    }
+    return
+  }
+
+  if (opts.window && height > sill + winH + 0.35) {
+    const side = (length - winW) * 0.5
+    // Below window
+    place(x, y, z, length, sill)
+    // Sides of window
+    if (axis === 'x') {
+      place(x - length * 0.5 + side * 0.5, y + sill, z, side, winH)
+      place(x + length * 0.5 - side * 0.5, y + sill, z, side, winH)
+    } else {
+      place(x, y + sill, z - length * 0.5 + side * 0.5, side, winH)
+      place(x, y + sill, z + length * 0.5 - side * 0.5, side, winH)
+    }
+    // Above window
+    const topH = height - sill - winH
+    place(x, y + sill + winH, z, length, topH)
+    return
+  }
+
+  place(x, y, z, length, height)
+}
+
+/**
+ * House with door, window openings, open interior, and interior stairs to the roof.
+ */
 function addHouse(
   solids: SolidAABB[],
+  footprints: MinimapBuilding[],
   opts: {
     x: number
     z: number
@@ -113,180 +201,258 @@ function addHouse(
     d: number
     stories: number
     baseY: number
-    door: 'n' | 's' | 'e' | 'w'
+    door: DoorSide
     stone?: boolean
-    roofAccess?: boolean
   },
 ) {
   const { x, z, w, d, stories, baseY, door } = opts
   const wallT = 0.4
-  const storyH = 2.85
+  const storyH = 2.9
   const floorH = 0.22
   const wallColor = opts.stone ? MAT.stone : MAT.adobe
   const wallDark = opts.stone ? MAT.stoneDark : MAT.adobeDark
   const roofColor = opts.stone ? MAT.roofTile : MAT.roofThatch
-  const doorW = Math.min(2.8, w * 0.42)
+  const doorW = Math.min(2.7, Math.min(w, d) * 0.45)
   const hw = w * 0.5
   const hd = d * 0.5
 
-  // Ground floor slab (slight raise so interior feels enclosed)
+  footprints.push({ x, z, w, d })
+
+  // Ground floor
   add(
     solids,
-    box(nid('fl'), x, baseY, z, w - 0.15, floorH, d - 0.15, MAT.stoneLight, true, 'floor'),
+    box(nid('fl'), x, baseY, z, w - 0.2, floorH, d - 0.2, MAT.stoneLight, true, 'floor'),
   )
 
   for (let story = 0; story < stories; story++) {
     const y0 = baseY + floorH + story * storyH
-    const wallH = story < stories - 1 ? storyH : storyH * 0.95
+    const wallH = storyH * 0.98
+    const hasDoor = story === 0
 
-    const makeWall = (
-      wx: number,
-      wz: number,
-      ww: number,
-      wd: number,
-      color: string,
-    ) => add(solids, box(nid('hw'), wx, y0, wz, ww, wallH, wd, color, false, 'wall'))
-
-    // North
-    if (door === 'n' && story === 0) {
-      const side = (w - doorW) * 0.5
-      makeWall(x - hw + side * 0.5, z - hd + wallT * 0.5, side, wallT, wallColor)
-      makeWall(x + hw - side * 0.5, z - hd + wallT * 0.5, side, wallT, wallDark)
-    } else {
-      makeWall(x, z - hd + wallT * 0.5, w, wallT, wallColor)
-    }
-    // South
-    if (door === 's' && story === 0) {
-      const side = (w - doorW) * 0.5
-      makeWall(x - hw + side * 0.5, z + hd - wallT * 0.5, side, wallT, wallColor)
-      makeWall(x + hw - side * 0.5, z + hd - wallT * 0.5, side, wallT, wallDark)
-    } else {
-      makeWall(x, z + hd - wallT * 0.5, w, wallT, wallColor)
-    }
-    // East
-    if (door === 'e' && story === 0) {
-      const side = (d - doorW) * 0.5
-      makeWall(x + hw - wallT * 0.5, z - hd + side * 0.5, wallT, side, wallColor)
-      makeWall(x + hw - wallT * 0.5, z + hd - side * 0.5, wallT, side, wallDark)
-    } else {
-      makeWall(x + hw - wallT * 0.5, z, wallT, d - wallT * 2, wallDark)
-    }
-    // West
-    if (door === 'w' && story === 0) {
-      const side = (d - doorW) * 0.5
-      makeWall(x - hw + wallT * 0.5, z - hd + side * 0.5, wallT, side, wallColor)
-      makeWall(x - hw + wallT * 0.5, z + hd - side * 0.5, wallT, side, wallDark)
-    } else {
-      makeWall(x - hw + wallT * 0.5, z, wallT, d - wallT * 2, wallColor)
-    }
-
-    // Upper floor deck
-    if (story < stories - 1) {
-      const fy = y0 + storyH
-      add(
-        solids,
-        box(nid('fl'), x, fy, z, w - 0.2, floorH, d - 0.2, MAT.woodPale, true, 'floor'),
-      )
-    }
+    addWallFace(solids, {
+      x,
+      y: y0,
+      z: z - hd + wallT * 0.5,
+      length: w,
+      height: wallH,
+      thickness: wallT,
+      axis: 'x',
+      color: wallColor,
+      door: hasDoor && door === 'n',
+      doorW,
+      window: !(hasDoor && door === 'n'),
+    })
+    addWallFace(solids, {
+      x,
+      y: y0,
+      z: z + hd - wallT * 0.5,
+      length: w,
+      height: wallH,
+      thickness: wallT,
+      axis: 'x',
+      color: wallDark,
+      door: hasDoor && door === 's',
+      doorW,
+      window: !(hasDoor && door === 's'),
+    })
+    addWallFace(solids, {
+      x: x + hw - wallT * 0.5,
+      y: y0,
+      z,
+      length: d - wallT * 2,
+      height: wallH,
+      thickness: wallT,
+      axis: 'z',
+      color: wallDark,
+      door: hasDoor && door === 'e',
+      doorW,
+      window: !(hasDoor && door === 'e'),
+    })
+    addWallFace(solids, {
+      x: x - hw + wallT * 0.5,
+      y: y0,
+      z,
+      length: d - wallT * 2,
+      height: wallH,
+      thickness: wallT,
+      axis: 'z',
+      color: wallColor,
+      door: hasDoor && door === 'w',
+      doorW,
+      window: !(hasDoor && door === 'w'),
+    })
   }
 
   const roofY = baseY + floorH + stories * storyH
-  add(solids, box(nid('rf'), x, roofY, z, w + 0.35, 0.28, d + 0.35, roofColor, true, 'roof'))
 
-  // Low parapet on stone houses
-  if (opts.stone) {
-    const py = roofY + 0.28
-    add(solids, box(nid('pp'), x, py, z - hd, w, 0.55, 0.3, MAT.stoneDark, false, 'wall'))
-    add(solids, box(nid('pp'), x, py, z + hd, w, 0.55, 0.3, MAT.stoneDark, false, 'wall'))
-  }
-
-  // Rooftop access: crate/step stack outside near the door
-  if (opts.roofAccess !== false) {
-    const stepH = 0.48
-    const steps = Math.ceil((roofY - baseY) / stepH)
+  // Interior staircase along the wall opposite the door (open well through floors).
+  const stepH = 0.4
+  const stepD = 0.55
+  const stepW = 1.25
+  const steps = Math.ceil((roofY - baseY - floorH) / stepH) + 1
+  const inset = wallT + 0.85
+  for (let i = 0; i < steps; i++) {
+    const yy = baseY + floorH + i * stepH
     let sx = x
     let sz = z
-    if (door === 's') sz = z + hd + 0.9
-    if (door === 'n') sz = z - hd - 0.9
-    if (door === 'e') sx = x + hw + 0.9
-    if (door === 'w') sx = x - hw - 0.9
+    if (door === 's') {
+      // stairs on north interior wall, run +X
+      sx = x - hw + inset + 0.7 + (i % 6) * stepD * 0.15
+      sz = z - hd + inset + (i % 2) * 0.05
+    } else if (door === 'n') {
+      sx = x - hw + inset + 0.7 + (i % 6) * stepD * 0.15
+      sz = z + hd - inset
+    } else if (door === 'e') {
+      sx = x - hw + inset
+      sz = z - hd + inset + 0.7 + (i % 6) * stepD * 0.15
+    } else {
+      sx = x + hw - inset
+      sz = z - hd + inset + 0.7 + (i % 6) * stepD * 0.15
+    }
+    add(
+      solids,
+      box(nid('stair'), sx, yy, sz, stepW, stepH, stepD, i % 2 ? MAT.wood : MAT.woodOld, true, 'step'),
+    )
+  }
 
-    for (let i = 0; i < steps; i++) {
-      const along = i * 0.52
-      const px = door === 'e' || door === 'w' ? sx + (door === 'e' ? along * 0.05 : -along * 0.05) : sx + (i % 2 === 0 ? -0.55 : 0.55)
-      const pz = door === 'n' || door === 's' ? sz + (door === 's' ? along * 0.08 : -along * 0.08) : sz
+  // Upper floors with stairwell cutout (two slabs leaving a gap by the stairs)
+  for (let story = 1; story <= stories; story++) {
+    const fy = baseY + floorH + story * storyH
+    const isRoof = story === stories
+    const color = isRoof ? roofColor : MAT.woodPale
+    const kind = isRoof ? 'roof' : 'floor'
+    const thick = isRoof ? 0.28 : floorH
+
+    if (door === 'n' || door === 's') {
+      // Gap on the stair side (north if door south)
+      const gapZ = door === 's' ? z - hd * 0.35 : z + hd * 0.35
+      const mainZ = door === 's' ? z + hd * 0.18 : z - hd * 0.18
       add(
         solids,
-        box(
-          nid('st'),
-          px,
-          baseY + i * stepH,
-          pz,
-          1.15,
-          stepH,
-          1.05,
-          i % 2 === 0 ? MAT.wood : MAT.woodOld,
-          true,
-          'crate',
-        ),
+        box(nid('fl'), x, fy, mainZ, w - 0.25, thick, d * 0.55, color, true, kind),
+      )
+      add(
+        solids,
+        box(nid('fl'), x + w * 0.22, fy, gapZ, w * 0.45, thick, d * 0.28, color, true, kind),
+      )
+    } else {
+      const gapX = door === 'e' ? x - hw * 0.35 : x + hw * 0.35
+      const mainX = door === 'e' ? x + hw * 0.18 : x - hw * 0.18
+      add(
+        solids,
+        box(nid('fl'), mainX, fy, z, w * 0.55, thick, d - 0.25, color, true, kind),
+      )
+      add(
+        solids,
+        box(nid('fl'), gapX, fy, z + d * 0.22, w * 0.28, thick, d * 0.45, color, true, kind),
       )
     }
+  }
+
+  if (opts.stone) {
+    const py = roofY + 0.28
+    add(solids, box(nid('pp'), x, py, z - hd, w * 0.9, 0.5, 0.28, MAT.stoneDark, false, 'wall'))
+    add(solids, box(nid('pp'), x, py, z + hd, w * 0.9, 0.5, 0.28, MAT.stoneDark, false, 'wall'))
   }
 
   return roofY + 0.28
 }
 
-/** Watchtower with interior climb via stacked platforms. */
+/** Watchtower with door, windows, and interior stairs to the roof deck. */
 function addWatchtower(
   solids: SolidAABB[],
+  footprints: MinimapBuilding[],
   x: number,
   z: number,
   baseY: number,
   h: number,
 ) {
-  const w = 3.6
+  const w = 3.8
   const t = 0.4
   const hw = w * 0.5
-  // Shell walls with south door
-  add(solids, box(nid('tw'), x, baseY, z - hw + t * 0.5, w, h, t, MAT.stoneDark, false, 'wall'))
-  add(solids, box(nid('tw'), x + hw - t * 0.5, baseY, z, t, h, w - t * 2, MAT.stone, false, 'wall'))
-  add(solids, box(nid('tw'), x - hw + t * 0.5, baseY, z, t, h, w - t * 2, MAT.stone, false, 'wall'))
-  const doorW = 1.8
-  const side = (w - doorW) * 0.5
-  add(
-    solids,
-    box(nid('tw'), x - hw + side * 0.5, baseY, z + hw - t * 0.5, side, h, t, MAT.stoneDark, false, 'wall'),
-  )
-  add(
-    solids,
-    box(nid('tw'), x + hw - side * 0.5, baseY, z + hw - t * 0.5, side, h, t, MAT.stoneDark, false, 'wall'),
-  )
+  footprints.push({ x, z, w, d: w })
 
-  // Interior decks
-  for (let y = baseY + 2.6; y < baseY + h - 1; y += 2.6) {
-    add(solids, box(nid('td'), x, y, z, w - 0.5, 0.22, w - 0.5, MAT.woodPale, true, 'floor'))
+  add(solids, box(nid('tf'), x, baseY, z, w - 0.2, 0.2, w - 0.2, MAT.stoneLight, true, 'floor'))
+
+  // Walls per band with windows; south door on ground
+  const bands = Math.max(1, Math.floor(h / 2.8))
+  for (let b = 0; b < bands; b++) {
+    const y0 = baseY + 0.2 + b * 2.8
+    const bandH = Math.min(2.8, baseY + h - y0)
+    addWallFace(solids, {
+      x,
+      y: y0,
+      z: z - hw + t * 0.5,
+      length: w,
+      height: bandH,
+      thickness: t,
+      axis: 'x',
+      color: MAT.stoneDark,
+      window: true,
+    })
+    addWallFace(solids, {
+      x: x + hw - t * 0.5,
+      y: y0,
+      z,
+      length: w - t * 2,
+      height: bandH,
+      thickness: t,
+      axis: 'z',
+      color: MAT.stone,
+      window: true,
+    })
+    addWallFace(solids, {
+      x: x - hw + t * 0.5,
+      y: y0,
+      z,
+      length: w - t * 2,
+      height: bandH,
+      thickness: t,
+      axis: 'z',
+      color: MAT.stone,
+      window: true,
+    })
+    addWallFace(solids, {
+      x,
+      y: y0,
+      z: z + hw - t * 0.5,
+      length: w,
+      height: bandH,
+      thickness: t,
+      axis: 'x',
+      color: MAT.stoneDark,
+      door: b === 0,
+      doorW: 1.9,
+      window: b > 0,
+    })
   }
-  // Roof deck
-  add(solids, box(nid('tr'), x, baseY + h, z, w + 0.4, 0.3, w + 0.4, MAT.stoneLight, true, 'roof'))
-  // Exterior crate climb
-  const steps = Math.ceil(h / 0.5)
+
+  // Interior stairs
+  const stepH = 0.42
+  const steps = Math.ceil(h / stepH)
   for (let i = 0; i < steps; i++) {
     add(
       solids,
       box(
         nid('ts'),
-        x + (i % 2 === 0 ? 1.1 : -1.1),
-        baseY + i * 0.5,
-        z + hw + 0.85 + i * 0.05,
-        1.2,
-        0.5,
-        1.1,
+        x + ((i % 4) - 1.5) * 0.35,
+        baseY + 0.2 + i * stepH,
+        z - 0.2 + (i % 2) * 0.4,
+        1.15,
+        stepH,
+        0.55,
         MAT.wood,
         true,
-        'crate',
+        'step',
       ),
     )
   }
+
+  // Partial decks + roof
+  for (let y = baseY + 2.9; y < baseY + h - 0.5; y += 2.9) {
+    add(solids, box(nid('td'), x + 0.35, y, z, w - 1.1, 0.22, w - 0.5, MAT.woodPale, true, 'floor'))
+  }
+  add(solids, box(nid('tr'), x, baseY + h, z, w + 0.35, 0.3, w + 0.35, MAT.stoneLight, true, 'roof'))
 }
 
 /** Double-wall defense line with a narrow corridor between (ref. points 8 / 10). */
@@ -347,7 +513,7 @@ function addDefenseCorridor(
 }
 
 /** Elevated Upper Quarter terrace + circular control arena (ref. point 18). */
-function addUpperQuarter(solids: SolidAABB[], rng: () => number) {
+function addUpperQuarter(solids: SolidAABB[], footprints: MinimapBuilding[], rng: () => number) {
   const terraceY = ZONES.upper.y
   const arenaX = 0
   const arenaZ = -20
@@ -440,11 +606,11 @@ function addUpperQuarter(solids: SolidAABB[], rng: () => number) {
   }
 
   // Flanking watchtowers
-  addWatchtower(solids, -12 + rng() * 0.4, -14, terraceY, 6.5)
-  addWatchtower(solids, 12 - rng() * 0.4, -14, terraceY, 6.2)
+  addWatchtower(solids, footprints, -12 + rng() * 0.4, -14, terraceY, 6.5)
+  addWatchtower(solids, footprints, 12 - rng() * 0.4, -14, terraceY, 6.2)
 
   // Side keep buildings
-  addHouse(solids, {
+  addHouse(solids, footprints, {
     x: -14,
     z: -26,
     w: 6.5,
@@ -454,7 +620,7 @@ function addUpperQuarter(solids: SolidAABB[], rng: () => number) {
     door: 's',
     stone: true,
   })
-  addHouse(solids, {
+  addHouse(solids, footprints, {
     x: 14,
     z: -26,
     w: 6.5,
@@ -479,7 +645,11 @@ function addUpperQuarter(solids: SolidAABB[], rng: () => number) {
   }
 }
 
-function addInnerQuarter(solids: SolidAABB[], rng: () => number) {
+function addInnerQuarter(
+  solids: SolidAABB[],
+  footprints: MinimapBuilding[],
+  rng: () => number,
+) {
   const y = ZONES.inner.y
 
   // East–west defense corridors (points 8 / 10 style)
@@ -513,7 +683,7 @@ function addInnerQuarter(solids: SolidAABB[], rng: () => number) {
   })
 
   // Inner houses flanking the main street
-  const houses: Array<{ x: number; z: number; door: 'n' | 's' | 'e' | 'w'; stories: number }> = [
+  const houses: Array<{ x: number; z: number; door: DoorSide; stories: number }> = [
     { x: -12 + rng() * 0.6, z: 4, door: 'e', stories: 2 },
     { x: 12 - rng() * 0.6, z: 4, door: 'w', stories: 2 },
     { x: -14, z: -6 + rng() * 0.5, door: 's', stories: 1 },
@@ -522,7 +692,7 @@ function addInnerQuarter(solids: SolidAABB[], rng: () => number) {
     { x: 7, z: 6.2, door: 'n', stories: 1 },
   ]
   for (const h of houses) {
-    addHouse(solids, {
+    addHouse(solids, footprints, {
       x: h.x,
       z: h.z,
       w: 5.2 + rng() * 1.4,
@@ -534,11 +704,16 @@ function addInnerQuarter(solids: SolidAABB[], rng: () => number) {
     })
   }
 
-  addWatchtower(solids, -18, 2, y, 7.2)
-  addWatchtower(solids, 18, -1, y, 6.8)
+  addWatchtower(solids, footprints, -18, 2, y, 7.2)
+  addWatchtower(solids, footprints, 18, -1, y, 6.8)
 }
 
-function addLowerQuarter(solids: SolidAABB[], trenches: Trench[], rng: () => number) {
+function addLowerQuarter(
+  solids: SolidAABB[],
+  footprints: MinimapBuilding[],
+  trenches: Trench[],
+  rng: () => number,
+) {
   const y = ZONES.lower.y
 
   // Outer curtain wall segments with gate openings
@@ -552,8 +727,8 @@ function addLowerQuarter(solids: SolidAABB[], trenches: Trench[], rng: () => num
   add(solids, box(nid('ow'), 30, y, 20, wallT, wallH, 22, MAT.stone, true, 'wall'))
 
   // Gate towers
-  addWatchtower(solids, -5.5, 31, y, 5.5)
-  addWatchtower(solids, 5.5, 31, y, 5.5)
+  addWatchtower(solids, footprints, -5.5, 31, y, 5.5)
+  addWatchtower(solids, footprints, 5.5, 31, y, 5.5)
 
   // Lower Quarter houses — denser, mostly adobe
   const plots = [
@@ -568,7 +743,7 @@ function addLowerQuarter(solids: SolidAABB[], trenches: Trench[], rng: () => num
     { x: 0, z: 14, door: 's' as const, stories: 1 },
   ]
   for (const p of plots) {
-    addHouse(solids, {
+    addHouse(solids, footprints, {
       x: p.x + (rng() * 2 - 1) * 0.5,
       z: p.z + (rng() * 2 - 1) * 0.4,
       w: 4.8 + rng() * 1.6,
@@ -649,10 +824,15 @@ export function generateProceduralMap(seed = (Math.random() * 0xffffffff) >>> 0)
   const rng = createRng(seed || 1)
   const solids: SolidAABB[] = []
   const trenches: Trench[] = []
+  const footprints: MinimapBuilding[] = []
 
-  addLowerQuarter(solids, trenches, rng)
-  addInnerQuarter(solids, rng)
-  const upper = addUpperQuarter(solids, rng)
+  for (const s of createRubikCollisionSolids(nid('rubik'))) {
+    solids.push(s)
+  }
+
+  addLowerQuarter(solids, footprints, trenches, rng)
+  addInnerQuarter(solids, footprints, rng)
+  const upper = addUpperQuarter(solids, footprints, rng)
 
   const spawn = {
     x: (rng() * 2 - 1) * 1.2,
@@ -668,5 +848,10 @@ export function generateProceduralMap(seed = (Math.random() * 0xffffffff) >>> 0)
     spawn,
     arena: upper.arena,
     hq: upper.hq,
+    minimap: {
+      size: ARENA.size,
+      buildings: footprints,
+      arena: { x: upper.arena.x, z: upper.arena.z, r: upper.arena.radius },
+    },
   }
 }

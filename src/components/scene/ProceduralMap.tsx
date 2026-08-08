@@ -4,6 +4,8 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import { ARENA } from '../../constants'
 import { MAT } from '../../map/materials'
 import { useGameStore } from '../../store/gameStore'
+import { GalaxySky } from './GalaxySky'
+import { RubiksWall } from './RubiksWall'
 
 function CaptureFlag() {
   const flag = useGameStore((s) => s.map.flag)
@@ -114,6 +116,8 @@ function MergedSolids() {
   const batches = useMemo(() => {
     const groups = new Map<string, THREE.BufferGeometry[]>()
     for (const s of solids) {
+      // Rubik perimeter is drawn by InstancedMesh; keep AABBs for collision only.
+      if (s.id.includes('rubik')) continue
       const geo = new THREE.BoxGeometry(s.width, s.height, s.depth)
       geo.translate(s.x, s.y + s.height * 0.5, s.z)
       const list = groups.get(s.color) ?? []
@@ -147,13 +151,15 @@ function MergedSolids() {
   )
 }
 
-/** Fortified settlement: three quarters, defense walls, circular Upper arena. */
+/** Fortified settlement + Rubik perimeter + galaxy sky. */
 export function ProceduralMap() {
   return (
     <group>
+      <GalaxySky />
       <GroundWithTrenches />
       <TrenchFloors />
       <MergedSolids />
+      <RubiksWall />
       <ArenaAccent />
       <CaptureFlag />
     </group>

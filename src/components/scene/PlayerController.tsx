@@ -7,6 +7,7 @@ import { integrateVertical, resolveHorizontal } from '../../map/collision'
 import { useGameStore } from '../../store/gameStore'
 import { PlayerAvatar } from './PlayerAvatar'
 import { mobileLookStick } from '../../input/mobileLookStick'
+import { viewState } from '../../input/viewState'
 
 /**
  * Character controller with height-aware AABB collision.
@@ -288,6 +289,10 @@ export function PlayerController() {
 
     rig.current.position.set(pos.current.x, pos.current.y, pos.current.z)
     game.setPlayerPos(pos.current.x, pos.current.y, pos.current.z)
+    viewState.lookYaw = lookYaw.current
+    viewState.x = pos.current.x
+    viewState.y = pos.current.y
+    viewState.z = pos.current.z
   }, -1)
 
   return (

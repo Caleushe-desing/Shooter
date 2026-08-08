@@ -1,32 +1,33 @@
 import { Canvas } from '@react-three/fiber'
 import { Suspense } from 'react'
-import { COLORS } from '../constants'
 import { useGameStore } from '../store/gameStore'
 import { MobileControls } from './ui/MobileControls'
+import { Minimap } from './ui/Minimap'
 import { PlayerController } from './scene/PlayerController'
 import { ProceduralMap } from './scene/ProceduralMap'
 
 function Scene() {
   return (
     <>
-      <color attach="background" args={[COLORS.sky]} />
-      <fog attach="fog" args={[COLORS.sky, 40, 95]} />
-      <hemisphereLight intensity={0.48} color="#d9e2e8" groundColor="#4a4030" />
+      <color attach="background" args={['#0a0618']} />
+      <fog attach="fog" args={['#1a0a3a', 55, 140]} />
+      <hemisphereLight intensity={0.42} color="#c8a0ff" groundColor="#2a1830" />
       <directionalLight
         castShadow
-        position={[22, 34, 14]}
-        intensity={1.05}
-        color="#f2e6d4"
+        position={[18, 36, 12]}
+        intensity={0.85}
+        color="#ffb8e0"
         shadow-mapSize={[2048, 2048]}
         shadow-bias={-0.00025}
         shadow-normalBias={0.035}
-        shadow-camera-far={100}
-        shadow-camera-left={-45}
-        shadow-camera-right={45}
-        shadow-camera-top={45}
-        shadow-camera-bottom={-45}
+        shadow-camera-far={110}
+        shadow-camera-left={-48}
+        shadow-camera-right={48}
+        shadow-camera-top={48}
+        shadow-camera-bottom={-48}
       />
-      <ambientLight intensity={0.2} />
+      <directionalLight position={[-20, 18, -10]} intensity={0.35} color="#60d0ff" />
+      <ambientLight intensity={0.28} color="#b090e8" />
       <ProceduralMap />
       <PlayerController />
     </>
@@ -48,6 +49,7 @@ function Hud() {
       <button type="button" className="map-regen" onClick={regenerateMap}>
         Nuevo mapa (R)
       </button>
+      <Minimap />
       <div className="stamina">
         <div className="stamina-label">{recovering ? 'Recuperando' : 'Resistencia'}</div>
         <div className="stamina-track">
@@ -64,7 +66,7 @@ function Hud() {
 export function Game() {
   return (
     <div className="game-root">
-      <Canvas shadows camera={{ fov: 60, near: 0.1, far: 120, position: [0, 4, 8] }}>
+      <Canvas shadows camera={{ fov: 60, near: 0.1, far: 320, position: [0, 4, 8] }}>
         <Suspense fallback={null}>
           <Scene />
         </Suspense>
