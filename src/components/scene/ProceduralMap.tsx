@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import { ARENA } from '../../constants'
 import { FINISH, MAT, finishFor } from '../../map/materials'
+import { ROOM_CEILING_Y } from '../../map/proceduralLayout'
 import { useGameStore } from '../../store/gameStore'
 
 function CaptureFlag() {
@@ -58,10 +59,33 @@ function ArenaAccent() {
 }
 
 function RoomFloor() {
-  const size = ARENA.size - 0.2
+  const trenches = useGameStore((s) => s.map.trenches)
+  const geometry = useMemo(() => {
+    const half = ARENA.size * 0.5
+    const shape = new THREE.Shape()
+    shape.moveTo(-half, -half)
+    shape.lineTo(half, -half)
+    shape.lineTo(half, half)
+    shape.lineTo(-half, half)
+    shape.closePath()
+    for (const t of trenches) {
+      const hw = t.width * 0.5
+      const hd = t.depth * 0.5
+      const hole = new THREE.Path()
+      hole.moveTo(t.x - hw, t.z - hd)
+      hole.lineTo(t.x - hw, t.z + hd)
+      hole.lineTo(t.x + hw, t.z + hd)
+      hole.lineTo(t.x + hw, t.z - hd)
+      hole.closePath()
+      shape.holes.push(hole)
+    }
+    const geo = new THREE.ShapeGeometry(shape, 4)
+    geo.rotateX(-Math.PI / 2)
+    return geo
+  }, [trenches])
+
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-      <planeGeometry args={[size, size]} />
+    <mesh geometry={geometry} receiveShadow>
       <meshStandardMaterial
         color={MAT.floor}
         roughness={FINISH[MAT.floor].roughness}
@@ -118,10 +142,9 @@ function MergedSolids() {
 }
 
 function RoomCeiling() {
-  const y = 14
   const size = ARENA.size - 1
   return (
-    <mesh position={[0, y, 0]} receiveShadow>
+    <mesh position={[0, ROOM_CEILING_Y, 0]} receiveShadow>
       <boxGeometry args={[size, 0.3, size]} />
       <meshStandardMaterial
         color={MAT.ceiling}
@@ -132,11 +155,32 @@ function RoomCeiling() {
   )
 }
 
-/** Giant house — table, sofa, bookshelf only. */
+function TrenchFloors() {
+  const trenches = useGameStore((s) => s.map.trenches)
+  if (trenches.length === 0) return null
+  return (
+    <group>
+      {trenches.map((t) => (
+        <mesh
+          key={t.id}
+          position={[t.x, t.floorY + 0.01, t.z]}
+          rotation={[-Math.PI / 2, 0, 0]}
+          receiveShadow
+        >
+          <planeGeometry args={[t.width - 0.15, t.depth - 0.15]} />
+          <meshStandardMaterial color={t.color} roughness={0.95} metalness={0.01} />
+        </mesh>
+      ))}
+    </group>
+  )
+}
+
+/** Giant house — furniture, aerial decks, tunnels, flag table. */
 export function ProceduralMap() {
   return (
     <group>
       <RoomFloor />
+      <TrenchFloors />
       <MergedSolids />
       <RoomCeiling />
       <ArenaAccent />
