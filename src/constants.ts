@@ -135,14 +135,14 @@ export const WEAPON_AMMO = {
 export const GHOST = {
   radius: 0.42,
   height: 1.65,
-  speed: 2.55,
-  chaseSpeed: 3.35,
+  speed: 4.2,
+  chaseSpeed: 5.2,
   hp: 2,
   catchRange: 1.05,
   visionRange: 18,
   loseRange: 26,
   stunTime: 2.8,
-  patrolSpeed: 1.65,
+  patrolSpeed: 4.2,
   color: '#E8F0FF',
   eyeColor: '#152033',
   /** Initial spawn points (near mid + far map edges). */
