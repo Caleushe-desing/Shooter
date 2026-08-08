@@ -111,9 +111,17 @@ export function CombatHud() {
         </div>
         <div className="rounded bg-black/50 px-2.5 py-1.5 backdrop-blur-sm">
           <div className="text-[10px] font-semibold tracking-[0.14em] text-white/65">
-            FANTASMAS
+            SOLDADOS
           </div>
           <div className="text-lg font-bold tracking-wide text-[#C9B6FF]">{ghostCount}</div>
+        </div>
+        <div className="rounded bg-black/50 px-2.5 py-1.5 backdrop-blur-sm">
+          <div className="text-[10px] font-semibold tracking-[0.14em] text-white/65">
+            MISIÓN
+          </div>
+          <div className="text-[11px] font-semibold tracking-[0.06em] text-[#F2E08A]">
+            Rescatar a la prisionera
+          </div>
         </div>
         <div className="rounded bg-black/45 px-2.5 py-1 text-[11px] tracking-[0.12em] text-white/80 backdrop-blur-sm">
           PUNTOS <span className="font-semibold text-[#F2E08A]">{score}</span>
@@ -187,12 +195,12 @@ export function CombatHud() {
                 status === 'won' ? 'text-[#F2E08A]' : 'text-[#F2C6C0]'
               }`}
             >
-              {status === 'won' ? '¡VICTORIA!' : 'GAME OVER'}
+              {status === 'won' ? '¡MISIÓN CUMPLIDA!' : 'GAME OVER'}
             </div>
             <div className="text-sm tracking-[0.08em] text-white/75">
               {status === 'won'
-                ? 'Recogiste todos los orbes dorados.'
-                : 'Un fantasma te atrapó.'}
+                ? 'Rescataste a la prisionera de la celda.'
+                : 'Un soldado enemigo te atrapó.'}
             </div>
             <div className="text-sm tracking-[0.08em] text-white/70">
               Puntos: <span className="text-[#F2E08A]">{score}</span>

@@ -48,6 +48,11 @@ export const PLAYER = {
   /** Mid lane spawn facing north toward sites. */
   spawn: { x: 0, y: 0, z: 10 },
   skin: '#C9956E',
+  /** French Resistance partisan outfit accents. */
+  tunic: '#2A3A48',
+  pants: '#1E2A32',
+  beret: '#1A1A1E',
+  scarf: '#B02020',
 } as const
 
 /** Chase cam — close over-the-shoulder TPS (character fills frame). */
@@ -135,20 +140,23 @@ export const WEAPON_AMMO = {
   start: 6,
 } as const
 
-/** Single super galaxy portal at arena center. */
+/**
+ * Jail cell / reinforcement doorway at arena center.
+ * (Keeps the PORTAL name so spawn systems stay stable.)
+ */
 export const PORTAL = {
   x: 0,
   z: 0,
-  /** Outer ring radius (meters). */
+  /** Outer cell footprint radius (meters). */
   radius: 2.6,
-  /** Extra ghosts leave the portal on this interval (seconds). */
+  /** Extra soldiers leave the cell doorway on this interval (seconds). */
   spawnInterval: 60,
 } as const
 
-/** Pursuing ghosts (classic dome + wavy skirt silhouette). */
+/** Enemy patrol soldiers (WWII-era infantry look, no political symbols). */
 export const GHOST = {
   radius: 0.42,
-  height: 1.65,
+  height: 1.7,
   chaseSpeed: 5,
   hp: 2,
   catchRange: 1.05,
@@ -164,16 +172,16 @@ export const GHOST = {
   searchTime: 10,
   stunTime: 2.8,
   patrolSpeed: 4,
-  /** Starting ghosts already on the map (random places). */
+  /** Starting soldiers already on the map (random places). */
   count: 8,
-  /** Spawned from portal per ghost kill. */
+  /** Spawned from the cell per soldier kill. */
   killSpawn: 2,
   /** Keep initial random spawns clear of the player. */
   clearPlayer: 10,
   /** Keep initial random spawns apart from each other. */
   minSeparation: 6,
-  color: '#F5F7FA',
-  alertColor: '#E03030',
+  color: '#4A5560',
+  alertColor: '#6B3030',
   eyeColor: '#152033',
   alertEyeColor: '#FFEECC',
   /**

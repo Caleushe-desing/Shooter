@@ -56,9 +56,16 @@ function MixamoHuman({ yawRef, movingRef }: Props) {
       for (const mat of mats) {
         const std = mat as THREE.MeshStandardMaterial
         if (!std?.isMeshStandardMaterial) continue
-        std.color.set(PLAYER.skin)
-        std.metalness = 0.02
-        std.roughness = 0.72
+        // French Resistance look: dark tunic + skin extremities.
+        if (n.includes('head') || n.includes('face') || n.includes('hand')) {
+          std.color.set(PLAYER.skin)
+        } else if (n.includes('leg') || n.includes('foot') || n.includes('boot')) {
+          std.color.set(PLAYER.pants)
+        } else {
+          std.color.set(PLAYER.tunic)
+        }
+        std.metalness = 0.05
+        std.roughness = 0.78
       }
     })
     return { clone: c, fitScale, footOffset }
@@ -119,6 +126,15 @@ function MixamoHuman({ yawRef, movingRef }: Props) {
       <group ref={modelRef} scale={fitScale} position={[0, footOffset, 0]}>
         <primitive object={clone} />
       </group>
+      {/* Resistance beret + scarf accent */}
+      <mesh position={[0, PLAYER.height * 0.97, 0.02]} castShadow>
+        <sphereGeometry args={[0.14, 12, 10, 0, Math.PI * 2, 0, Math.PI * 0.55]} />
+        <meshStandardMaterial color={PLAYER.beret} roughness={0.9} />
+      </mesh>
+      <mesh position={[0.12, PLAYER.height * 0.72, 0.05]} rotation={[0.2, 0, 0.4]} castShadow>
+        <boxGeometry args={[0.08, 0.28, 0.04]} />
+        <meshStandardMaterial color={PLAYER.scarf} roughness={0.85} />
+      </mesh>
     </group>
   )
 }
@@ -147,22 +163,30 @@ function FallbackHuman({ yawRef, movingRef }: Props) {
     <group ref={root}>
       <mesh position={[0, 1.15 * h, 0]} castShadow>
         <capsuleGeometry args={[0.18, 0.5, 6, 12]} />
-        <meshStandardMaterial color={PLAYER.skin} roughness={0.7} />
+        <meshStandardMaterial color={PLAYER.tunic} roughness={0.75} />
       </mesh>
       <mesh position={[0, 1.58 * h, 0]} castShadow>
         <sphereGeometry args={[0.13, 14, 12]} />
         <meshStandardMaterial color={PLAYER.skin} roughness={0.7} />
       </mesh>
+      <mesh position={[0, 1.7 * h, 0.02]} castShadow>
+        <sphereGeometry args={[0.14, 12, 10, 0, Math.PI * 2, 0, Math.PI * 0.55]} />
+        <meshStandardMaterial color={PLAYER.beret} roughness={0.9} />
+      </mesh>
+      <mesh position={[0.1, 1.25 * h, 0.06]} castShadow>
+        <boxGeometry args={[0.07, 0.25, 0.04]} />
+        <meshStandardMaterial color={PLAYER.scarf} roughness={0.85} />
+      </mesh>
       <group ref={legL} position={[-0.1, 0.82, 0]}>
         <mesh position={[0, -0.28, 0]} castShadow>
           <capsuleGeometry args={[0.07, 0.38, 4, 8]} />
-          <meshStandardMaterial color={PLAYER.skin} roughness={0.7} />
+          <meshStandardMaterial color={PLAYER.pants} roughness={0.75} />
         </mesh>
       </group>
       <group ref={legR} position={[0.1, 0.82, 0]}>
         <mesh position={[0, -0.28, 0]} castShadow>
           <capsuleGeometry args={[0.07, 0.38, 4, 8]} />
-          <meshStandardMaterial color={PLAYER.skin} roughness={0.7} />
+          <meshStandardMaterial color={PLAYER.pants} roughness={0.75} />
         </mesh>
       </group>
     </group>

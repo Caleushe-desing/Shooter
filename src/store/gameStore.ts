@@ -46,11 +46,14 @@ type GameState = {
   staminaRecovering: boolean
   /** Effective sprint this frame (after stamina rules). */
   isSprinting: boolean
-  /** Alive ghosts currently on the map. */
+  /** Alive enemy soldiers currently on the map. */
   ghostCount: number
+  /** True after reaching the jail cell and freeing the prisoner. */
+  prisonerRescued: boolean
 
   setMove: (x: number, z: number) => void
   setGhostCount: (n: number) => void
+  rescuePrisoner: () => void
   setSprint: (on: boolean) => void
   toggleSprint: () => void
   /**
@@ -105,10 +108,20 @@ export const useGameStore = create<GameState>((set, get) => ({
   staminaRecovering: false,
   isSprinting: false,
   ghostCount: 0,
+  prisonerRescued: false,
 
   setMove: (x, z) => set((s) => ({ input: { ...s.input, moveX: x, moveZ: z } })),
   setGhostCount: (n) => {
     if (get().ghostCount !== n) set({ ghostCount: n })
+  },
+  rescuePrisoner: () => {
+    const s = get()
+    if (s.status !== 'playing' || s.prisonerRescued) return
+    set({
+      prisonerRescued: true,
+      status: 'won',
+      score: s.score + 500,
+    })
   },
   setSprint: (on) => set((s) => ({ input: { ...s.input, sprint: on } })),
   toggleSprint: () =>
@@ -204,11 +217,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (s.status !== 'playing' || s.orbsRemaining <= 0) return
     const orbsRemaining = s.orbsRemaining - 1
     const score = s.score + PICKUPS.orbPoints
-    set({
-      orbsRemaining,
-      score,
-      status: orbsRemaining <= 0 ? 'won' : 'playing',
-    })
+    // Orbs only score — victory is rescuing the prisoner.
+    set({ orbsRemaining, score })
   },
 
   collectAmmo: () => {
@@ -240,6 +250,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       staminaRecovering: false,
       isSprinting: false,
       ghostCount: 0,
+      prisonerRescued: false,
       playerX: PLAYER.spawn.x,
       playerY: 0,
       playerZ: PLAYER.spawn.z,

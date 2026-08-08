@@ -20,7 +20,7 @@ import {
   type Ghost,
 } from '../../combat/ghosts'
 import { useGameStore } from '../../store/gameStore'
-import { createGhostBodyGeometry } from './ghostGeometry'
+import { createSoldierParts, SOLDIER_COLORS } from './soldierGeometry'
 import { randomGhostSpawns } from '../../combat/spawnPoints'
 
 const MAP_SOLIDS = buildHavenInspiredMap().solids
@@ -58,8 +58,8 @@ function canSeePlayer(g: Ghost, px: number, pz: number) {
 }
 
 /**
- * Ghosts patrol with Commandos-style vision cones.
- * Sight / hearing → red chase; lose sight → 10s search; kills spawn 2 angry ghosts.
+ * Enemy soldiers patrol with Commandos-style vision cones.
+ * Sight / hearing → alert chase; lose sight → 10s search; kills spawn 2 reinforcements.
  */
 export function GhostSystem() {
   const root = useRef<THREE.Group>(null)
@@ -67,48 +67,53 @@ export function GhostSystem() {
   const lastRunId = useRef(useGameStore.getState().runId)
   const portalTimer = useRef(PORTAL.spawnInterval)
 
-  const bodyGeo = useMemo(
-    () => createGhostBodyGeometry(GHOST.radius * 0.95, GHOST.height),
+  const parts = useMemo(
+    () => createSoldierParts(GHOST.radius * 0.95, GHOST.height),
     [],
   )
-  const eyeGeo = useMemo(() => new THREE.SphereGeometry(GHOST.radius * 0.16, 8, 8), [])
-  const pupilGeo = useMemo(() => new THREE.SphereGeometry(GHOST.radius * 0.07, 6, 6), [])
   const sectorGeo = useMemo(
     () => createVisionSectorGeo(GHOST.visionBeamLength, GHOST.visionHalfAngle),
     [],
   )
-  const bodyMat = useMemo(
+  const tunicMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
-        color: GHOST.color,
-        roughness: 0.28,
-        metalness: 0.02,
-        transparent: true,
-        opacity: 0.95,
-        emissive: new THREE.Color('#FFFFFF'),
-        emissiveIntensity: 0.55,
-        side: THREE.DoubleSide,
-        depthWrite: false,
+        color: SOLDIER_COLORS.tunic,
+        roughness: 0.78,
+        metalness: 0.08,
       }),
     [],
   )
-  const eyeMat = useMemo(
+  const helmetMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
-        color: '#FFFFFF',
-        emissive: '#FFFFFF',
-        emissiveIntensity: 0.35,
-        roughness: 0.4,
+        color: SOLDIER_COLORS.helmet,
+        roughness: 0.55,
+        metalness: 0.25,
       }),
     [],
   )
-  const pupilMat = useMemo(
+  const skinMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
-        color: GHOST.eyeColor,
-        emissive: GHOST.eyeColor,
-        emissiveIntensity: 0.55,
-        roughness: 0.35,
+        color: SOLDIER_COLORS.skin,
+        roughness: 0.7,
+      }),
+    [],
+  )
+  const bootMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: SOLDIER_COLORS.boots,
+        roughness: 0.85,
+      }),
+    [],
+  )
+  const rifleMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: SOLDIER_COLORS.rifle,
+        roughness: 0.7,
       }),
     [],
   )
@@ -123,17 +128,6 @@ export function GhostSystem() {
       }),
     [],
   )
-  const beamMatAlert = useMemo(
-    () =>
-      new THREE.MeshBasicMaterial({
-        color: '#FF4040',
-        transparent: true,
-        opacity: 0.34,
-        depthWrite: false,
-        side: THREE.DoubleSide,
-      }),
-    [],
-  )
 
   const ensureMesh = (g: Ghost) => {
     const parent = root.current
@@ -141,50 +135,78 @@ export function GhostSystem() {
     if (meshById.current.has(g.id)) return
 
     const group = new THREE.Group()
-    const body = new THREE.Mesh(bodyGeo, bodyMat.clone())
+    const r = GHOST.radius
+    const h = GHOST.height
+
+    const body = new THREE.Mesh(parts.body, tunicMat.clone())
     body.name = 'body'
+    body.position.y = h * 0.55
     body.castShadow = true
     group.add(body)
 
-    // Face / eyes / vision all point local −Z (same as movement forward).
-    const eyeY = GHOST.height * 0.7
-    const eyeX = GHOST.radius * 0.34
-    const eyeZ = -GHOST.radius * 0.55
-    // Extruded body faces +Z by default — flip so the silhouette faces forward.
-    body.rotation.y = Math.PI
-    for (const side of [-1, 1] as const) {
-      const eye = new THREE.Mesh(eyeGeo, eyeMat)
-      eye.position.set(side * eyeX, eyeY, eyeZ)
-      group.add(eye)
-      const pupil = new THREE.Mesh(pupilGeo, pupilMat.clone())
-      pupil.name = side < 0 ? 'pupilL' : 'pupilR'
-      pupil.position.set(side * eyeX, eyeY - 0.015, eyeZ - GHOST.radius * 0.1)
-      group.add(pupil)
-    }
+    const head = new THREE.Mesh(parts.head, skinMat)
+    head.position.y = h * 0.82
+    head.castShadow = true
+    group.add(head)
+
+    const helmet = new THREE.Mesh(parts.helmet, helmetMat)
+    helmet.position.y = h * 0.88
+    helmet.castShadow = true
+    group.add(helmet)
+
+    const brim = new THREE.Mesh(parts.brim, helmetMat)
+    brim.rotation.x = Math.PI / 2
+    brim.position.set(0, h * 0.84, -0.02)
+    group.add(brim)
+
+    const armL = new THREE.Mesh(parts.armL, tunicMat)
+    armL.position.set(-r * 0.85, h * 0.55, 0)
+    armL.rotation.z = 0.15
+    group.add(armL)
+    const armR = new THREE.Mesh(parts.armR, tunicMat)
+    armR.position.set(r * 0.85, h * 0.55, 0)
+    armR.rotation.z = -0.15
+    group.add(armR)
+
+    const legL = new THREE.Mesh(parts.legL, tunicMat)
+    legL.position.set(-r * 0.28, h * 0.22, 0)
+    group.add(legL)
+    const legR = new THREE.Mesh(parts.legR, tunicMat)
+    legR.position.set(r * 0.28, h * 0.22, 0)
+    group.add(legR)
+
+    const bootL = new THREE.Mesh(parts.bootL, bootMat)
+    bootL.position.set(-r * 0.28, 0.08, -0.05)
+    group.add(bootL)
+    const bootR = new THREE.Mesh(parts.bootR, bootMat)
+    bootR.position.set(r * 0.28, 0.08, -0.05)
+    group.add(bootR)
+
+    const rifle = new THREE.Mesh(parts.rifle, rifleMat)
+    rifle.position.set(r * 0.55, h * 0.48, -h * 0.12)
+    rifle.rotation.x = 0.15
+    group.add(rifle)
 
     const beam = new THREE.Mesh(sectorGeo, beamMatPatrol.clone())
     beam.name = 'beam'
     beam.position.y = 0.06
     group.add(beam)
 
-    // Eye spotlight shafts (along −Z, matching vision)
-    for (const side of [-1, 1] as const) {
-      const shaftLen = GHOST.visionBeamLength * 0.55
-      const shaft = new THREE.Mesh(
-        new THREE.ConeGeometry(0.4, shaftLen, 10, 1, true),
-        new THREE.MeshBasicMaterial({
-          color: '#FFE8A0',
-          transparent: true,
-          opacity: 0.1,
-          depthWrite: false,
-          side: THREE.DoubleSide,
-        }),
-      )
-      shaft.name = side < 0 ? 'shaftL' : 'shaftR'
-      shaft.rotation.x = -Math.PI / 2
-      shaft.position.set(side * eyeX * 0.5, eyeY, -shaftLen * 0.5)
-      group.add(shaft)
-    }
+    const shaftLen = GHOST.visionBeamLength * 0.45
+    const shaft = new THREE.Mesh(
+      new THREE.ConeGeometry(0.45, shaftLen, 10, 1, true),
+      new THREE.MeshBasicMaterial({
+        color: '#FFE8A0',
+        transparent: true,
+        opacity: 0.12,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      }),
+    )
+    shaft.name = 'shaft'
+    shaft.rotation.x = -Math.PI / 2
+    shaft.position.set(0, h * 0.82, -shaftLen * 0.5)
+    group.add(shaft)
 
     group.position.set(g.x, 0, g.z)
     parent.add(group)
@@ -195,20 +217,21 @@ export function GhostSystem() {
     const group = meshById.current.get(id)
     if (!group || !root.current) return
     root.current.remove(group)
+    const sharedGeos = new Set<THREE.BufferGeometry>(Object.values(parts))
+    sharedGeos.add(sectorGeo)
     group.traverse((o) => {
       const m = o as THREE.Mesh
       if (!m.isMesh) return
-      if (m.geometry && m.geometry !== bodyGeo && m.geometry !== eyeGeo && m.geometry !== pupilGeo && m.geometry !== sectorGeo) {
-        m.geometry.dispose()
-      }
+      if (m.geometry && !sharedGeos.has(m.geometry)) m.geometry.dispose()
       const mat = m.material as THREE.Material
       if (
         mat &&
-        mat !== bodyMat &&
-        mat !== eyeMat &&
-        mat !== pupilMat &&
-        mat !== beamMatPatrol &&
-        mat !== beamMatAlert
+        mat !== tunicMat &&
+        mat !== helmetMat &&
+        mat !== skinMat &&
+        mat !== bootMat &&
+        mat !== rifleMat &&
+        mat !== beamMatPatrol
       ) {
         mat.dispose()
       }
@@ -317,7 +340,6 @@ export function GhostSystem() {
     const px = game.playerX
     const pz = game.playerZ
     const playerSprinting = game.isSprinting
-    const t = performance.now() * 0.001
 
     for (const g of list) {
       if (!g.alive) continue
@@ -421,31 +443,29 @@ export function GhostSystem() {
 
       const mesh = meshById.current.get(g.id)
       if (!mesh) continue
-      const hover = g.stun > 0 ? 0.08 : 0.18 + Math.sin(t * 2.4 + g.id) * 0.1
-      mesh.position.set(g.x, hover, g.z)
+      mesh.position.set(g.x, g.stun > 0 ? 0.04 : 0, g.z)
       mesh.rotation.y = g.yaw
-      mesh.scale.setScalar(g.stun > 0 ? 0.92 : 1)
+      mesh.scale.setScalar(g.stun > 0 ? 0.94 : 1)
 
       const body = mesh.getObjectByName('body') as THREE.Mesh | undefined
       const mat = body?.material as THREE.MeshStandardMaterial | undefined
       const beam = mesh.getObjectByName('beam') as THREE.Mesh | undefined
+      const shaft = mesh.getObjectByName('shaft') as THREE.Mesh | undefined
       const alert = g.alert || g.mode !== 'patrol'
 
       if (mat?.isMeshStandardMaterial) {
         if (g.hitFlash > 0) {
           mat.color.set('#FFAA66')
           mat.emissive.set('#FF6622')
-          mat.emissiveIntensity = 1.1
+          mat.emissiveIntensity = 0.9
         } else if (alert) {
-          mat.color.set(GHOST.alertColor)
-          mat.emissive.set(GHOST.alertColor)
-          mat.emissiveIntensity = 0.65
-          mat.opacity = 0.95
+          mat.color.set(SOLDIER_COLORS.tunicAlert)
+          mat.emissive.set('#401010')
+          mat.emissiveIntensity = 0.35
         } else {
-          mat.color.set(GHOST.color)
-          mat.emissive.set('#FFFFFF')
-          mat.emissiveIntensity = 0.55
-          mat.opacity = 0.95
+          mat.color.set(SOLDIER_COLORS.tunic)
+          mat.emissive.set('#000000')
+          mat.emissiveIntensity = 0
         }
       }
 
@@ -454,21 +474,10 @@ export function GhostSystem() {
         bmat.color.set(alert ? '#FF4040' : '#F2E8A0')
         bmat.opacity = alert ? 0.36 : 0.28
       }
-      for (const name of ['shaftL', 'shaftR'] as const) {
-        const shaft = mesh.getObjectByName(name) as THREE.Mesh | undefined
-        if (!shaft) continue
+      if (shaft) {
         const sm = shaft.material as THREE.MeshBasicMaterial
         sm.color.set(alert ? '#FF5050' : '#FFE8A0')
-        sm.opacity = alert ? 0.22 : 0.16
-      }
-      for (const name of ['pupilL', 'pupilR'] as const) {
-        const pupil = mesh.getObjectByName(name) as THREE.Mesh | undefined
-        const pm = pupil?.material as THREE.MeshStandardMaterial | undefined
-        if (pm?.isMeshStandardMaterial) {
-          pm.color.set(alert ? GHOST.alertEyeColor : GHOST.eyeColor)
-          pm.emissive.set(alert ? '#FFAA44' : GHOST.eyeColor)
-          pm.emissiveIntensity = alert ? 0.9 : 0.55
-        }
+        sm.opacity = alert ? 0.22 : 0.14
       }
     }
   })

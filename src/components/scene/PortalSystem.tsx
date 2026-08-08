@@ -1,6 +1,6 @@
-import { SuperGalaxyPortal } from './GalaxyPortal'
+import { PrisonCell } from './PrisonCell'
 
-/** Renders the single super galaxy portal at map center. */
+/** Center jail cell with prisoner — reinforcements spawn from the doorway. */
 export function PortalSystem() {
-  return <SuperGalaxyPortal />
+  return <PrisonCell />
 }
