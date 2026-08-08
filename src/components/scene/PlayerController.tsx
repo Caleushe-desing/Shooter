@@ -288,6 +288,9 @@ export function PlayerController() {
 
     const { moveX, moveZ, sprint } = game.input
     const canPlay = game.status === 'playing'
+    const wishMoving =
+      canPlay && (Math.abs(moveX) > 1e-6 || Math.abs(moveZ) > 1e-6)
+    const sprinting = game.tickStamina(dt, sprint, wishMoving)
 
     // Keep rig transform current before camera world probes.
     rig.current.position.set(pos.current.x, pos.current.y, pos.current.z)
@@ -382,7 +385,7 @@ export function PlayerController() {
     moving.current = wish.current.lengthSq() > 1e-6
     if (moving.current) {
       // Move and look are independent in every camera mode (dual-stick / WASD+mouse).
-      const speed = PLAYER.speed * (sprint ? PLAYER.runMul : 1)
+      const speed = PLAYER.speed * (sprinting ? PLAYER.runMul : 1)
       wish.current.normalize().multiplyScalar(speed * dt)
       let nx = pos.current.x + wish.current.x
       let nz = pos.current.z + wish.current.z

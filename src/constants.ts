@@ -16,6 +16,12 @@ export const COLORS = {
   skin: '#C9956E',
 } as const
 
+/** Sprint stamina: full drain and full recharge share the same duration. */
+export const STAMINA = {
+  /** Seconds to empty at full sprint / seconds to refill from empty. */
+  duration: 5,
+} as const
+
 export const PLAYER = {
   height: 1.72,
   radius: 0.35,

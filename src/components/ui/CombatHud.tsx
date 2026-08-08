@@ -17,10 +17,15 @@ export function CombatHud() {
   const orbsTotal = useGameStore((s) => s.orbsTotal)
   const ammo = useGameStore((s) => s.ammo)
   const ammoMax = useGameStore((s) => s.ammoMax)
+  const stamina = useGameStore((s) => s.stamina)
+  const staminaRecovering = useGameStore((s) => s.staminaRecovering)
+  const isSprinting = useGameStore((s) => s.isSprinting)
   const score = useGameStore((s) => s.score)
   const status = useGameStore((s) => s.status)
   const restartRun = useGameStore((s) => s.restartRun)
   const ammoLow = ammo <= 1
+  const staminaPct = Math.round(stamina * 100)
+  const staminaLow = stamina <= 0.25
 
   const camLabel =
     cameraMode === 'top' ? 'VISTA 2D' : cameraMode === 'first' ? '1ª PERSONA' : '3ª PERSONA'
@@ -69,6 +74,38 @@ export function CombatHud() {
                 }`}
               />
             ))}
+          </div>
+        </div>
+        <div className="rounded bg-black/50 px-2.5 py-1.5 backdrop-blur-sm">
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-[10px] font-semibold tracking-[0.14em] text-white/65">
+              STAMINA
+            </div>
+            <div
+              className={`text-[10px] font-semibold tracking-[0.08em] ${
+                staminaRecovering
+                  ? 'text-[#7EC8FF]'
+                  : isSprinting
+                    ? 'text-[#B8F080]'
+                    : staminaLow
+                      ? 'text-[#E24A3A]'
+                      : 'text-white/55'
+              }`}
+            >
+              {staminaRecovering ? 'RECUPERA' : isSprinting ? 'CORRIENDO' : `${staminaPct}%`}
+            </div>
+          </div>
+          <div className="mt-1.5 h-2 w-36 overflow-hidden rounded-sm bg-white/15 sm:w-40">
+            <div
+              className={`h-full rounded-sm transition-[width] duration-75 ${
+                staminaRecovering
+                  ? 'bg-[#5AA8E8]'
+                  : staminaLow
+                    ? 'bg-[#E24A3A]'
+                    : 'bg-[#8FD45A]'
+              }`}
+              style={{ width: `${staminaPct}%` }}
+            />
           </div>
         </div>
         <div className="rounded bg-black/45 px-2.5 py-1 text-[11px] tracking-[0.12em] text-white/80 backdrop-blur-sm">

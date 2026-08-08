@@ -85,11 +85,12 @@ function MixamoHuman({ yawRef, movingRef }: Props) {
     if (!root.current || !modelRef.current) return
     root.current.rotation.y = yawRef.current
 
-    const { moveX, moveZ, sprint } = useGameStore.getState().input
+    const { moveX, moveZ } = useGameStore.getState().input
+    const sprinting = useGameStore.getState().isSprinting
     const moving = movingRef.current || Math.hypot(moveX, moveZ) > 0.05
 
     let next: ClipName = 'idle'
-    if (moving && sprint && runAction) next = 'run'
+    if (moving && sprinting && runAction) next = 'run'
     else if (moving && walkAction) next = 'walk'
     else next = 'idle'
 
@@ -106,7 +107,7 @@ function MixamoHuman({ yawRef, movingRef }: Props) {
 
     const action = currentClip.current ? actions[currentClip.current] : null
     if (action) {
-      action.setEffectiveTimeScale(sprint && next === 'run' ? 1.08 : 1)
+      action.setEffectiveTimeScale(sprinting && next === 'run' ? 1.08 : 1)
     }
 
     // Mixamo faces +Z; flip so chase cam on +Z sees the back.
@@ -131,10 +132,11 @@ function FallbackHuman({ yawRef, movingRef }: Props) {
   useFrame(() => {
     if (!root.current) return
     root.current.rotation.y = yawRef.current
-    const { moveX, moveZ, sprint } = useGameStore.getState().input
+    const { moveX, moveZ } = useGameStore.getState().input
+    const sprinting = useGameStore.getState().isSprinting
     const moving = movingRef.current || Math.hypot(moveX, moveZ) > 0.05
-    const rate = sprint ? 13 : 8.5
-    const amp = sprint ? 0.65 : 0.45
+    const rate = sprinting ? 13 : 8.5
+    const amp = sprinting ? 0.65 : 0.45
     const swing = Math.sin(performance.now() * 0.001 * rate) * amp * (moving ? 1 : 0)
     if (legL.current) legL.current.rotation.x = swing
     if (legR.current) legR.current.rotation.x = -swing

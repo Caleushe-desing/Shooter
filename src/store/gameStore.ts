@@ -4,6 +4,7 @@ import {
   CAMERA,
   WEAPON_AMMO,
   PICKUPS,
+  STAMINA,
   type CameraMode,
   type GameStatus,
 } from '../constants'
@@ -38,10 +39,21 @@ type GameState = {
   orbsTotal: number
   ammo: number
   ammoMax: number
+  /** 0..1 sprint stamina. */
+  stamina: number
+  /** True while refilling — sprint blocked until 100%. */
+  staminaRecovering: boolean
+  /** Effective sprint this frame (after stamina rules). */
+  isSprinting: boolean
 
   setMove: (x: number, z: number) => void
   setSprint: (on: boolean) => void
   toggleSprint: () => void
+  /**
+   * Drain while sprinting, refill while walking/idle.
+   * Returns whether the player is effectively sprinting this frame.
+   */
+  tickStamina: (dt: number, wantsSprint: boolean, moving: boolean) => boolean
   requestJump: () => void
   consumeJump: () => boolean
   requestFire: () => void
@@ -85,11 +97,58 @@ export const useGameStore = create<GameState>((set, get) => ({
   orbsTotal: totalOrbs,
   ammo: WEAPON_AMMO.start,
   ammoMax: WEAPON_AMMO.max,
+  stamina: 1,
+  staminaRecovering: false,
+  isSprinting: false,
 
   setMove: (x, z) => set((s) => ({ input: { ...s.input, moveX: x, moveZ: z } })),
   setSprint: (on) => set((s) => ({ input: { ...s.input, sprint: on } })),
   toggleSprint: () =>
-    set((s) => ({ input: { ...s.input, sprint: !s.input.sprint } })),
+    set((s) => {
+      // Ignore sprint-on while recovering; allow toggling off anytime.
+      if (!s.input.sprint && s.staminaRecovering) return s
+      return { input: { ...s.input, sprint: !s.input.sprint } }
+    }),
+
+  tickStamina: (dt, wantsSprint, moving) => {
+    const s = get()
+    if (s.status !== 'playing') {
+      if (s.isSprinting) set({ isSprinting: false })
+      return false
+    }
+
+    const rate = 1 / STAMINA.duration
+    let stamina = s.stamina
+    let recovering = s.staminaRecovering
+    const isSprinting = wantsSprint && moving && stamina > 0 && !recovering
+
+    if (isSprinting) {
+      stamina = Math.max(0, stamina - dt * rate)
+      if (stamina <= 0) {
+        stamina = 0
+        recovering = true
+      }
+    } else if (stamina < 1) {
+      recovering = true
+      stamina = Math.min(1, stamina + dt * rate)
+      if (stamina >= 1) {
+        stamina = 1
+        recovering = false
+      }
+    } else {
+      stamina = 1
+      recovering = false
+    }
+
+    if (
+      stamina !== s.stamina ||
+      recovering !== s.staminaRecovering ||
+      isSprinting !== s.isSprinting
+    ) {
+      set({ stamina, staminaRecovering: recovering, isSprinting })
+    }
+    return isSprinting
+  },
 
   requestJump: () => {
     if (get().status !== 'playing') return
@@ -168,6 +227,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       fireQueued: 0,
       jumpQueued: false,
       input: { moveX: 0, moveZ: 0, sprint: false },
+      stamina: 1,
+      staminaRecovering: false,
+      isSprinting: false,
       playerX: PLAYER.spawn.x,
       playerY: 0,
       playerZ: PLAYER.spawn.z,

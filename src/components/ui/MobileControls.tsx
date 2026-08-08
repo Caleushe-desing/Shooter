@@ -96,8 +96,11 @@ function Joystick() {
 
 function RightHandButtons() {
   const sprint = useGameStore((s) => s.input.sprint)
+  const isSprinting = useGameStore((s) => s.isSprinting)
+  const staminaRecovering = useGameStore((s) => s.staminaRecovering)
   const toggleSprint = useGameStore((s) => s.toggleSprint)
   const requestJump = useGameStore((s) => s.requestJump)
+  const sprintLit = isSprinting || (sprint && !staminaRecovering)
 
   return (
     <div className="pointer-events-auto absolute bottom-5 right-4 z-40 flex touch-none flex-col items-center gap-2.5 sm:bottom-8 sm:right-8 sm:gap-3">
@@ -114,18 +117,22 @@ function RightHandButtons() {
       </button>
       <button
         type="button"
+        disabled={staminaRecovering && !sprint}
         className={`flex h-14 w-14 select-none items-center justify-center rounded-full border-2 text-[11px] font-bold tracking-[0.14em] shadow-md sm:h-16 sm:w-16 ${
-          sprint
-            ? 'border-white bg-[#6FE04A] text-[#143018]'
-            : 'border-white/50 bg-[#1A2430]/55 text-white/90 backdrop-blur-sm'
+          staminaRecovering
+            ? 'border-[#5AA8E8]/70 bg-[#1A3040]/70 text-[#7EC8FF]/80'
+            : sprintLit
+              ? 'border-white bg-[#6FE04A] text-[#143018]'
+              : 'border-white/50 bg-[#1A2430]/55 text-white/90 backdrop-blur-sm'
         }`}
         onPointerDown={(e) => {
           e.preventDefault()
           e.stopPropagation()
+          if (staminaRecovering && !sprint) return
           toggleSprint()
         }}
       >
-        CORRER
+        {staminaRecovering ? '…' : 'CORRER'}
       </button>
     </div>
   )
