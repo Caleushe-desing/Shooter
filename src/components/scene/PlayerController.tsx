@@ -173,7 +173,9 @@ export function PlayerController() {
     }
   }, [])
 
-  // Run after the avatar mixer so headHeight reflects the current crouch pose.
+  // Priority 0: update before render. Head height is damped so a 1-frame
+  // lag behind the avatar mixer is invisible. Do NOT use priority >= 1 —
+  // that takes over the R3F render loop and blanks the scene.
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05)
     if (!rig.current || !yawPivot.current || !pitchObj.current) return
@@ -350,7 +352,7 @@ export function PlayerController() {
     viewState.x = pos.current.x
     viewState.y = pos.current.y
     viewState.z = pos.current.z
-  }, 1)
+  })
 
   return (
     <group ref={rig} position={[spawn.x, spawn.y, spawn.z]}>
