@@ -180,8 +180,8 @@ export const GHOST = {
   clearPlayer: 10,
   /** Keep initial random spawns apart from each other. */
   minSeparation: 6,
-  color: '#4A5560',
-  alertColor: '#6B3030',
+  color: '#5C6B58',
+  alertColor: '#7A4038',
   eyeColor: '#152033',
   alertEyeColor: '#FFEECC',
   /**

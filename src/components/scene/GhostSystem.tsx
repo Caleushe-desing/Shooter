@@ -20,7 +20,11 @@ import {
   type Ghost,
 } from '../../combat/ghosts'
 import { useGameStore } from '../../store/gameStore'
-import { createSoldierParts, SOLDIER_COLORS } from './soldierGeometry'
+import {
+  createSoldierParts,
+  buildSoldierMesh,
+  SOLDIER_COLORS,
+} from './soldierGeometry'
 import { randomGhostSpawns } from '../../combat/spawnPoints'
 
 const MAP_SOLIDS = buildHavenInspiredMap().solids
@@ -79,8 +83,17 @@ export function GhostSystem() {
     () =>
       new THREE.MeshStandardMaterial({
         color: SOLDIER_COLORS.tunic,
-        roughness: 0.78,
-        metalness: 0.08,
+        roughness: 0.82,
+        metalness: 0.06,
+      }),
+    [],
+  )
+  const coatMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: SOLDIER_COLORS.coatDark,
+        roughness: 0.88,
+        metalness: 0.04,
       }),
     [],
   )
@@ -88,8 +101,8 @@ export function GhostSystem() {
     () =>
       new THREE.MeshStandardMaterial({
         color: SOLDIER_COLORS.helmet,
-        roughness: 0.55,
-        metalness: 0.25,
+        roughness: 0.5,
+        metalness: 0.35,
       }),
     [],
   )
@@ -109,11 +122,36 @@ export function GhostSystem() {
       }),
     [],
   )
-  const rifleMat = useMemo(
+  const beltMat = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
-        color: SOLDIER_COLORS.rifle,
+        color: SOLDIER_COLORS.belt,
+        roughness: 0.75,
+      }),
+    [],
+  )
+  const strapMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: SOLDIER_COLORS.strap,
+        roughness: 0.8,
+      }),
+    [],
+  )
+  const woodMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: SOLDIER_COLORS.rifleWood,
         roughness: 0.7,
+      }),
+    [],
+  )
+  const metalMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: SOLDIER_COLORS.rifleMetal,
+        roughness: 0.4,
+        metalness: 0.55,
       }),
     [],
   )
@@ -129,68 +167,40 @@ export function GhostSystem() {
     [],
   )
 
+  const soldierMats = useMemo(
+    () => ({
+      tunic: tunicMat,
+      coat: coatMat,
+      helmet: helmetMat,
+      skin: skinMat,
+      boots: bootMat,
+      belt: beltMat,
+      strap: strapMat,
+      wood: woodMat,
+      metal: metalMat,
+    }),
+    [tunicMat, coatMat, helmetMat, skinMat, bootMat, beltMat, strapMat, woodMat, metalMat],
+  )
+
   const ensureMesh = (g: Ghost) => {
     const parent = root.current
     if (!parent) return
     if (meshById.current.has(g.id)) return
 
-    const group = new THREE.Group()
-    const r = GHOST.radius
-    const h = GHOST.height
-
-    const body = new THREE.Mesh(parts.body, tunicMat.clone())
-    body.name = 'body'
-    body.position.y = h * 0.55
-    body.castShadow = true
-    group.add(body)
-
-    const head = new THREE.Mesh(parts.head, skinMat)
-    head.position.y = h * 0.82
-    head.castShadow = true
-    group.add(head)
-
-    const helmet = new THREE.Mesh(parts.helmet, helmetMat)
-    helmet.position.y = h * 0.88
-    helmet.castShadow = true
-    group.add(helmet)
-
-    const brim = new THREE.Mesh(parts.brim, helmetMat)
-    brim.rotation.x = Math.PI / 2
-    brim.position.set(0, h * 0.84, -0.02)
-    group.add(brim)
-
-    const armL = new THREE.Mesh(parts.armL, tunicMat)
-    armL.position.set(-r * 0.85, h * 0.55, 0)
-    armL.rotation.z = 0.15
-    group.add(armL)
-    const armR = new THREE.Mesh(parts.armR, tunicMat)
-    armR.position.set(r * 0.85, h * 0.55, 0)
-    armR.rotation.z = -0.15
-    group.add(armR)
-
-    const legL = new THREE.Mesh(parts.legL, tunicMat)
-    legL.position.set(-r * 0.28, h * 0.22, 0)
-    group.add(legL)
-    const legR = new THREE.Mesh(parts.legR, tunicMat)
-    legR.position.set(r * 0.28, h * 0.22, 0)
-    group.add(legR)
-
-    const bootL = new THREE.Mesh(parts.bootL, bootMat)
-    bootL.position.set(-r * 0.28, 0.08, -0.05)
-    group.add(bootL)
-    const bootR = new THREE.Mesh(parts.bootR, bootMat)
-    bootR.position.set(r * 0.28, 0.08, -0.05)
-    group.add(bootR)
-
-    const rifle = new THREE.Mesh(parts.rifle, rifleMat)
-    rifle.position.set(r * 0.55, h * 0.48, -h * 0.12)
-    rifle.rotation.x = 0.15
-    group.add(rifle)
+    const soldier = buildSoldierMesh(
+      parts,
+      { ...soldierMats, tunic: tunicMat.clone(), coat: coatMat.clone() },
+      GHOST.radius * 0.95,
+      GHOST.height,
+    )
+    // Mark coat as body for alert recolor
+    const coat = soldier.children.find((c) => c.name === 'body') as THREE.Mesh | undefined
+    if (coat) coat.name = 'body'
 
     const beam = new THREE.Mesh(sectorGeo, beamMatPatrol.clone())
     beam.name = 'beam'
     beam.position.y = 0.06
-    group.add(beam)
+    soldier.add(beam)
 
     const shaftLen = GHOST.visionBeamLength * 0.45
     const shaft = new THREE.Mesh(
@@ -205,12 +215,12 @@ export function GhostSystem() {
     )
     shaft.name = 'shaft'
     shaft.rotation.x = -Math.PI / 2
-    shaft.position.set(0, h * 0.82, -shaftLen * 0.5)
-    group.add(shaft)
+    shaft.position.set(0, GHOST.height * 0.88, -shaftLen * 0.5)
+    soldier.add(shaft)
 
-    group.position.set(g.x, 0, g.z)
-    parent.add(group)
-    meshById.current.set(g.id, group)
+    soldier.position.set(g.x, 0, g.z)
+    parent.add(soldier)
+    meshById.current.set(g.id, soldier)
   }
 
   const removeMesh = (id: number) => {
@@ -219,22 +229,24 @@ export function GhostSystem() {
     root.current.remove(group)
     const sharedGeos = new Set<THREE.BufferGeometry>(Object.values(parts))
     sharedGeos.add(sectorGeo)
+    const sharedMats = new Set<THREE.Material>([
+      tunicMat,
+      coatMat,
+      helmetMat,
+      skinMat,
+      bootMat,
+      beltMat,
+      strapMat,
+      woodMat,
+      metalMat,
+      beamMatPatrol,
+    ])
     group.traverse((o) => {
       const m = o as THREE.Mesh
       if (!m.isMesh) return
       if (m.geometry && !sharedGeos.has(m.geometry)) m.geometry.dispose()
       const mat = m.material as THREE.Material
-      if (
-        mat &&
-        mat !== tunicMat &&
-        mat !== helmetMat &&
-        mat !== skinMat &&
-        mat !== bootMat &&
-        mat !== rifleMat &&
-        mat !== beamMatPatrol
-      ) {
-        mat.dispose()
-      }
+      if (mat && !sharedMats.has(mat)) mat.dispose()
     })
     meshById.current.delete(id)
   }
@@ -461,9 +473,9 @@ export function GhostSystem() {
         } else if (alert) {
           mat.color.set(SOLDIER_COLORS.tunicAlert)
           mat.emissive.set('#401010')
-          mat.emissiveIntensity = 0.35
+          mat.emissiveIntensity = 0.3
         } else {
-          mat.color.set(SOLDIER_COLORS.tunic)
+          mat.color.set(SOLDIER_COLORS.coatDark)
           mat.emissive.set('#000000')
           mat.emissiveIntensity = 0
         }
