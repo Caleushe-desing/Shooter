@@ -9,10 +9,8 @@ import {
   raycastSolids,
   resolveHorizontal,
 } from '../../map/collision'
-import { avatarPose } from '../../input/avatarPose'
 import { useGameStore } from '../../store/gameStore'
-import { PlayerAvatar } from './PlayerAvatar'
-import { viewState } from '../../input/viewState'
+import { PlasticSoldier } from './PlasticSoldier'
 
 function lerpAngle(a: number, b: number, t: number) {
   let d = b - a
@@ -22,9 +20,8 @@ function lerpAngle(a: number, b: number, t: number) {
 }
 
 /**
- * TPS-only controller: orbit camera with soft boom collision,
- * body faces move direction while walking, tactical crouch via Left Control.
- * Capsule height eases with lerp; camera pivot tracks the animated head bone.
+ * TPS controller for the plastic soldier: stiff turns, boom camera,
+ * crouch via Left Control. No Mixamo / head-bone coupling.
  */
 export function PlayerController() {
   const { gl, camera } = useThree()
@@ -43,9 +40,7 @@ export function PlayerController() {
   const right = useRef(new THREE.Vector3())
   const wish = useRef(new THREE.Vector3())
   const boomScale = useRef(1)
-  /** Smoothed collision capsule height (stand ↔ crouch). */
   const bodyHeight = useRef<number>(PLAYER.height)
-  /** Smoothed camera pivot Y (follows head bone). */
   const camHeight = useRef<number>(CAMERA.height)
   const runId = useRef(useGameStore.getState().runId)
   const idealOffset = useRef(new THREE.Vector3())
@@ -173,9 +168,6 @@ export function PlayerController() {
     }
   }, [])
 
-  // Priority 0: update before render. Head height is damped so a 1-frame
-  // lag behind the avatar mixer is invisible. Do NOT use priority >= 1 —
-  // that takes over the R3F render loop and blanks the scene.
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05)
     if (!rig.current || !yawPivot.current || !pitchObj.current) return
@@ -195,8 +187,6 @@ export function PlayerController() {
       boomScale.current = 1
       bodyHeight.current = PLAYER.height
       camHeight.current = CAMERA.height
-      avatarPose.headHeight = CAMERA.height
-      avatarPose.crouchBlend = 0
       game.setCrouching(false)
     }
 
@@ -213,7 +203,6 @@ export function PlayerController() {
     const sprinting = game.tickStamina(dt, sprint && !crouching, wishMoving)
     const speed = game.syncMoveSpeed(sprinting)
 
-    // Capsule eases stand ↔ crouch (no hard snap).
     const targetBodyH = crouching ? PLAYER.crouchHeight : PLAYER.height
     bodyHeight.current = THREE.MathUtils.damp(
       bodyHeight.current,
@@ -222,12 +211,7 @@ export function PlayerController() {
       dt,
     )
 
-    // Camera pivot tracks animated head / eyes.
-    const targetCamH = avatarPose.ready
-      ? avatarPose.headHeight
-      : crouching
-        ? PLAYER.crouchHeight * 0.95
-        : CAMERA.height
+    const targetCamH = crouching ? CAMERA.crouchHeight : CAMERA.height
     camHeight.current = THREE.MathUtils.damp(
       camHeight.current,
       targetCamH,
@@ -348,15 +332,11 @@ export function PlayerController() {
 
     rig.current.position.set(pos.current.x, pos.current.y, pos.current.z)
     game.setPlayerPos(pos.current.x, pos.current.y, pos.current.z)
-    viewState.lookYaw = lookYaw.current
-    viewState.x = pos.current.x
-    viewState.y = pos.current.y
-    viewState.z = pos.current.z
   })
 
   return (
     <group ref={rig} position={[spawn.x, spawn.y, spawn.z]}>
-      <PlayerAvatar yawRef={bodyYaw} movingRef={moving} />
+      <PlasticSoldier yawRef={bodyYaw} movingRef={moving} />
       <group ref={yawPivot} position={[0, CAMERA.height, 0]}>
         <group ref={pitchObj}>
           <PerspectiveCamera
