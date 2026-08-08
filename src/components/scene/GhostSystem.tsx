@@ -21,6 +21,7 @@ import {
 } from '../../combat/ghosts'
 import { useGameStore } from '../../store/gameStore'
 import { createGhostBodyGeometry } from './ghostGeometry'
+import { randomGhostSpawns } from '../../combat/spawnPoints'
 
 const MAP_SOLIDS = buildHavenInspiredMap().solids
 
@@ -64,6 +65,7 @@ export function GhostSystem() {
   const root = useRef<THREE.Group>(null)
   const meshById = useRef(new Map<number, THREE.Group>())
   const lastRunId = useRef(useGameStore.getState().runId)
+  const portalTimer = useRef(PORTAL.spawnInterval)
 
   const bodyGeo = useMemo(
     () => createGhostBodyGeometry(GHOST.radius * 0.95, GHOST.height),
@@ -228,26 +230,33 @@ export function GhostSystem() {
     }
   }
 
+  const spawnFromPortalPatrol = () => {
+    const ang = Math.random() * Math.PI * 2
+    const wp = Math.floor(Math.random() * GHOST.waypoints.length)
+    spawnGhost(
+      PORTAL.x + Math.cos(ang) * 1.2,
+      PORTAL.z + Math.sin(ang) * 1.2,
+      {
+        mode: 'patrol',
+        alert: false,
+        waypoint: wp,
+      },
+    )
+  }
+
   const resetAll = () => {
     clearGhosts()
     for (const id of [...meshById.current.keys()]) removeMesh(id)
-    // Emerge from the center portal and fan out to nearby patrol points
-    // so ghosts (and their vision cones) are visible right at start.
-    for (let i = 0; i < GHOST.count; i++) {
-      const wp = GHOST.waypoints[i % GHOST.waypoints.length]
-      const ang = (i / GHOST.count) * Math.PI * 2
-      spawnGhost(
-        PORTAL.x + Math.cos(ang) * 1.4,
-        PORTAL.z + Math.sin(ang) * 1.4,
-        {
-          mode: 'patrol',
-          alert: false,
-          waypoint: i % GHOST.waypoints.length,
-          lastKnownX: wp.x,
-          lastKnownZ: wp.z,
-        },
-      )
-    }
+    portalTimer.current = PORTAL.spawnInterval
+    // 8 ghosts already on the map at random free spots.
+    const spots = randomGhostSpawns(GHOST.count)
+    spots.forEach((s, i) => {
+      spawnGhost(s.x, s.z, {
+        mode: 'patrol',
+        alert: false,
+        waypoint: i % GHOST.waypoints.length,
+      })
+    })
     useGameStore.getState().setGhostCount(aliveGhostCount())
   }
 
@@ -268,6 +277,15 @@ export function GhostSystem() {
     if (game.runId !== lastRunId.current) {
       lastRunId.current = game.runId
       resetAll()
+    }
+
+    if (game.status === 'playing') {
+      // Timed portal spawns — one new patrolling ghost every 30s.
+      portalTimer.current -= dt
+      if (portalTimer.current <= 0) {
+        portalTimer.current = PORTAL.spawnInterval
+        spawnFromPortalPatrol()
+      }
     }
 
     const before = getGhosts()

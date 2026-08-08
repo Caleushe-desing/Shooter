@@ -141,6 +141,8 @@ export const PORTAL = {
   z: 0,
   /** Outer ring radius (meters). */
   radius: 2.6,
+  /** Extra ghosts leave the portal on this interval (seconds). */
+  spawnInterval: 30,
 } as const
 
 /** Pursuing ghosts (classic dome + wavy skirt silhouette). */
@@ -162,10 +164,14 @@ export const GHOST = {
   searchTime: 10,
   stunTime: 2.8,
   patrolSpeed: 4,
-  /** Starting ghosts on the map. */
+  /** Starting ghosts already on the map (random places). */
   count: 8,
   /** Spawned from portal per ghost kill. */
   killSpawn: 2,
+  /** Keep initial random spawns clear of the player. */
+  clearPlayer: 10,
+  /** Keep initial random spawns apart from each other. */
+  minSeparation: 6,
   color: '#F5F7FA',
   alertColor: '#E03030',
   eyeColor: '#152033',
