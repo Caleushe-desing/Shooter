@@ -146,16 +146,19 @@ export function GhostSystem() {
     body.castShadow = true
     group.add(body)
 
+    // Face / eyes / vision all point local −Z (same as movement forward).
     const eyeY = GHOST.height * 0.7
     const eyeX = GHOST.radius * 0.34
-    const eyeZ = GHOST.radius * 0.55
+    const eyeZ = -GHOST.radius * 0.55
+    // Extruded body faces +Z by default — flip so the silhouette faces forward.
+    body.rotation.y = Math.PI
     for (const side of [-1, 1] as const) {
       const eye = new THREE.Mesh(eyeGeo, eyeMat)
       eye.position.set(side * eyeX, eyeY, eyeZ)
       group.add(eye)
       const pupil = new THREE.Mesh(pupilGeo, pupilMat.clone())
       pupil.name = side < 0 ? 'pupilL' : 'pupilR'
-      pupil.position.set(side * eyeX, eyeY - 0.015, eyeZ + GHOST.radius * 0.1)
+      pupil.position.set(side * eyeX, eyeY - 0.015, eyeZ - GHOST.radius * 0.1)
       group.add(pupil)
     }
 
@@ -164,7 +167,7 @@ export function GhostSystem() {
     beam.position.y = 0.06
     group.add(beam)
 
-    // Eye spotlight shafts
+    // Eye spotlight shafts (along −Z, matching vision)
     for (const side of [-1, 1] as const) {
       const shaftLen = GHOST.visionBeamLength * 0.55
       const shaft = new THREE.Mesh(

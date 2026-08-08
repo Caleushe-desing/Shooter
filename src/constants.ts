@@ -142,7 +142,7 @@ export const PORTAL = {
   /** Outer ring radius (meters). */
   radius: 2.6,
   /** Extra ghosts leave the portal on this interval (seconds). */
-  spawnInterval: 30,
+  spawnInterval: 60,
 } as const
 
 /** Pursuing ghosts (classic dome + wavy skirt silhouette). */
@@ -157,7 +157,7 @@ export const GHOST = {
   /** Drawn cone length (full visionRange still used for detection). */
   visionBeamLength: 28,
   /** Half-angle of forward vision cone (radians). */
-  visionHalfAngle: (40 * Math.PI) / 180,
+  visionHalfAngle: (55 * Math.PI) / 180,
   /** Hear sprinting player within this radius (meters / “pasos”). */
   hearRadius: 15,
   /** Seconds to keep searching after losing sight / arriving at last known. */
@@ -371,7 +371,11 @@ export function resolveCeiling(
   return { feetY: y, velY: vy }
 }
 
-/** Line-of-sight on XZ at eye height — blocked by tall solids. */
+/**
+ * Line-of-sight on XZ at eye height — blocked by wall-like solids.
+ * Ignores thin props (stair steps, pillars, crates) that were falsely
+ * occluding vision cones.
+ */
 export function hasLineOfSight(
   ax: number,
   az: number,
@@ -390,7 +394,11 @@ export function hasLineOfSight(
     const x = ax + dx * t
     const z = az + dz * t
     for (const box of solids) {
-      if (box.maxY < eyeY || box.minY > eyeY + 0.4) continue
+      // Skip low cover and thin stair/pillar volumes.
+      if (box.maxY < eyeY) continue
+      if (box.minY > eyeY + 0.35) continue
+      if (Math.min(box.w, box.d) < 0.85) continue
+      if (box.maxY - box.minY < 1.6) continue
       const halfW = box.w * 0.5
       const halfD = box.d * 0.5
       if (x >= box.x - halfW && x <= box.x + halfW && z >= box.z - halfD && z <= box.z + halfD) {
