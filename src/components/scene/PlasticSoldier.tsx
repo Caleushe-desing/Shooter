@@ -2,6 +2,7 @@ import { useRef, type MutableRefObject } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { PLAYER } from '../../constants'
+import { aimState } from '../../input/aimState'
 import { useGameStore } from '../../store/gameStore'
 
 type Props = {
@@ -51,14 +52,14 @@ export function PlasticSoldier({ yawRef, movingRef }: Props) {
     if (legL.current) legL.current.rotation.x = swing
     if (legR.current) legR.current.rotation.x = -swing
 
-    // Rest: arm down along side. Aim: raise forward (+Z model forward).
+    // Rest: arm down. Aim: point along look pitch so muzzle tracks the crosshair.
     const restX = 0.85
-    const aimX = -1.15
+    const aimX = -Math.PI * 0.5 - aimState.pitch * 0.95
     const restZ = -0.15
-    const aimZ = 0.05
+    const aimZ = 0.02
     rightArm.current.rotation.x = THREE.MathUtils.lerp(restX, aimX, aim.current)
     rightArm.current.rotation.z = THREE.MathUtils.lerp(restZ, aimZ, aim.current)
-    rightArm.current.rotation.y = THREE.MathUtils.lerp(0.1, -0.05, aim.current)
+    rightArm.current.rotation.y = THREE.MathUtils.lerp(0.1, 0, aim.current)
 
     // Muzzle flash pulses while holding fire
     if (firing) {

@@ -9,7 +9,7 @@ function Scene() {
   return (
     <>
       <color attach="background" args={['#cfc7bb']} />
-      <fog attach="fog" args={['#cfc7bb', 70, 150]} />
+      <fog attach="fog" args={['#cfc7bb', 55, 110]} />
       <hemisphereLight intensity={0.55} color="#f2ebe2" groundColor="#8a8070" />
       <ambientLight intensity={0.4} color="#ebe4da" />
       <directionalLight

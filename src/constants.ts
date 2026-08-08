@@ -18,10 +18,10 @@ export const PLAYER = {
   stepHeight: 0.55,
   lookSensitivity: 0.0022,
   lookSensitivityMobile: 0.0058,
-  pitchMin: -0.72,
-  pitchMax: 0.28,
-  /** Wide exploration angle — look slightly down over the soldier. */
-  pitchDefault: -0.38,
+  pitchMin: -0.55,
+  pitchMax: 0.4,
+  /** Close TPS — slight downward bias, not a high overview. */
+  pitchDefault: -0.1,
   /** Stiff toy turn — mechanical, not cinematic. */
   turnRate: 18,
   /** Classic army-men green plastic. */
@@ -31,24 +31,27 @@ export const PLAYER = {
 } as const
 
 export const CAMERA = {
-  /** Nearly centered behind the back for an open chase cam. */
-  shoulder: 0.06,
-  height: 1.45,
-  crouchHeight: 0.78,
-  /** How quickly the pivot follows stand ↔ crouch. */
-  headFollow: 12,
-  /** How quickly the collision capsule eases stand ↔ crouch. */
+  /** Right over-the-shoulder offset (classic ARK / NMS close TPS). */
+  shoulder: 0.5,
+  /** Pivot at upper chest / eye line. */
+  height: 1.42,
+  crouchHeight: 0.82,
+  headFollow: 14,
   capsuleLerp: 10,
-  /** Raised boom for a No Man's Sky–style open third person. */
-  lift: 2.4,
-  /** Far chase distance — wide environmental read. */
-  distance: 10.5,
-  near: 0.15,
-  far: 280,
-  fov: 68,
-  minBoomLength: 4.5,
-  boomSkin: 0.35,
-  boomLerp: 12,
+  /** Small vertical boom lift — keeps the soldier large on screen. */
+  lift: 0.15,
+  /** ~2.5 m behind the model (max ~3 m). */
+  distance: 2.55,
+  near: 0.08,
+  far: 220,
+  fov: 54,
+  minBoomLength: 0.95,
+  boomSkin: 0.28,
+  boomLerp: 16,
+  /** World-space aim point distance for lookAt / crosshair alignment. */
+  aimDistance: 28,
+  /** Weapon / muzzle height used to align the view ray with the pistol. */
+  aimHeight: 1.22,
 } as const
 
 /** Interior footprint of the giant living room (xz). */

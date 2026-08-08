@@ -9,18 +9,18 @@ import {
   raycastSolids,
   resolveHorizontal,
 } from '../../map/collision'
+import { aimState } from '../../input/aimState'
 import { useGameStore } from '../../store/gameStore'
 import { PlasticSoldier } from './PlasticSoldier'
 
 /**
- * Classic TPS: camera locked behind the back, body yaw tracks look yaw,
- * LMB aims/fires, Left Ctrl crouches.
+ * Close over-the-shoulder TPS: ~2.5 m boom, camera lookAt aligns
+ * screen-center crosshair with the weapon aim ray.
  */
 export function PlayerController() {
   const { gl, camera } = useThree()
   const rig = useRef<THREE.Group>(null)
   const yawPivot = useRef<THREE.Group>(null)
-  const pitchObj = useRef<THREE.Group>(null)
   const lookYaw = useRef(0)
   const lookPitch = useRef<number>(PLAYER.pitchDefault)
   const bodyYaw = useRef(0)
@@ -36,9 +36,12 @@ export function PlayerController() {
   const bodyHeight = useRef<number>(PLAYER.height)
   const camHeight = useRef<number>(CAMERA.height)
   const runId = useRef(useGameStore.getState().runId)
-  const idealOffset = useRef(new THREE.Vector3())
+  const aimDir = useRef(new THREE.Vector3())
+  const aimPoint = useRef(new THREE.Vector3())
+  const aimOrigin = useRef(new THREE.Vector3())
   const boomDir = useRef(new THREE.Vector3())
-  const euler = useRef(new THREE.Euler(0, 0, 0, 'YXZ'))
+  const boomLocal = useRef(new THREE.Vector3())
+  const yawAxis = useRef(new THREE.Vector3(0, 1, 0))
 
   useEffect(() => {
     const el = gl.domElement
@@ -152,7 +155,7 @@ export function PlayerController() {
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.05)
-    if (!rig.current || !yawPivot.current || !pitchObj.current) return
+    if (!rig.current || !yawPivot.current) return
 
     const game = useGameStore.getState()
     const { solids, trenches } = game.map
@@ -180,9 +183,9 @@ export function PlayerController() {
       PLAYER.pitchMin,
       PLAYER.pitchMax,
     )
-
-    // Body yaw locked to camera yaw — always see the soldier's back.
     bodyYaw.current = lookYaw.current
+    aimState.yaw = lookYaw.current
+    aimState.pitch = lookPitch.current
 
     const { moveX, moveZ, sprint } = game.input
     const wishMoving = Math.abs(moveX) > 1e-6 || Math.abs(moveZ) > 1e-6
@@ -205,8 +208,8 @@ export function PlayerController() {
       dt,
     )
 
+    // Yaw-only rig; pitch is applied via lookAt so screen center = aim ray.
     yawPivot.current.rotation.y = lookYaw.current
-    pitchObj.current.rotation.x = lookPitch.current
     yawPivot.current.position.y = camHeight.current
 
     forward.current.set(-Math.sin(lookYaw.current), 0, -Math.cos(lookYaw.current))
@@ -271,15 +274,27 @@ export function PlayerController() {
     velY.current = vert.velY
     grounded.current = vert.grounded
 
-    // Fixed chase boom behind the back (soft pull-in only when blocked).
-    euler.current.set(lookPitch.current, lookYaw.current, 0, 'YXZ')
-    idealOffset.current.set(CAMERA.shoulder, CAMERA.lift, CAMERA.distance)
-    idealOffset.current.applyEuler(euler.current)
-    const maxLen = idealOffset.current.length()
+    // Aim ray from weapon height — crosshair (screen center) tracks this.
+    const aimH = crouching ? CAMERA.aimHeight - 0.45 : CAMERA.aimHeight
+    const cosP = Math.cos(lookPitch.current)
+    aimDir.current.set(
+      -Math.sin(lookYaw.current) * cosP,
+      Math.sin(lookPitch.current),
+      -Math.cos(lookYaw.current) * cosP,
+    )
+    aimOrigin.current.set(pos.current.x, pos.current.y + aimH, pos.current.z)
+    aimPoint.current
+      .copy(aimOrigin.current)
+      .addScaledVector(aimDir.current, CAMERA.aimDistance)
+
+    // Soft boom collision along the shoulder offset behind the pivot.
+    boomLocal.current.set(CAMERA.shoulder, CAMERA.lift, CAMERA.distance)
+    boomLocal.current.applyAxisAngle(yawAxis.current, lookYaw.current)
+    const maxLen = boomLocal.current.length()
+    boomDir.current.copy(boomLocal.current).normalize()
     const ox = pos.current.x
     const oy = pos.current.y + camHeight.current
     const oz = pos.current.z
-    boomDir.current.copy(idealOffset.current).normalize()
     const hitDist = raycastSolids(
       ox,
       oy,
@@ -304,7 +319,6 @@ export function PlayerController() {
       CAMERA.lift * boomScale.current,
       CAMERA.distance * boomScale.current,
     )
-    cam.rotation.set(0, 0, 0)
     if (cam.isPerspectiveCamera) {
       cam.fov = CAMERA.fov
       cam.near = CAMERA.near
@@ -313,6 +327,11 @@ export function PlayerController() {
     }
 
     rig.current.position.set(pos.current.x, pos.current.y, pos.current.z)
+    // lookAt after rig/pivot transforms so world aim matches screen center.
+    yawPivot.current.updateWorldMatrix(true, true)
+    cam.up.set(0, 1, 0)
+    cam.lookAt(aimPoint.current)
+
     game.setPlayerPos(pos.current.x, pos.current.y, pos.current.z)
   })
 
@@ -320,15 +339,13 @@ export function PlayerController() {
     <group ref={rig} position={[spawn.x, spawn.y, spawn.z]}>
       <PlasticSoldier yawRef={bodyYaw} movingRef={moving} />
       <group ref={yawPivot} position={[0, CAMERA.height, 0]}>
-        <group ref={pitchObj}>
-          <PerspectiveCamera
-            makeDefault
-            fov={CAMERA.fov}
-            near={CAMERA.near}
-            far={CAMERA.far}
-            position={[CAMERA.shoulder, CAMERA.lift, CAMERA.distance]}
-          />
-        </group>
+        <PerspectiveCamera
+          makeDefault
+          fov={CAMERA.fov}
+          near={CAMERA.near}
+          far={CAMERA.far}
+          position={[CAMERA.shoulder, CAMERA.lift, CAMERA.distance]}
+        />
       </group>
     </group>
   )
