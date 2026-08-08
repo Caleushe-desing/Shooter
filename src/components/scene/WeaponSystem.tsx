@@ -4,7 +4,6 @@ import * as THREE from 'three'
 import { WEAPON } from '../../constants'
 import { useGameStore } from '../../store/gameStore'
 import { buildHavenInspiredMap } from '../../map/havenLayout'
-import { getGhosts, hurtGhost, ghostHitBox } from '../../combat/ghosts'
 import {
   playGunshot,
   playImpact,
@@ -334,22 +333,11 @@ export function WeaponSystem({ rigRef, lookYaw, lookPitch }: Props) {
     for (const b of bullets.current) {
       const step = WEAPON.speed * dt
       let hitT: number | null = null
-      let hitGhostId: number | null = null
 
       for (const box of hitBoxes) {
         const t = rayHitsAabb(b.pos.x, b.pos.y, b.pos.z, b.dir.x, b.dir.y, b.dir.z, step, box)
         if (t !== null && (hitT === null || t < hitT)) {
           hitT = t
-          hitGhostId = null
-        }
-      }
-      for (const ghost of getGhosts()) {
-        if (!ghost.alive) continue
-        const box = ghostHitBox(ghost)
-        const t = rayHitsAabb(b.pos.x, b.pos.y, b.pos.z, b.dir.x, b.dir.y, b.dir.z, step, box)
-        if (t !== null && (hitT === null || t < hitT)) {
-          hitT = t
-          hitGhostId = ghost.id
         }
       }
 
@@ -362,14 +350,7 @@ export function WeaponSystem({ rigRef, lookYaw, lookPitch }: Props) {
       const hitFloor = b.pos.y <= 0.05
       const dead = hitT !== null || hitFloor || b.traveled >= WEAPON.range
       if (dead) {
-        if (hitGhostId !== null) {
-          hurtGhost(hitGhostId, 1)
-          playImpact()
-          const spark = new THREE.Mesh(sparkGeo, sparkMat.clone())
-          spark.position.copy(b.pos)
-          parent.add(spark)
-          sparks.current.push({ mesh: spark, age: 0 })
-        } else if (hitT !== null || hitFloor) {
+        if (hitT !== null || hitFloor) {
           playImpact()
           const spark = new THREE.Mesh(sparkGeo, sparkMat.clone())
           spark.position.copy(b.pos)

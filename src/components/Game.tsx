@@ -4,8 +4,6 @@ import * as THREE from 'three'
 import { Arena } from './scene/Arena'
 import { PlayerController } from './scene/PlayerController'
 import { PickupSystem } from './scene/PickupSystem'
-import { GhostSystem } from './scene/GhostSystem'
-import { PortalSystem } from './scene/PortalSystem'
 import { MobileControls } from './ui/MobileControls'
 import { Crosshair } from './ui/Crosshair'
 import { CombatHud } from './ui/CombatHud'
@@ -86,8 +84,6 @@ function Scene() {
       />
       <Arena />
       <PickupSystem />
-      <PortalSystem />
-      <GhostSystem />
       <PlayerController />
     </>
   )

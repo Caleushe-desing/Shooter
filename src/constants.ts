@@ -85,7 +85,7 @@ export const CAMERA = {
 } as const
 
 /**
- * Shared visibility distance (meters) — matches fog near so ghosts see
+ * Shared visibility distance (meters) — matches fog near so the player sees
  * the player at the same range the player can clearly see them.
  */
 export const VIEW_RANGE = 55
@@ -133,67 +133,6 @@ export const PICKUPS = {
 export const WEAPON_AMMO = {
   max: 6,
   start: 6,
-} as const
-
-/** Single super galaxy portal at arena center. */
-export const PORTAL = {
-  x: 0,
-  z: 0,
-  /** Outer ring radius (meters). */
-  radius: 2.6,
-  /** Extra ghosts leave the portal on this interval (seconds). */
-  spawnInterval: 60,
-} as const
-
-/** Pursuing ghosts (classic dome + wavy skirt silhouette). */
-export const GHOST = {
-  radius: 0.42,
-  height: 1.65,
-  chaseSpeed: 5,
-  hp: 2,
-  catchRange: 1.05,
-  /** Same clear-sight range as the player (fog near). */
-  visionRange: VIEW_RANGE,
-  /** Drawn cone length (full visionRange still used for detection). */
-  visionBeamLength: 28,
-  /** Half-angle of forward vision cone (radians). */
-  visionHalfAngle: (55 * Math.PI) / 180,
-  /** Hear sprinting player within this radius (meters / “pasos”). */
-  hearRadius: 15,
-  /** Seconds to keep searching after losing sight / arriving at last known. */
-  searchTime: 10,
-  stunTime: 2.8,
-  patrolSpeed: 4,
-  /** Starting ghosts already on the map (random places). */
-  count: 8,
-  /** Spawned from portal per ghost kill. */
-  killSpawn: 2,
-  /** Keep initial random spawns clear of the player. */
-  clearPlayer: 10,
-  /** Keep initial random spawns apart from each other. */
-  minSeparation: 6,
-  color: '#F5F7FA',
-  alertColor: '#E03030',
-  eyeColor: '#152033',
-  alertEyeColor: '#FFEECC',
-  /**
-   * Patrol loop. Includes near-mid points so ghosts stay visible around
-   * the super portal / player spawn.
-   */
-  waypoints: [
-    { x: -6, z: 4 },
-    { x: 6, z: 4 },
-    { x: 8, z: -6 },
-    { x: -8, z: -6 },
-    { x: -18, z: 8 },
-    { x: 18, z: 8 },
-    { x: -22, z: -14 },
-    { x: 22, z: -14 },
-    { x: -20, z: 24 },
-    { x: 20, z: 24 },
-    { x: 0, z: 32 },
-    { x: 0, z: -18 },
-  ],
 } as const
 
 export type GameStatus = 'playing' | 'won' | 'lost'

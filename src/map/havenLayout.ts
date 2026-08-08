@@ -220,7 +220,7 @@ export function buildHavenInspiredMap(): { props: PropBox[]; solids: SolidBox[] 
     ...building(-16, -30, 9, 6, 3.4, COLORS.brick, 'brick', [roof(-16, -30, 9, 6, 3.4)]),
     ...building(16, -30, 9, 6, 3.4, COLORS.brick, 'brick', [roof(16, -30, 9, 6, 3.4)]),
     { x: 0, y: 1.2, z: -28, w: 10, h: 2.4, d: 1, color: COLORS.wood, surface: 'wood', solid: true },
-    // Crates / low cover mid (kept clear of center super-portal)
+    // Crates / low cover mid
     { x: -5.5, y: 0.55, z: 10, w: 1.6, h: 1.1, d: 1.6, color: COLORS.wood, surface: 'wood', solid: true },
     { x: 5.5, y: 0.55, z: 10, w: 1.4, h: 1.1, d: 1.4, color: COLORS.wood, surface: 'wood', solid: true },
     { x: -6, y: 0.9, z: -8, w: 1.2, h: 1.8, d: 1.2, color: COLORS.stone, surface: 'stone', solid: true },
