@@ -2,16 +2,9 @@ import { useCallback, useRef, useState } from 'react'
 import { PLAYER } from '../../constants'
 import { useIsMobile } from '../../hooks/useIsMobile'
 import { useGameStore } from '../../store/gameStore'
-import { unlockAudio } from '../../audio/gunshot'
 import { mobileLookStick, resetMobileLookStick } from '../../input/mobileLookStick'
 
-/**
- * Mobile controls — zones that must not overlap:
- * - Top strip: reserved for CombatHud (no look layer there)
- * - Bottom-left: move
- * - Bottom-right: jump / sprint
- * - Rest of right half: look + fire
- */
+/** Mobile: move (left), look (right), jump / sprint buttons. */
 export function MobileControls() {
   const mobile = useIsMobile()
   if (!mobile) return null
@@ -19,7 +12,7 @@ export function MobileControls() {
   return (
     <div className="pointer-events-none absolute inset-0 z-30">
       <Joystick />
-      <RightLookAndFire />
+      <RightLook />
       <RightHandButtons />
     </div>
   )
@@ -138,9 +131,7 @@ function RightHandButtons() {
   )
 }
 
-/** Right-half look + fire. Works together with the left joystick (2 fingers). */
-function RightLookAndFire() {
-  const requestFire = useGameStore((s) => s.requestFire)
+function RightLook() {
   const addLook = useGameStore((s) => s.addLook)
   const active = useRef(false)
   const origin = useRef({ x: 0, y: 0 })
@@ -176,9 +167,7 @@ function RightLookAndFire() {
       className="pointer-events-auto absolute bottom-0 right-0 top-24 z-30 w-1/2 touch-none"
       onPointerDown={(e) => {
         if ((e.target as HTMLElement).closest('button')) return
-        // Already aiming with another finger on this pad (pinch) — ignore.
         if (pointerId.current !== null) return
-        // Allow non-primary pointers so move (finger 1) + look (finger 2) work together.
         e.preventDefault()
         e.currentTarget.setPointerCapture(e.pointerId)
         active.current = true
@@ -186,8 +175,6 @@ function RightLookAndFire() {
         origin.current = { x: e.clientX, y: e.clientY }
         last.current = { x: e.clientX, y: e.clientY }
         writeStick(e.clientX, e.clientY)
-        unlockAudio()
-        requestFire()
       }}
       onPointerMove={(e) => {
         if (!active.current || pointerId.current !== e.pointerId) return
