@@ -47,15 +47,68 @@ function canSeePlayer(e: Enemy, px: number, pz: number) {
 }
 
 function applyFeet(e: Enemy) {
+  // Reach matches player grounded stick + climb so stairs/decks snap under feet.
   const support = findSupportY(
     e.x,
     e.z,
-    e.y + 0.15,
+    e.y + 0.2,
     ENEMY.radius * COLLISION.supportRadiusScale,
     MAP_SOLIDS,
-    Math.max(0.6, COLLISION.stepHeight + 0.25),
+    Math.max(ENEMY.climbHeight, COLLISION.stepHeight + 0.35),
   )
-  e.y = resolveSunkFeet(e.x, e.z, support, ENEMY.radius, MAP_SOLIDS)
+  // Don't fall through floors, but allow dropping off edges.
+  if (support < e.y - ENEMY.climbHeight - 0.05) {
+    e.y = Math.max(support, e.y - 0.35)
+  } else {
+    e.y = support
+  }
+  e.y = resolveSunkFeet(e.x, e.z, e.y, ENEMY.radius, MAP_SOLIDS)
+}
+
+/**
+ * Hop onto a walkable ledge ahead (stairs / crates / decks) — same clearance
+ * the player can clear with a jump.
+ */
+function tryClimbLedge(e: Enemy, dirX: number, dirZ: number): boolean {
+  const len = Math.hypot(dirX, dirZ)
+  if (len < 1e-4) return false
+  const fx = dirX / len
+  const fz = dirZ / len
+  const probes = [0.45, 0.7, 1.0]
+  for (const dist of probes) {
+    const px = e.x + fx * dist
+    const pz = e.z + fz * dist
+    const bounded = clampToArena(px, pz, ENEMY.radius)
+    const ahead = findSupportY(
+      bounded.x,
+      bounded.z,
+      e.y + ENEMY.climbHeight,
+      ENEMY.radius * 0.7,
+      MAP_SOLIDS,
+      ENEMY.climbHeight + 0.15,
+    )
+    const rise = ahead - e.y
+    if (rise <= COLLISION.stepHeight * 0.5 || rise > ENEMY.climbHeight) continue
+    // Landing must not be inside a tall wall volume.
+    const land = resolveCircleSolids(
+      bounded.x,
+      bounded.z,
+      ENEMY.radius,
+      MAP_SOLIDS,
+      ahead,
+      ENEMY.height,
+      COLLISION.stepHeight,
+    )
+    if (Math.hypot(land.x - bounded.x, land.z - bounded.z) > 0.12) continue
+    e.x = land.x
+    e.z = land.z
+    e.y = ahead
+    e.yaw = Math.atan2(-fx, -fz)
+    e.moving = true
+    e.stuckTimer = 0
+    return true
+  }
+  return false
 }
 
 function ensurePath(e: Enemy, goalX: number, goalZ: number, force = false) {
@@ -75,7 +128,7 @@ function ensurePath(e: Enemy, goalX: number, goalZ: number, force = false) {
   e.stuckTimer = 0
 }
 
-/** Follow nav waypoints; never aim straight through walls. */
+/** Follow nav waypoints; climb ledges the player can reach. */
 function followPath(e: Enemy, speed: number, dt: number): boolean {
   if (e.pathIndex >= e.path.length) return false
   const wp = e.path[e.pathIndex]
@@ -89,6 +142,7 @@ function followPath(e: Enemy, speed: number, dt: number): boolean {
 
   // If the next hop is blocked, skip / repath next frame.
   if (!hasNavLine(e.x, e.z, wp.x, wp.z) && dist > 1.2) {
+    if (tryClimbLedge(e, dx, dz)) return true
     e.stuckTimer += dt
     return false
   }
@@ -97,6 +151,7 @@ function followPath(e: Enemy, speed: number, dt: number): boolean {
   const nx = e.x + (dx / dist) * step
   const nz = e.z + (dz / dist) * step
   const bounded = clampToArena(nx, nz, ENEMY.radius)
+  // Allow walking onto lips within climb height (same as player step/jump).
   const hit = resolveCircleSolids(
     bounded.x,
     bounded.z,
@@ -104,10 +159,11 @@ function followPath(e: Enemy, speed: number, dt: number): boolean {
     MAP_SOLIDS,
     e.y,
     ENEMY.height,
-    COLLISION.stepHeight,
+    Math.max(COLLISION.stepHeight, 0.55),
   )
   const moved = Math.hypot(hit.x - e.x, hit.z - e.z)
   if (moved < step * 0.2) {
+    if (tryClimbLedge(e, dx, dz)) return true
     e.stuckTimer += dt
     return false
   }
@@ -116,6 +172,16 @@ function followPath(e: Enemy, speed: number, dt: number): boolean {
   e.yaw = Math.atan2(-dx, -dz)
   e.moving = true
   e.stuckTimer = Math.max(0, e.stuckTimer - dt * 2)
+  // Snap up onto shallow stairs under the new footprint.
+  const support = findSupportY(
+    e.x,
+    e.z,
+    e.y + 0.35,
+    ENEMY.radius * COLLISION.supportRadiusScale,
+    MAP_SOLIDS,
+    Math.max(0.7, COLLISION.stepHeight + 0.4),
+  )
+  if (support > e.y && support - e.y <= ENEMY.climbHeight) e.y = support
   return true
 }
 
@@ -170,7 +236,7 @@ function assignRandomPatrol(e: Enemy) {
 
 /**
  * Mixamo hunters: nav-grid paths, random patrol, chase on sight/hear,
- * give up after 3s without LOS. Waves grow while orbs remain.
+ * give up after 3s without LOS. Survive growing waves to win.
  */
 export function EnemySystem() {
   const lastRunId = useRef(useGameStore.getState().runId)
@@ -240,11 +306,16 @@ export function EnemySystem() {
       return
     }
 
-    // Wave reinforce: when cleared, wait, then spawn a larger horde.
+    // Wave reinforce: clear → score → win after wavesToWin, else larger horde.
     if (count === 0) {
       waveTimer.current += dt
       if (waveTimer.current >= ENEMY.waveGap) {
         waveTimer.current = 0
+        game.registerWaveClear(waveRef.current)
+        if (waveRef.current >= ENEMY.wavesToWin) {
+          game.setWon()
+          return
+        }
         waveRef.current += 1
         spawnWave(waveRef.current)
       }

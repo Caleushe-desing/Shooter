@@ -1,6 +1,7 @@
 import { ENEMY } from '../constants'
 
 export type EnemyMode = 'patrol' | 'chase' | 'search'
+export type HitZone = 'head' | 'body' | 'legs'
 
 export type Enemy = {
   id: number
@@ -91,6 +92,12 @@ export function spawnEnemy(x: number, z: number, opts: SpawnEnemyOpts = {}): Ene
   return enemy
 }
 
+export function damageForZone(zone: HitZone): number {
+  if (zone === 'head') return ENEMY.damageHead
+  if (zone === 'body') return ENEMY.damageBody
+  return ENEMY.damageLegs
+}
+
 /** Damage an enemy. Returns death position if downed. */
 export function hurtEnemy(id: number, amount: number): { x: number; z: number } | null {
   const e = enemies.find((en) => en.id === id && en.alive)
@@ -106,16 +113,69 @@ export function hurtEnemy(id: number, amount: number): { x: number; z: number } 
   return null
 }
 
-export function enemyHitBox(e: Enemy) {
+export function hurtEnemyZone(id: number, zone: HitZone): { x: number; z: number } | null {
+  return hurtEnemy(id, damageForZone(zone))
+}
+
+type HitBox = { minX: number; minY: number; minZ: number; maxX: number; maxY: number; maxZ: number }
+
+/** Full capsule — kept for coarse checks. */
+export function enemyHitBox(e: Enemy): HitBox {
   const r = ENEMY.radius
   return {
     minX: e.x - r,
-    minY: e.y + 0.1,
+    minY: e.y + 0.05,
     minZ: e.z - r,
     maxX: e.x + r,
     maxY: e.y + ENEMY.height,
     maxZ: e.z + r,
   }
+}
+
+/**
+ * Zone AABBs for hit calc:
+ * legs ~0–38%, body ~38–82%, head ~82–100% of height.
+ */
+export function enemyHitZones(e: Enemy): { zone: HitZone; box: HitBox }[] {
+  const h = ENEMY.height
+  const y0 = e.y
+  const r = ENEMY.radius
+  const headR = r * 0.7
+  return [
+    {
+      zone: 'legs',
+      box: {
+        minX: e.x - r * 0.95,
+        maxX: e.x + r * 0.95,
+        minZ: e.z - r * 0.95,
+        maxZ: e.z + r * 0.95,
+        minY: y0,
+        maxY: y0 + h * 0.38,
+      },
+    },
+    {
+      zone: 'body',
+      box: {
+        minX: e.x - r,
+        maxX: e.x + r,
+        minZ: e.z - r,
+        maxZ: e.z + r,
+        minY: y0 + h * 0.38,
+        maxY: y0 + h * 0.82,
+      },
+    },
+    {
+      zone: 'head',
+      box: {
+        minX: e.x - headR,
+        maxX: e.x + headR,
+        minZ: e.z - headR,
+        maxZ: e.z + headR,
+        minY: y0 + h * 0.82,
+        maxY: y0 + h + 0.1,
+      },
+    },
+  ]
 }
 
 export function pruneDeadEnemies() {

@@ -1,6 +1,5 @@
 import { ARENA, ENEMY, PLAYER, type SolidBox } from '../constants'
 import { buildHavenInspiredMap } from '../map/havenLayout'
-import { ORB_SPAWNS } from '../map/pickupsLayout'
 
 const MAP_SOLIDS = buildHavenInspiredMap().solids
 
@@ -39,21 +38,19 @@ function isFree(
   return true
 }
 
-/** Prefer spots near orbs, away from the player when waves reinforce. */
+/** Scatter hunters around the arena, away from the player on later waves. */
 export function randomEnemySpawns(count: number, opts: SpawnOpts = {}): { x: number; z: number }[] {
   const half = ARENA.size / 2 - 6
   const placed: { x: number; z: number }[] = []
-  const orbPool = ORB_SPAWNS.length > 0 ? ORB_SPAWNS : [{ x: 0, z: -8 }]
   const sep = Math.max(4.2, ENEMY.minSeparation - Math.min(2.5, count * 0.08))
 
   for (let i = 0; i < count; i++) {
     let found = false
-    const orb = orbPool[Math.floor(Math.random() * orbPool.length)]
-    for (let attempt = 0; attempt < 70; attempt++) {
+    for (let attempt = 0; attempt < 80; attempt++) {
       const ang = Math.random() * Math.PI * 2
-      const rad = 3 + Math.random() * 8
-      const x = orb.x + Math.cos(ang) * rad
-      const z = orb.z + Math.sin(ang) * rad
+      const rad = 12 + Math.random() * (half - 14)
+      const x = Math.cos(ang) * rad
+      const z = Math.sin(ang) * rad
       if (Math.abs(x) > half || Math.abs(z) > half) continue
       if (!isFree(x, z, placed, sep, opts)) continue
       placed.push({ x, z })

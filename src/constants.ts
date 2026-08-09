@@ -119,15 +119,13 @@ export const ARENA = {
   wallThickness: 0.9,
 } as const
 
-/** Pac-Man survival loop — golden orbs + limited revolver. */
+/** Survival pickups — hidden ammo crates only. */
 export const PICKUPS = {
-  orbRadius: 0.38,
-  orbHeight: 0.55,
-  orbCollectDist: 1.05,
-  orbPoints: 10,
   ammoBoxSize: 0.55,
   ammoCollectDist: 1.25,
   ammoPerBox: 3,
+  /** How many ammo crates are scattered each run. */
+  ammoCount: 18,
 } as const
 
 export const WEAPON_AMMO = {
@@ -135,7 +133,11 @@ export const WEAPON_AMMO = {
   start: 6,
 } as const
 
-/** Hostile Mixamo hunters that guard orbs and chase the player. */
+/**
+ * Hostile Mixamo hunters.
+ * HP pool = 6 so zone damage lines up:
+ * head=6 (1 hit), body=3 (2 hits), legs=2 (3 hits); mixes stack.
+ */
 export const ENEMY = {
   radius: 0.38,
   height: 1.72,
@@ -144,7 +146,14 @@ export const ENEMY = {
   waveIncrement: 4,
   /** Pause after a wave is cleared before the next spawns. */
   waveGap: 2.8,
-  hp: 3,
+  /** Clear this many waves to win the survival run. */
+  wavesToWin: 10,
+  hp: 6,
+  damageHead: 6,
+  damageBody: 3,
+  damageLegs: 2,
+  killScore: 25,
+  waveClearScore: 100,
   catchRange: 1.15,
   /** Casual walking pace while patrolling. */
   patrolSpeed: 2.55,
@@ -167,6 +176,11 @@ export const ENEMY = {
   stuckTime: 0.7,
   /** How often to refresh chase/search paths (seconds). */
   repathInterval: 0.45,
+  /**
+   * Max ledge height they can hop onto (matches player jump clearance),
+   * so stairs / crates / decks are climbable.
+   */
+  climbHeight: 1.4,
   /** Tint — hostile dark kit vs player skin. */
   skin: '#8B5A4A',
   suit: '#3A2A32',

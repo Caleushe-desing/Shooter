@@ -5,10 +5,10 @@ import {
   WEAPON_AMMO,
   PICKUPS,
   STAMINA,
+  ENEMY,
   type CameraMode,
   type GameStatus,
 } from '../constants'
-import { ORB_SPAWNS } from '../map/pickupsLayout'
 import { clearEnemies } from '../combat/enemies'
 
 type InputState = {
@@ -35,8 +35,7 @@ type GameState = {
 
   status: GameStatus
   score: number
-  orbsRemaining: number
-  orbsTotal: number
+  kills: number
   ammo: number
   ammoMax: number
   /** 0..1 sprint stamina. */
@@ -70,17 +69,17 @@ type GameState = {
   setPlayerPos: (x: number, y: number, z: number) => void
   /** Spend one round; returns false if empty / not playing. */
   tryFireAmmo: () => boolean
-  collectOrb: () => void
   collectAmmo: () => void
+  registerKill: () => void
+  registerWaveClear: (wave: number) => void
   setLost: () => void
+  setWon: () => void
   restartRun: () => void
   setCameraMode: (mode: CameraMode) => void
   toggleCameraMode: () => void
   /** Positive delta = zoom out (higher cam). */
   adjustTopZoom: (deltaMeters: number) => void
 }
-
-const totalOrbs = ORB_SPAWNS.length
 
 export const useGameStore = create<GameState>((set, get) => ({
   input: { moveX: 0, moveZ: 0, sprint: false },
@@ -99,8 +98,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   status: 'playing',
   score: 0,
-  orbsRemaining: totalOrbs,
-  orbsTotal: totalOrbs,
+  kills: 0,
   ammo: WEAPON_AMMO.start,
   ammoMax: WEAPON_AMMO.max,
   stamina: 1,
@@ -119,7 +117,6 @@ export const useGameStore = create<GameState>((set, get) => ({
   setSprint: (on) => set((s) => ({ input: { ...s.input, sprint: on } })),
   toggleSprint: () =>
     set((s) => {
-      // Ignore sprint-on while recovering; allow toggling off anytime.
       if (!s.input.sprint && s.staminaRecovering) return s
       return { input: { ...s.input, sprint: !s.input.sprint } }
     }),
@@ -205,18 +202,6 @@ export const useGameStore = create<GameState>((set, get) => ({
     return true
   },
 
-  collectOrb: () => {
-    const s = get()
-    if (s.status !== 'playing' || s.orbsRemaining <= 0) return
-    const orbsRemaining = s.orbsRemaining - 1
-    const score = s.score + PICKUPS.orbPoints
-    set({
-      orbsRemaining,
-      score,
-      status: orbsRemaining <= 0 ? 'won' : 'playing',
-    })
-  },
-
   collectAmmo: () => {
     const s = get()
     if (s.status !== 'playing') return
@@ -225,9 +210,29 @@ export const useGameStore = create<GameState>((set, get) => ({
     })
   },
 
+  registerKill: () => {
+    const s = get()
+    if (s.status !== 'playing') return
+    set({
+      kills: s.kills + 1,
+      score: s.score + ENEMY.killScore,
+    })
+  },
+
+  registerWaveClear: (wave) => {
+    const s = get()
+    if (s.status !== 'playing') return
+    set({ score: s.score + ENEMY.waveClearScore * wave })
+  },
+
   setLost: () => {
     if (get().status !== 'playing') return
     set({ status: 'lost' })
+  },
+
+  setWon: () => {
+    if (get().status !== 'playing') return
+    set({ status: 'won' })
   },
 
   restartRun: () => {
@@ -235,8 +240,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({
       status: 'playing',
       score: 0,
-      orbsRemaining: totalOrbs,
-      orbsTotal: totalOrbs,
+      kills: 0,
       ammo: WEAPON_AMMO.start,
       fireQueued: 0,
       jumpQueued: false,

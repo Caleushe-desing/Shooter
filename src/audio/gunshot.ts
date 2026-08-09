@@ -1,5 +1,6 @@
 /**
- * Real pistol samples (Mixkit free SFX) + light procedural UI cues.
+ * Real firearm samples (Michel Baradari / OpenGameArt, CC-BY 3.0)
+ * plus light procedural UI cues.
  */
 import {
   getAudioContext,
@@ -12,11 +13,12 @@ import {
 export { unlockAudio }
 
 const PISTOL_URLS = [
-  '/audio/pistol_1659.ogg',
-  '/audio/pistol_1665.ogg',
-  '/audio/pistol_1668.ogg',
-  '/audio/pistol_1670.ogg',
-  '/audio/pistol_223.ogg',
+  '/audio/pistol_0.ogg',
+  '/audio/pistol_1.ogg',
+  '/audio/pistol_2.ogg',
+  '/audio/pistol_3.ogg',
+  '/audio/pistol_4.ogg',
+  '/audio/pistol_5.ogg',
 ] as const
 
 const pistolBuffers: (AudioBuffer | null)[] = []
@@ -27,7 +29,7 @@ void Promise.all(PISTOL_URLS.map((u) => loadAudioBuffer(u))).then((bufs) => {
   for (let i = 0; i < bufs.length; i++) pistolBuffers[i] = bufs[i]
 })
 
-/** Loud real pistol crack. */
+/** Loud real gunshot crack. */
 export function playGunshot() {
   unlockAudio()
   const ctx = getAudioContext()
@@ -38,40 +40,79 @@ export function playGunshot() {
   const cached = pistolBuffers[i]
   if (cached) {
     playBuffer(cached, {
-      gain: 1.9,
-      playbackRate: 0.96 + Math.random() * 0.1,
+      gain: 2.15,
+      playbackRate: 0.97 + Math.random() * 0.08,
     })
     return
   }
 
   void loadAudioBuffer(PISTOL_URLS[i]).then((buffer) => {
     if (!buffer) {
-      playProceduralFallback()
+      playProceduralGunshot()
       return
     }
     pistolBuffers[i] = buffer
     playBuffer(buffer, {
-      gain: 1.9,
-      playbackRate: 0.96 + Math.random() * 0.1,
+      gain: 2.15,
+      playbackRate: 0.97 + Math.random() * 0.08,
     })
   })
 }
 
-function playProceduralFallback() {
+/** Fallback layered pistol crack if samples fail to load. */
+function playProceduralGunshot() {
   const ctx = getAudioContext()
   if (!ctx) return
+  if (ctx.state === 'suspended') void ctx.resume()
   const now = ctx.currentTime
-  const thump = ctx.createOscillator()
-  const thumpGain = ctx.createGain()
-  thump.type = 'sine'
-  thump.frequency.setValueAtTime(140, now)
-  thump.frequency.exponentialRampToValueAtTime(45, now + 0.12)
-  thumpGain.gain.setValueAtTime(0.7, now)
-  thumpGain.gain.exponentialRampToValueAtTime(0.001, now + 0.14)
-  thump.connect(thumpGain)
-  thumpGain.connect(ctx.destination)
-  thump.start(now)
-  thump.stop(now + 0.15)
+
+  // Sharp transient crack
+  const crack = ctx.createOscillator()
+  const crackG = ctx.createGain()
+  crack.type = 'square'
+  crack.frequency.setValueAtTime(1800, now)
+  crack.frequency.exponentialRampToValueAtTime(120, now + 0.04)
+  crackG.gain.setValueAtTime(0.55, now)
+  crackG.gain.exponentialRampToValueAtTime(0.001, now + 0.05)
+  crack.connect(crackG)
+  crackG.connect(ctx.destination)
+  crack.start(now)
+  crack.stop(now + 0.06)
+
+  // Body boom
+  const boom = ctx.createOscillator()
+  const boomG = ctx.createGain()
+  boom.type = 'sine'
+  boom.frequency.setValueAtTime(160, now)
+  boom.frequency.exponentialRampToValueAtTime(40, now + 0.18)
+  boomG.gain.setValueAtTime(0.9, now)
+  boomG.gain.exponentialRampToValueAtTime(0.001, now + 0.22)
+  boom.connect(boomG)
+  boomG.connect(ctx.destination)
+  boom.start(now)
+  boom.stop(now + 0.23)
+
+  // Noise blast
+  const n = Math.floor(ctx.sampleRate * 0.16)
+  const buf = ctx.createBuffer(1, n, ctx.sampleRate)
+  const data = buf.getChannelData(0)
+  for (let i = 0; i < n; i++) {
+    const env = Math.pow(1 - i / n, 1.6)
+    data[i] = (Math.random() * 2 - 1) * env
+  }
+  const noise = ctx.createBufferSource()
+  noise.buffer = buf
+  const bp = ctx.createBiquadFilter()
+  bp.type = 'bandpass'
+  bp.frequency.value = 1400
+  bp.Q.value = 0.55
+  const ng = ctx.createGain()
+  ng.gain.setValueAtTime(0.85, now)
+  ng.gain.exponentialRampToValueAtTime(0.001, now + 0.16)
+  noise.connect(bp)
+  bp.connect(ng)
+  ng.connect(ctx.destination)
+  noise.start(now)
 }
 
 export function playImpact() {
@@ -90,24 +131,6 @@ export function playImpact() {
   g.connect(ctx.destination)
   o.start(now)
   o.stop(now + 0.11)
-}
-
-export function playOrbPickup() {
-  const ctx = getAudioContext()
-  if (!ctx) return
-  if (ctx.state === 'suspended') void ctx.resume()
-  const now = ctx.currentTime
-  const o = ctx.createOscillator()
-  const g = ctx.createGain()
-  o.type = 'sine'
-  o.frequency.setValueAtTime(880, now)
-  o.frequency.exponentialRampToValueAtTime(1320, now + 0.08)
-  g.gain.setValueAtTime(0.16, now)
-  g.gain.exponentialRampToValueAtTime(0.001, now + 0.18)
-  o.connect(g)
-  g.connect(ctx.destination)
-  o.start(now)
-  o.stop(now + 0.2)
 }
 
 export function playAmmoPickup() {
