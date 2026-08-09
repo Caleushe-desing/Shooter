@@ -10,6 +10,7 @@ import {
   resolveCircleSolids,
   findSupportY,
   resolveCeiling,
+  resolveSunkFeet,
 } from '../../constants'
 import { useGameStore } from '../../store/gameStore'
 import { PlayerAvatar } from './PlayerAvatar'
@@ -36,6 +37,7 @@ export function PlayerController() {
   const avatarRoot = useRef<THREE.Group>(null)
   const yawPivot = useRef<THREE.Group>(null)
   const pitchObj = useRef<THREE.Group>(null)
+  /** Face toward -Z (arena center ahead of spawn). */
   const lookYaw = useRef(0)
   const lookPitch = useRef<number>(PLAYER.pitchDefault)
   const bodyYaw = useRef(0)
@@ -288,6 +290,9 @@ export function PlayerController() {
 
     const { moveX, moveZ, sprint } = game.input
     const canPlay = game.status === 'playing'
+    const wishMoving =
+      canPlay && (Math.abs(moveX) > 1e-6 || Math.abs(moveZ) > 1e-6)
+    const sprinting = game.tickStamina(dt, sprint, wishMoving)
 
     // Keep rig transform current before camera world probes.
     rig.current.position.set(pos.current.x, pos.current.y, pos.current.z)
@@ -382,7 +387,7 @@ export function PlayerController() {
     moving.current = wish.current.lengthSq() > 1e-6
     if (moving.current) {
       // Move and look are independent in every camera mode (dual-stick / WASD+mouse).
-      const speed = PLAYER.speed * (sprint ? PLAYER.runMul : 1)
+      const speed = PLAYER.speed * (sprinting ? PLAYER.runMul : 1)
       wish.current.normalize().multiplyScalar(speed * dt)
       let nx = pos.current.x + wish.current.x
       let nz = pos.current.z + wish.current.z
@@ -436,7 +441,7 @@ export function PlayerController() {
         MAP_SOLIDS,
         COLLISION.landSnap,
       )
-      if (velY.current <= 0 && pos.current.y <= support) {
+      if (velY.current <= 0 && pos.current.y <= support + 0.02) {
         pos.current.y = support
         velY.current = 0
         grounded.current = true
@@ -446,18 +451,29 @@ export function PlayerController() {
       const support = findSupportY(
         pos.current.x,
         pos.current.z,
-        pos.current.y + 0.08,
+        pos.current.y + 0.12,
         supportR,
         MAP_SOLIDS,
-        0.4,
+        Math.max(0.55, COLLISION.stepHeight + 0.2),
       )
-      if (support < pos.current.y - 0.06) {
+      if (support < pos.current.y - COLLISION.stepHeight - 0.05) {
         grounded.current = false
         velY.current = 0
       } else {
         pos.current.y = support
       }
     }
+
+    // Pop feet out if they sunk into a stair/crate top after XZ moves.
+    pos.current.y = resolveSunkFeet(
+      pos.current.x,
+      pos.current.z,
+      pos.current.y,
+      PLAYER.radius,
+      MAP_SOLIDS,
+    )
+
+    // Footsteps are synced to Mixamo cycle phases in PlayerAvatar.
 
     rig.current.position.set(pos.current.x, pos.current.y, pos.current.z)
     game.setPlayerPos(pos.current.x, pos.current.y, pos.current.z)
@@ -466,7 +482,7 @@ export function PlayerController() {
   return (
     <group ref={rig} position={[PLAYER.spawn.x, 0, PLAYER.spawn.z]}>
       <group ref={avatarRoot}>
-        <PlayerAvatar yawRef={bodyYaw} movingRef={moving} />
+        <PlayerAvatar yawRef={bodyYaw} movingRef={moving} groundedRef={grounded} />
       </group>
       <WeaponSystem rigRef={rig} lookYaw={lookYaw} lookPitch={lookPitch} />
       <group ref={yawPivot} position={[0, CAMERA.height, 0]}>

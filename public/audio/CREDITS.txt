@@ -1,0 +1,12 @@
+Audio credits (bundled under /public/audio)
+
+Footsteps:
+  Kenney Impact Sounds — footstep_concrete_*.ogg
+  License: CC0 1.0
+  https://kenney.nl/assets/impact-sounds
+
+Pistol / gunshots:
+  Michel Baradari — "Chaingun, Pistol, Rifle, Shotgun shots" (shots.mp3 excerpts)
+  License: CC-BY 3.0
+  https://opengameart.org/content/chaingun-pistol-rifle-shotgun-shots
+  Attribution: Michel Baradari (apollo-music.de)

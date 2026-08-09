@@ -4,7 +4,7 @@ import * as THREE from 'three'
 import { WEAPON } from '../../constants'
 import { useGameStore } from '../../store/gameStore'
 import { buildHavenInspiredMap } from '../../map/havenLayout'
-import { getZombies, hurtZombie, zombieHitBox } from '../../combat/zombies'
+import { getEnemies, hurtEnemyZone, enemyHitZones, type HitZone } from '../../combat/enemies'
 import {
   playGunshot,
   playImpact,
@@ -334,22 +334,35 @@ export function WeaponSystem({ rigRef, lookYaw, lookPitch }: Props) {
     for (const b of bullets.current) {
       const step = WEAPON.speed * dt
       let hitT: number | null = null
-      let hitZombieId: number | null = null
+      let hitEnemyId: number | null = null
+      let hitZone: HitZone | null = null
 
       for (const box of hitBoxes) {
         const t = rayHitsAabb(b.pos.x, b.pos.y, b.pos.z, b.dir.x, b.dir.y, b.dir.z, step, box)
         if (t !== null && (hitT === null || t < hitT)) {
           hitT = t
-          hitZombieId = null
+          hitEnemyId = null
+          hitZone = null
         }
       }
-      for (const z of getZombies()) {
-        if (!z.alive) continue
-        const box = zombieHitBox(z)
-        const t = rayHitsAabb(b.pos.x, b.pos.y, b.pos.z, b.dir.x, b.dir.y, b.dir.z, step, box)
-        if (t !== null && (hitT === null || t < hitT)) {
-          hitT = t
-          hitZombieId = z.id
+      for (const enemy of getEnemies()) {
+        if (!enemy.alive) continue
+        for (const part of enemyHitZones(enemy)) {
+          const t = rayHitsAabb(
+            b.pos.x,
+            b.pos.y,
+            b.pos.z,
+            b.dir.x,
+            b.dir.y,
+            b.dir.z,
+            step,
+            part.box,
+          )
+          if (t !== null && (hitT === null || t < hitT)) {
+            hitT = t
+            hitEnemyId = enemy.id
+            hitZone = part.zone
+          }
         }
       }
 
@@ -362,8 +375,9 @@ export function WeaponSystem({ rigRef, lookYaw, lookPitch }: Props) {
       const hitFloor = b.pos.y <= 0.05
       const dead = hitT !== null || hitFloor || b.traveled >= WEAPON.range
       if (dead) {
-        if (hitZombieId !== null) {
-          hurtZombie(hitZombieId, 1)
+        if (hitEnemyId !== null && hitZone) {
+          const killed = hurtEnemyZone(hitEnemyId, hitZone)
+          if (killed) useGameStore.getState().registerKill()
           playImpact()
           const spark = new THREE.Mesh(sparkGeo, sparkMat.clone())
           spark.position.copy(b.pos)

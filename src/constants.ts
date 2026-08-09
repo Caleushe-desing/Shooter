@@ -16,11 +16,17 @@ export const COLORS = {
   skin: '#C9956E',
 } as const
 
+/** Sprint stamina: full drain and full recharge share the same duration. */
+export const STAMINA = {
+  /** Seconds to empty at full sprint / seconds to refill from empty. */
+  duration: 5,
+} as const
+
 export const PLAYER = {
   height: 1.72,
   radius: 0.35,
-  speed: 4.2,
-  runMul: 1.7,
+  speed: 4,
+  runMul: 2,
   /** Vertical launch speed (m/s) — clears ~1.3 m pads/crates. */
   jumpSpeed: 6.5,
   /** Gravity while airborne (m/s²). */
@@ -78,7 +84,11 @@ export const CAMERA = {
   topFar: 120,
 } as const
 
-export type CameraMode = 'third' | 'first' | 'top'
+/**
+ * Shared visibility distance (meters) — matches fog near so the player sees
+ * the player at the same range the player can clearly see them.
+ */
+export const VIEW_RANGE = 55
 
 /**
  * Third-person aim: tiny off-center point; shots leave the character
@@ -109,15 +119,13 @@ export const ARENA = {
   wallThickness: 0.9,
 } as const
 
-/** Pac-Man survival loop — golden orbs + limited revolver. */
+/** Survival pickups — hidden ammo crates only. */
 export const PICKUPS = {
-  orbRadius: 0.38,
-  orbHeight: 0.55,
-  orbCollectDist: 1.05,
-  orbPoints: 10,
   ammoBoxSize: 0.55,
   ammoCollectDist: 1.25,
   ammoPerBox: 3,
+  /** How many ammo crates are scattered each run. */
+  ammoCount: 18,
 } as const
 
 export const WEAPON_AMMO = {
@@ -125,45 +133,63 @@ export const WEAPON_AMMO = {
   start: 6,
 } as const
 
-/** Pursuing zombies (wireframe-ish capsules). */
-export const ZOMBIE = {
-  radius: 0.4,
-  height: 1.7,
-  speed: 2.55,
-  chaseSpeed: 3.35,
-  hp: 2,
-  catchRange: 1.05,
-  visionRange: 18,
-  loseRange: 26,
-  stunTime: 2.8,
-  patrolSpeed: 1.65,
-  color: '#4A6B3A',
-  eyeColor: '#C8FF66',
-  /** Initial spawn points (far from mid spawn). */
-  spawns: [
-    { x: -30, z: -16 },
-    { x: 30, z: -16 },
-    { x: -24, z: 26 },
-    { x: 24, z: 26 },
-    { x: 0, z: -30 },
-    { x: 0, z: 40 },
-    { x: -34, z: 8 },
-    { x: 34, z: 8 },
-  ],
-  /** Shared patrol corners around the map. */
-  waypoints: [
-    { x: -28, z: -12 },
-    { x: -28, z: 12 },
-    { x: 0, z: 20 },
-    { x: 28, z: 12 },
-    { x: 28, z: -12 },
-    { x: 0, z: -20 },
-    { x: -18, z: 30 },
-    { x: 18, z: 30 },
-  ],
+/**
+ * Hostile Mixamo hunters.
+ * HP pool = 6 so zone damage lines up:
+ * head=6 (1 hit), body=3 (2 hits), legs=2 (3 hits); mixes stack.
+ */
+export const ENEMY = {
+  radius: 0.38,
+  height: 1.72,
+  /** First wave size; later waves grow by `waveIncrement`. */
+  waveStart: 10,
+  waveIncrement: 4,
+  /** Pause after a wave is cleared before the next spawns. */
+  waveGap: 2.8,
+  /** Clear this many waves to win the survival run. */
+  wavesToWin: 10,
+  hp: 6,
+  damageHead: 6,
+  damageBody: 3,
+  damageLegs: 2,
+  killScore: 25,
+  waveClearScore: 100,
+  catchRange: 1.15,
+  /** Casual walking pace while patrolling. */
+  patrolSpeed: 2.55,
+  chaseSpeed: 4.7,
+  visionRange: VIEW_RANGE,
+  visionHalfAngle: (48 * Math.PI) / 180,
+  hearRadius: 12,
+  /** Seconds without LOS before they give up and resume patrol. */
+  searchTime: 3,
+  stunTime: 1.6,
+  clearPlayer: 14,
+  minSeparation: 5.5,
+  /** Personal space between hunters (soft push). */
+  crowdRadius: 1.15,
+  /** Arrive distance for random patrol points. */
+  patrolArrive: 1.25,
+  patrolWaitMin: 0.6,
+  patrolWaitMax: 2.4,
+  /** If blocked this long, repath / pick a new route. */
+  stuckTime: 0.7,
+  /** How often to refresh chase/search paths (seconds). */
+  repathInterval: 0.45,
+  /**
+   * Max ledge height they can hop onto (matches player jump clearance),
+   * so stairs / crates / decks are climbable.
+   */
+  climbHeight: 1.4,
+  /** Tint — hostile dark kit vs player skin. */
+  skin: '#8B5A4A',
+  suit: '#3A2A32',
+  accent: '#8B2E2E',
+  alertAccent: '#E04040',
 } as const
 
 export type GameStatus = 'playing' | 'won' | 'lost'
+export type CameraMode = 'third' | 'first' | 'top'
 
 export function clampToArena(x: number, z: number, radius: number) {
   const half = ARENA.size / 2 - radius
@@ -188,9 +214,11 @@ export const COLLISION = {
   /** Max lip the player can walk onto without jumping (meters). */
   stepHeight: 0.28,
   /** Extra reach when snapping feet onto a surface while falling. */
-  landSnap: 0.2,
+  landSnap: 0.45,
   /** Probe radius scale vs body radius for ground support checks. */
-  supportRadiusScale: 0.72,
+  supportRadiusScale: 0.95,
+  /** If feet sink into a top surface within this depth, snap up. */
+  antiSinkDepth: 0.9,
 } as const
 
 /**
@@ -293,7 +321,7 @@ function circleHitsSolidXZ(
 
 /**
  * Highest walkable surface under/near the feet (arena floor = 0).
- * `maxReach` limits how far above the feet we still consider a top.
+ * Multi-samples around the capsule so thin stair treads don't drop support.
  */
 export function findSupportY(
   x: number,
@@ -303,14 +331,53 @@ export function findSupportY(
   solids: readonly SolidBox[],
   maxReach: number = COLLISION.landSnap,
 ): number {
+  const probes: [number, number][] = [
+    [0, 0],
+    [radius * 0.55, 0],
+    [-radius * 0.55, 0],
+    [0, radius * 0.55],
+    [0, -radius * 0.55],
+    [radius * 0.4, radius * 0.4],
+    [-radius * 0.4, radius * 0.4],
+    [radius * 0.4, -radius * 0.4],
+    [-radius * 0.4, -radius * 0.4],
+  ]
   let best = 0
-  for (const box of solids) {
-    if (!circleHitsSolidXZ(x, z, radius, box)) continue
-    if (box.maxY <= feetY + maxReach && box.maxY > best) {
-      best = box.maxY
+  const sampleR = Math.max(0.08, radius * 0.35)
+  for (const [ox, oz] of probes) {
+    const px = x + ox
+    const pz = z + oz
+    for (const box of solids) {
+      if (!circleHitsSolidXZ(px, pz, sampleR, box)) continue
+      if (box.maxY <= feetY + maxReach && box.maxY > best) {
+        best = box.maxY
+      }
     }
   }
   return best
+}
+
+/**
+ * If feet have sunk into the top of a solid (common on stair edges),
+ * snap them onto the surface. Ignores deep wall volumes.
+ */
+export function resolveSunkFeet(
+  x: number,
+  z: number,
+  feetY: number,
+  radius: number,
+  solids: readonly SolidBox[],
+  depth: number = COLLISION.antiSinkDepth,
+): number {
+  let y = feetY
+  for (const box of solids) {
+    if (!circleHitsSolidXZ(x, z, radius * 0.9, box)) continue
+    // Feet inside the top band of this solid → pop onto the top.
+    if (y < box.maxY && y > box.maxY - depth && y >= box.minY - 0.02) {
+      y = Math.max(y, box.maxY)
+    }
+  }
+  return y
 }
 
 /** Clamp rising head against solid undersides. */
@@ -335,4 +402,42 @@ export function resolveCeiling(
     }
   }
   return { feetY: y, velY: vy }
+}
+
+/**
+ * Line-of-sight on XZ at eye height — blocked by wall-like solids.
+ * Ignores thin props (stair steps, pillars, crates) that were falsely
+ * occluding vision cones.
+ */
+export function hasLineOfSight(
+  ax: number,
+  az: number,
+  bx: number,
+  bz: number,
+  solids: readonly SolidBox[],
+  eyeY: number = 1.4,
+): boolean {
+  const dx = bx - ax
+  const dz = bz - az
+  const dist = Math.hypot(dx, dz)
+  if (dist < 0.05) return true
+  const steps = Math.max(4, Math.ceil(dist / 0.55))
+  for (let i = 1; i < steps; i++) {
+    const t = i / steps
+    const x = ax + dx * t
+    const z = az + dz * t
+    for (const box of solids) {
+      // Skip low cover and thin stair/pillar volumes.
+      if (box.maxY < eyeY) continue
+      if (box.minY > eyeY + 0.35) continue
+      if (Math.min(box.w, box.d) < 0.85) continue
+      if (box.maxY - box.minY < 1.6) continue
+      const halfW = box.w * 0.5
+      const halfD = box.d * 0.5
+      if (x >= box.x - halfW && x <= box.x + halfW && z >= box.z - halfD && z <= box.z + halfD) {
+        return false
+      }
+    }
+  }
+  return true
 }

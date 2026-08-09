@@ -4,11 +4,16 @@ import { useAnimations, useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js'
 import { PLAYER } from '../../constants'
+import { createAnimFootstepSync, playFootstep, prefetchFootsteps } from '../../audio/footsteps'
+import { unlockAudio } from '../../audio/gunshot'
 import { useGameStore } from '../../store/gameStore'
+
+prefetchFootsteps()
 
 type Props = {
   yawRef: MutableRefObject<number>
   movingRef: MutableRefObject<boolean>
+  groundedRef?: MutableRefObject<boolean>
 }
 
 const MODEL_URL = '/models/human.glb'
@@ -23,10 +28,11 @@ type ClipName = 'idle' | 'walk' | 'run'
  * Animations are bound to the skeleton clone (not a late ref) so clips
  * always drive the mesh instead of leaving the bind / T-pose.
  */
-function MixamoHuman({ yawRef, movingRef }: Props) {
+function MixamoHuman({ yawRef, movingRef, groundedRef }: Props) {
   const root = useRef<THREE.Group>(null)
   const modelRef = useRef<THREE.Group>(null)
   const currentClip = useRef<ClipName | null>(null)
+  const footSync = useRef(createAnimFootstepSync([0.14, 0.64]))
   const { scene, animations } = useGLTF(MODEL_URL)
 
   const { clone, fitScale, footOffset } = useMemo(() => {
@@ -85,11 +91,12 @@ function MixamoHuman({ yawRef, movingRef }: Props) {
     if (!root.current || !modelRef.current) return
     root.current.rotation.y = yawRef.current
 
-    const { moveX, moveZ, sprint } = useGameStore.getState().input
+    const { moveX, moveZ } = useGameStore.getState().input
+    const sprinting = useGameStore.getState().isSprinting
     const moving = movingRef.current || Math.hypot(moveX, moveZ) > 0.05
 
     let next: ClipName = 'idle'
-    if (moving && sprint && runAction) next = 'run'
+    if (moving && sprinting && runAction) next = 'run'
     else if (moving && walkAction) next = 'walk'
     else next = 'idle'
 
@@ -106,7 +113,23 @@ function MixamoHuman({ yawRef, movingRef }: Props) {
 
     const action = currentClip.current ? actions[currentClip.current] : null
     if (action) {
-      action.setEffectiveTimeScale(sprint && next === 'run' ? 1.08 : 1)
+      action.setEffectiveTimeScale(sprinting && next === 'run' ? 1.08 : 1)
+    }
+
+    // Plant sounds locked to the walk/run cycle (not a free-running timer).
+    const grounded = groundedRef?.current ?? true
+    if (
+      useGameStore.getState().status === 'playing' &&
+      moving &&
+      grounded &&
+      next !== 'idle'
+    ) {
+      unlockAudio()
+      footSync.current.update(action, true, sprinting ? 'run' : 'walk', (kind) =>
+        playFootstep(kind, 0),
+      )
+    } else {
+      footSync.current.reset()
     }
 
     // Mixamo faces +Z; flip so chase cam on +Z sees the back.
@@ -115,7 +138,8 @@ function MixamoHuman({ yawRef, movingRef }: Props) {
 
   return (
     <group ref={root}>
-      <group ref={modelRef} scale={fitScale} position={[0, footOffset, 0]}>
+      {/* Tiny lift so soles clear the ground mesh (avoids z-fight / sink). */}
+      <group ref={modelRef} scale={fitScale} position={[0, footOffset + 0.02, 0]}>
         <primitive object={clone} />
       </group>
     </group>
@@ -131,10 +155,11 @@ function FallbackHuman({ yawRef, movingRef }: Props) {
   useFrame(() => {
     if (!root.current) return
     root.current.rotation.y = yawRef.current
-    const { moveX, moveZ, sprint } = useGameStore.getState().input
+    const { moveX, moveZ } = useGameStore.getState().input
+    const sprinting = useGameStore.getState().isSprinting
     const moving = movingRef.current || Math.hypot(moveX, moveZ) > 0.05
-    const rate = sprint ? 13 : 8.5
-    const amp = sprint ? 0.65 : 0.45
+    const rate = sprinting ? 13 : 8.5
+    const amp = sprinting ? 0.65 : 0.45
     const swing = Math.sin(performance.now() * 0.001 * rate) * amp * (moving ? 1 : 0)
     if (legL.current) legL.current.rotation.x = swing
     if (legR.current) legR.current.rotation.x = -swing

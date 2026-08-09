@@ -4,11 +4,12 @@ import {
   CAMERA,
   WEAPON_AMMO,
   PICKUPS,
+  STAMINA,
+  ENEMY,
   type CameraMode,
   type GameStatus,
 } from '../constants'
-import { ORB_SPAWNS } from '../map/pickupsLayout'
-import { clearZombies } from '../combat/zombies'
+import { clearEnemies } from '../combat/enemies'
 
 type InputState = {
   moveX: number
@@ -34,14 +35,30 @@ type GameState = {
 
   status: GameStatus
   score: number
-  orbsRemaining: number
-  orbsTotal: number
+  kills: number
   ammo: number
   ammoMax: number
+  /** 0..1 sprint stamina. */
+  stamina: number
+  /** True while refilling — sprint blocked until 100%. */
+  staminaRecovering: boolean
+  /** Effective sprint this frame (after stamina rules). */
+  isSprinting: boolean
+  /** Alive Mixamo hunters currently on the map. */
+  enemyCount: number
+  /** Current hunter wave (1-based). */
+  wave: number
 
   setMove: (x: number, z: number) => void
+  setEnemyCount: (n: number) => void
+  setWave: (n: number) => void
   setSprint: (on: boolean) => void
   toggleSprint: () => void
+  /**
+   * Drain while sprinting, refill while walking/idle.
+   * Returns whether the player is effectively sprinting this frame.
+   */
+  tickStamina: (dt: number, wantsSprint: boolean, moving: boolean) => boolean
   requestJump: () => void
   consumeJump: () => boolean
   requestFire: () => void
@@ -52,17 +69,17 @@ type GameState = {
   setPlayerPos: (x: number, y: number, z: number) => void
   /** Spend one round; returns false if empty / not playing. */
   tryFireAmmo: () => boolean
-  collectOrb: () => void
   collectAmmo: () => void
+  registerKill: () => void
+  registerWaveClear: (wave: number) => void
   setLost: () => void
+  setWon: () => void
   restartRun: () => void
   setCameraMode: (mode: CameraMode) => void
   toggleCameraMode: () => void
   /** Positive delta = zoom out (higher cam). */
   adjustTopZoom: (deltaMeters: number) => void
 }
-
-const totalOrbs = ORB_SPAWNS.length
 
 export const useGameStore = create<GameState>((set, get) => ({
   input: { moveX: 0, moveZ: 0, sprint: false },
@@ -76,20 +93,73 @@ export const useGameStore = create<GameState>((set, get) => ({
   playerY: 0,
   playerZ: PLAYER.spawn.z,
   runId: 1,
-  cameraMode: 'top',
+  cameraMode: 'third',
   topCamHeight: CAMERA.topHeight,
 
   status: 'playing',
   score: 0,
-  orbsRemaining: totalOrbs,
-  orbsTotal: totalOrbs,
+  kills: 0,
   ammo: WEAPON_AMMO.start,
   ammoMax: WEAPON_AMMO.max,
+  stamina: 1,
+  staminaRecovering: false,
+  isSprinting: false,
+  enemyCount: 0,
+  wave: 1,
 
   setMove: (x, z) => set((s) => ({ input: { ...s.input, moveX: x, moveZ: z } })),
+  setEnemyCount: (n) => {
+    if (get().enemyCount !== n) set({ enemyCount: n })
+  },
+  setWave: (n) => {
+    if (get().wave !== n) set({ wave: n })
+  },
   setSprint: (on) => set((s) => ({ input: { ...s.input, sprint: on } })),
   toggleSprint: () =>
-    set((s) => ({ input: { ...s.input, sprint: !s.input.sprint } })),
+    set((s) => {
+      if (!s.input.sprint && s.staminaRecovering) return s
+      return { input: { ...s.input, sprint: !s.input.sprint } }
+    }),
+
+  tickStamina: (dt, wantsSprint, moving) => {
+    const s = get()
+    if (s.status !== 'playing') {
+      if (s.isSprinting) set({ isSprinting: false })
+      return false
+    }
+
+    const rate = 1 / STAMINA.duration
+    let stamina = s.stamina
+    let recovering = s.staminaRecovering
+    const isSprinting = wantsSprint && moving && stamina > 0 && !recovering
+
+    if (isSprinting) {
+      stamina = Math.max(0, stamina - dt * rate)
+      if (stamina <= 0) {
+        stamina = 0
+        recovering = true
+      }
+    } else if (stamina < 1) {
+      recovering = true
+      stamina = Math.min(1, stamina + dt * rate)
+      if (stamina >= 1) {
+        stamina = 1
+        recovering = false
+      }
+    } else {
+      stamina = 1
+      recovering = false
+    }
+
+    if (
+      stamina !== s.stamina ||
+      recovering !== s.staminaRecovering ||
+      isSprinting !== s.isSprinting
+    ) {
+      set({ stamina, staminaRecovering: recovering, isSprinting })
+    }
+    return isSprinting
+  },
 
   requestJump: () => {
     if (get().status !== 'playing') return
@@ -132,18 +202,6 @@ export const useGameStore = create<GameState>((set, get) => ({
     return true
   },
 
-  collectOrb: () => {
-    const s = get()
-    if (s.status !== 'playing' || s.orbsRemaining <= 0) return
-    const orbsRemaining = s.orbsRemaining - 1
-    const score = s.score + PICKUPS.orbPoints
-    set({
-      orbsRemaining,
-      score,
-      status: orbsRemaining <= 0 ? 'won' : 'playing',
-    })
-  },
-
   collectAmmo: () => {
     const s = get()
     if (s.status !== 'playing') return
@@ -152,25 +210,50 @@ export const useGameStore = create<GameState>((set, get) => ({
     })
   },
 
+  registerKill: () => {
+    const s = get()
+    if (s.status !== 'playing') return
+    set({
+      kills: s.kills + 1,
+      score: s.score + ENEMY.killScore,
+    })
+  },
+
+  registerWaveClear: (wave) => {
+    const s = get()
+    if (s.status !== 'playing') return
+    set({ score: s.score + ENEMY.waveClearScore * wave })
+  },
+
   setLost: () => {
     if (get().status !== 'playing') return
     set({ status: 'lost' })
   },
 
+  setWon: () => {
+    if (get().status !== 'playing') return
+    set({ status: 'won' })
+  },
+
   restartRun: () => {
-    clearZombies()
+    clearEnemies()
     set({
       status: 'playing',
       score: 0,
-      orbsRemaining: totalOrbs,
-      orbsTotal: totalOrbs,
+      kills: 0,
       ammo: WEAPON_AMMO.start,
       fireQueued: 0,
       jumpQueued: false,
       input: { moveX: 0, moveZ: 0, sprint: false },
+      stamina: 1,
+      staminaRecovering: false,
+      isSprinting: false,
+      enemyCount: 0,
+      wave: 1,
       playerX: PLAYER.spawn.x,
       playerY: 0,
       playerZ: PLAYER.spawn.z,
+      cameraMode: 'third',
       runId: get().runId + 1,
     })
   },

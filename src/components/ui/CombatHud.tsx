@@ -1,5 +1,5 @@
 import type { SyntheticEvent } from 'react'
-import { CAMERA } from '../../constants'
+import { CAMERA, ENEMY } from '../../constants'
 import { useGameStore } from '../../store/gameStore'
 
 /**
@@ -13,14 +13,20 @@ export function CombatHud() {
   const toggleCameraMode = useGameStore((s) => s.toggleCameraMode)
   const adjustTopZoom = useGameStore((s) => s.adjustTopZoom)
   const topCamHeight = useGameStore((s) => s.topCamHeight)
-  const orbsRemaining = useGameStore((s) => s.orbsRemaining)
-  const orbsTotal = useGameStore((s) => s.orbsTotal)
   const ammo = useGameStore((s) => s.ammo)
   const ammoMax = useGameStore((s) => s.ammoMax)
+  const stamina = useGameStore((s) => s.stamina)
+  const staminaRecovering = useGameStore((s) => s.staminaRecovering)
+  const isSprinting = useGameStore((s) => s.isSprinting)
   const score = useGameStore((s) => s.score)
+  const kills = useGameStore((s) => s.kills)
+  const enemyCount = useGameStore((s) => s.enemyCount)
+  const wave = useGameStore((s) => s.wave)
   const status = useGameStore((s) => s.status)
   const restartRun = useGameStore((s) => s.restartRun)
   const ammoLow = ammo <= 1
+  const staminaPct = Math.round(stamina * 100)
+  const staminaLow = stamina <= 0.25
 
   const camLabel =
     cameraMode === 'top' ? 'VISTA 2D' : cameraMode === 'first' ? '1ª PERSONA' : '3ª PERSONA'
@@ -42,10 +48,13 @@ export function CombatHud() {
       {/* TOP-LEFT — stats only */}
       <div className="pointer-events-none absolute left-3 top-3 z-50 flex max-w-[42vw] flex-col gap-1.5 sm:max-w-none">
         <div className="rounded bg-black/50 px-2.5 py-1.5 backdrop-blur-sm">
-          <div className="text-[10px] font-semibold tracking-[0.14em] text-white/65">ORBES</div>
-          <div className="text-lg font-bold tracking-wide text-[#F2E08A]">
-            {orbsRemaining}
-            <span className="ml-1 text-sm font-normal text-white/50">/ {orbsTotal}</span>
+          <div className="text-[10px] font-semibold tracking-[0.14em] text-white/65">
+            OLEADA {wave}
+            <span className="ml-1 font-normal text-white/45">/ {ENEMY.wavesToWin}</span>
+          </div>
+          <div className="text-lg font-bold tracking-wide text-[#E07070]">
+            {enemyCount}
+            <span className="ml-1 text-sm font-normal text-white/50">cazadores</span>
           </div>
         </div>
         <div className="rounded bg-black/50 px-2.5 py-1.5 backdrop-blur-sm">
@@ -71,11 +80,45 @@ export function CombatHud() {
             ))}
           </div>
         </div>
+        <div className="rounded bg-black/50 px-2.5 py-1.5 backdrop-blur-sm">
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-[10px] font-semibold tracking-[0.14em] text-white/65">
+              STAMINA
+            </div>
+            <div
+              className={`text-[10px] font-semibold tracking-[0.08em] ${
+                staminaRecovering
+                  ? 'text-[#7EC8FF]'
+                  : isSprinting
+                    ? 'text-[#B8F080]'
+                    : staminaLow
+                      ? 'text-[#E24A3A]'
+                      : 'text-white/55'
+              }`}
+            >
+              {staminaRecovering ? 'RECUPERA' : isSprinting ? 'CORRIENDO' : `${staminaPct}%`}
+            </div>
+          </div>
+          <div className="mt-1.5 h-2 w-36 overflow-hidden rounded-sm bg-white/15 sm:w-40">
+            <div
+              className={`h-full rounded-sm transition-[width] duration-75 ${
+                staminaRecovering
+                  ? 'bg-[#5AA8E8]'
+                  : staminaLow
+                    ? 'bg-[#E24A3A]'
+                    : 'bg-[#8FD45A]'
+              }`}
+              style={{ width: `${staminaPct}%` }}
+            />
+          </div>
+        </div>
         <div className="rounded bg-black/45 px-2.5 py-1 text-[11px] tracking-[0.12em] text-white/80 backdrop-blur-sm">
+          BAJAS <span className="font-semibold text-[#F2E08A]">{kills}</span>
+          <span className="mx-2 text-white/35">·</span>
           PUNTOS <span className="font-semibold text-[#F2E08A]">{score}</span>
         </div>
         <div className="rounded bg-black/40 px-2.5 py-1 text-[10px] tracking-[0.12em] text-white/60 backdrop-blur-sm">
-          {status === 'playing' && 'EN CURSO'}
+          {status === 'playing' && 'SOBREVIVE'}
           {status === 'won' && 'VICTORIA'}
           {status === 'lost' && 'DERROTA'}
         </div>
@@ -147,10 +190,12 @@ export function CombatHud() {
             </div>
             <div className="text-sm tracking-[0.08em] text-white/75">
               {status === 'won'
-                ? 'Recogiste todos los orbes dorados.'
-                : 'Un zombie te atrapó.'}
+                ? `Sobreviviste ${ENEMY.wavesToWin} oleadas.`
+                : 'Un cazador te atrapó. Busca munición y apunta a la cabeza.'}
             </div>
             <div className="text-sm tracking-[0.08em] text-white/70">
+              Bajas: <span className="text-[#F2E08A]">{kills}</span>
+              <span className="mx-2 text-white/35">·</span>
               Puntos: <span className="text-[#F2E08A]">{score}</span>
             </div>
             <button

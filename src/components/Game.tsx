@@ -4,17 +4,17 @@ import * as THREE from 'three'
 import { Arena } from './scene/Arena'
 import { PlayerController } from './scene/PlayerController'
 import { PickupSystem } from './scene/PickupSystem'
-import { ZombieSystem } from './scene/ZombieSystem'
+import { EnemySystem } from './scene/EnemySystem'
 import { MobileControls } from './ui/MobileControls'
 import { Crosshair } from './ui/Crosshair'
 import { CombatHud } from './ui/CombatHud'
 import { useIsMobile } from '../hooks/useIsMobile'
-import { COLORS } from '../constants'
+import { COLORS, VIEW_RANGE } from '../constants'
 
 function Scene() {
   return (
     <>
-      <fog attach="fog" args={[COLORS.skyHaze, 55, 145]} />
+      <fog attach="fog" args={[COLORS.skyHaze, VIEW_RANGE, VIEW_RANGE + 90]} />
       <Sky
         sunPosition={[48, 28, 18]}
         turbidity={4.5}
@@ -85,7 +85,7 @@ function Scene() {
       />
       <Arena />
       <PickupSystem />
-      <ZombieSystem />
+      <EnemySystem />
       <PlayerController />
     </>
   )
