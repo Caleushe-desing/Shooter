@@ -1,0 +1,12 @@
+Audio credits (bundled under /public/audio)
+
+Footsteps:
+  Kenney Impact Sounds — footstep_concrete_*.ogg
+  License: CC0 1.0 (https://creativecommons.org/publicdomain/zero/1.0/)
+  https://kenney.nl/assets/impact-sounds
+
+Pistol shots:
+  Mixkit free sound effects (converted to OGG)
+  pistol_1659, pistol_1665, pistol_1668, pistol_1670, pistol_223
+  License: Mixkit License (free for commercial / personal use)
+  https://mixkit.co/free-sound-effects/gun/

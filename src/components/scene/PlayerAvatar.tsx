@@ -4,11 +4,16 @@ import { useAnimations, useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js'
 import { PLAYER } from '../../constants'
+import { createAnimFootstepSync, playFootstep, prefetchFootsteps } from '../../audio/footsteps'
+import { unlockAudio } from '../../audio/gunshot'
 import { useGameStore } from '../../store/gameStore'
+
+prefetchFootsteps()
 
 type Props = {
   yawRef: MutableRefObject<number>
   movingRef: MutableRefObject<boolean>
+  groundedRef?: MutableRefObject<boolean>
 }
 
 const MODEL_URL = '/models/human.glb'
@@ -23,10 +28,11 @@ type ClipName = 'idle' | 'walk' | 'run'
  * Animations are bound to the skeleton clone (not a late ref) so clips
  * always drive the mesh instead of leaving the bind / T-pose.
  */
-function MixamoHuman({ yawRef, movingRef }: Props) {
+function MixamoHuman({ yawRef, movingRef, groundedRef }: Props) {
   const root = useRef<THREE.Group>(null)
   const modelRef = useRef<THREE.Group>(null)
   const currentClip = useRef<ClipName | null>(null)
+  const footSync = useRef(createAnimFootstepSync([0.14, 0.64]))
   const { scene, animations } = useGLTF(MODEL_URL)
 
   const { clone, fitScale, footOffset } = useMemo(() => {
@@ -108,6 +114,22 @@ function MixamoHuman({ yawRef, movingRef }: Props) {
     const action = currentClip.current ? actions[currentClip.current] : null
     if (action) {
       action.setEffectiveTimeScale(sprinting && next === 'run' ? 1.08 : 1)
+    }
+
+    // Plant sounds locked to the walk/run cycle (not a free-running timer).
+    const grounded = groundedRef?.current ?? true
+    if (
+      useGameStore.getState().status === 'playing' &&
+      moving &&
+      grounded &&
+      next !== 'idle'
+    ) {
+      unlockAudio()
+      footSync.current.update(action, true, sprinting ? 'run' : 'walk', (kind) =>
+        playFootstep(kind, 0),
+      )
+    } else {
+      footSync.current.reset()
     }
 
     // Mixamo faces +Z; flip so chase cam on +Z sees the back.

@@ -1,91 +1,97 @@
-/** Procedural footsteps via Web Audio (no asset files). */
-
-let audioCtx: AudioContext | null = null
-
-function getCtx(): AudioContext | null {
-  if (typeof window === 'undefined') return null
-  const AC =
-    window.AudioContext ||
-    (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
-  if (!AC) return null
-  if (!audioCtx) audioCtx = new AC()
-  return audioCtx
-}
+/**
+ * Real concrete footstep samples (Kenney Impact Sounds, CC0).
+ * Synced to Mixamo walk/run cycle phases — not a fixed timer.
+ */
+import { loadAudioBuffer, playBuffer, prefetchAudio, unlockAudio } from './context'
 
 export type FootstepKind = 'walk' | 'run'
 
-/**
- * Short dusty thud. `distance` attenuates distant enemy steps (meters).
- * Pass distance=0 for the local player.
- */
-export function playFootstep(kind: FootstepKind = 'walk', distance = 0) {
-  const ctx = getCtx()
-  if (!ctx) return
-  if (ctx.state === 'suspended') void ctx.resume()
+const STEP_URLS = [
+  '/audio/footstep_concrete_000.ogg',
+  '/audio/footstep_concrete_001.ogg',
+  '/audio/footstep_concrete_002.ogg',
+  '/audio/footstep_concrete_003.ogg',
+  '/audio/footstep_concrete_004.ogg',
+] as const
 
-  // Soft distance falloff — silent past ~28 m.
-  const distGain = distance <= 0 ? 1 : Math.max(0, 1 - distance / 28)
-  if (distGain < 0.04) return
+const buffers: (AudioBuffer | null)[] = []
+let nextStep = 0
 
-  const now = ctx.currentTime
-  const run = kind === 'run'
-  const base = (run ? 0.22 : 0.14) * distGain
-
-  // Low body thud
-  const thump = ctx.createOscillator()
-  const thumpGain = ctx.createGain()
-  thump.type = 'sine'
-  thump.frequency.setValueAtTime(run ? 110 : 90, now)
-  thump.frequency.exponentialRampToValueAtTime(48, now + 0.07)
-  thumpGain.gain.setValueAtTime(base * 0.85, now)
-  thumpGain.gain.exponentialRampToValueAtTime(0.001, now + 0.09)
-  thump.connect(thumpGain)
-  thumpGain.connect(ctx.destination)
-  thump.start(now)
-  thump.stop(now + 0.1)
-
-  // Noise scuff (gravel / boot)
-  const duration = run ? 0.07 : 0.09
-  const n = Math.floor(ctx.sampleRate * duration)
-  const buffer = ctx.createBuffer(1, n, ctx.sampleRate)
-  const data = buffer.getChannelData(0)
-  for (let i = 0; i < n; i++) {
-    const env = 1 - i / n
-    data[i] = (Math.random() * 2 - 1) * env * env
-  }
-  const noise = ctx.createBufferSource()
-  noise.buffer = buffer
-  const filter = ctx.createBiquadFilter()
-  filter.type = 'bandpass'
-  filter.frequency.value = run ? 650 : 480
-  filter.Q.value = 0.85
-  const noiseGain = ctx.createGain()
-  noiseGain.gain.setValueAtTime(base * 0.7, now)
-  noiseGain.gain.exponentialRampToValueAtTime(0.001, now + duration)
-  noise.connect(filter)
-  filter.connect(noiseGain)
-  noiseGain.connect(ctx.destination)
-  noise.start(now)
+export function prefetchFootsteps() {
+  prefetchAudio(STEP_URLS)
+  void Promise.all(STEP_URLS.map((u) => loadAudioBuffer(u))).then((bufs) => {
+    for (let i = 0; i < bufs.length; i++) buffers[i] = bufs[i]
+  })
 }
 
-/** Cadence helper — call each frame while moving on the ground. */
-export function createFootstepClock(intervalWalk = 0.38, intervalRun = 0.26) {
-  let acc = 0
+prefetchFootsteps()
+
+/**
+ * Play one real foot plant. `distance` attenuates distant enemies (meters).
+ * Pass 0 for the local player.
+ */
+export function playFootstep(kind: FootstepKind = 'walk', distance = 0) {
+  unlockAudio()
+
+  const distGain = distance <= 0 ? 1 : Math.max(0, 1 - distance / 26)
+  if (distGain < 0.05) return
+
+  const i = nextStep % STEP_URLS.length
+  nextStep++
+  const cached = buffers[i]
+  if (cached) {
+    const run = kind === 'run'
+    playBuffer(cached, {
+      gain: (run ? 0.95 : 0.72) * distGain,
+      playbackRate: (run ? 1.05 : 0.96) + (Math.random() * 0.08 - 0.04),
+    })
+    return
+  }
+
+  void loadAudioBuffer(STEP_URLS[i]).then((buffer) => {
+    if (!buffer) return
+    buffers[i] = buffer
+    const run = kind === 'run'
+    playBuffer(buffer, {
+      gain: (run ? 0.95 : 0.72) * distGain,
+      playbackRate: (run ? 1.05 : 0.96) + (Math.random() * 0.08 - 0.04),
+    })
+  })
+}
+
+/**
+ * Sync footsteps to an AnimationAction cycle.
+ * Mixamo walk/run plant near ~0.12 and ~0.62 of the loop.
+ */
+export function createAnimFootstepSync(phases: number[] = [0.12, 0.62]) {
+  let lastPhase = -1
   return {
-    tick(dt: number, moving: boolean, running: boolean, play: (kind: FootstepKind) => void) {
-      if (!moving) {
-        acc = 0
+    update(
+      action: { time: number; getClip: () => { duration: number } } | null | undefined,
+      moving: boolean,
+      kind: FootstepKind,
+      play: (kind: FootstepKind) => void,
+    ) {
+      if (!action || !moving) {
+        lastPhase = -1
         return
       }
-      acc += dt
-      const interval = running ? intervalRun : intervalWalk
-      if (acc >= interval) {
-        acc -= interval
-        play(running ? 'run' : 'walk')
+      const dur = action.getClip().duration
+      if (dur <= 1e-4) return
+      const phase = (action.time % dur) / dur
+      if (lastPhase >= 0) {
+        for (const p of phases) {
+          const crossed =
+            phase >= lastPhase
+              ? lastPhase < p && phase >= p
+              : lastPhase < p || phase >= p
+          if (crossed) play(kind)
+        }
       }
+      lastPhase = phase
     },
     reset() {
-      acc = 0
+      lastPhase = -1
     },
   }
 }

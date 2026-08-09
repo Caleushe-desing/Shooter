@@ -5,6 +5,10 @@ import * as THREE from 'three'
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js'
 import { ENEMY } from '../../constants'
 import type { Enemy } from '../../combat/enemies'
+import { createAnimFootstepSync, playFootstep, prefetchFootsteps } from '../../audio/footsteps'
+import { useGameStore } from '../../store/gameStore'
+
+prefetchFootsteps()
 
 const MODEL_URL = '/models/human.glb'
 const TARGET_HEIGHT = ENEMY.height
@@ -25,6 +29,7 @@ export function EnemyRig({ enemy }: Props) {
   const root = useRef<THREE.Group>(null)
   const modelRef = useRef<THREE.Group>(null)
   const currentClip = useRef<ClipName | null>(null)
+  const footSync = useRef(createAnimFootstepSync([0.14, 0.64]))
   const { scene, animations } = useGLTF(MODEL_URL)
 
   const { clone, fitScale, footOffset } = useMemo(() => {
@@ -104,6 +109,17 @@ export function EnemyRig({ enemy }: Props) {
         prev?.fadeOut(0.14)
         currentClip.current = next
       }
+    }
+
+    const action = currentClip.current ? actions[currentClip.current] : null
+    if (enemy.moving && next !== 'idle') {
+      const game = useGameStore.getState()
+      const dist = Math.hypot(game.playerX - enemy.x, game.playerZ - enemy.z)
+      footSync.current.update(action, true, next === 'run' ? 'run' : 'walk', (kind) =>
+        playFootstep(kind, dist),
+      )
+    } else {
+      footSync.current.reset()
     }
 
     // Hit / alert emissive pulse

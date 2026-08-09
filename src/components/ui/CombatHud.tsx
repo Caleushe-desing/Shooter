@@ -22,6 +22,7 @@ export function CombatHud() {
   const isSprinting = useGameStore((s) => s.isSprinting)
   const score = useGameStore((s) => s.score)
   const enemyCount = useGameStore((s) => s.enemyCount)
+  const wave = useGameStore((s) => s.wave)
   const status = useGameStore((s) => s.status)
   const restartRun = useGameStore((s) => s.restartRun)
   const ammoLow = ammo <= 1
@@ -111,9 +112,12 @@ export function CombatHud() {
         </div>
         <div className="rounded bg-black/50 px-2.5 py-1.5 backdrop-blur-sm">
           <div className="text-[10px] font-semibold tracking-[0.14em] text-white/65">
-            CAZADORES
+            OLEADA {wave}
           </div>
-          <div className="text-lg font-bold tracking-wide text-[#E07070]">{enemyCount}</div>
+          <div className="text-lg font-bold tracking-wide text-[#E07070]">
+            {enemyCount}
+            <span className="ml-1 text-sm font-normal text-white/50">cazadores</span>
+          </div>
         </div>
         <div className="rounded bg-black/45 px-2.5 py-1 text-[11px] tracking-[0.12em] text-white/80 backdrop-blur-sm">
           PUNTOS <span className="font-semibold text-[#F2E08A]">{score}</span>

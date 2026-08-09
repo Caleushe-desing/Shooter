@@ -17,7 +17,6 @@ import { PlayerAvatar } from './PlayerAvatar'
 import { WeaponSystem } from './WeaponSystem'
 import { buildHavenInspiredMap } from '../../map/havenLayout'
 import { unlockAudio } from '../../audio/gunshot'
-import { createFootstepClock, playFootstep } from '../../audio/footsteps'
 import { mobileLookStick } from '../../input/mobileLookStick'
 import { nearestAabbHit, type Aabb3 } from '../../math/aabbRay'
 
@@ -50,7 +49,6 @@ export function PlayerController() {
   const right = useRef(new THREE.Vector3())
   const wish = useRef(new THREE.Vector3())
   const runId = useRef(useGameStore.getState().runId)
-  const footClock = useRef(createFootstepClock(0.4, 0.27))
   const lastCamMode = useRef(useGameStore.getState().cameraMode)
   /** Current third-person boom length (meters along ideal boom vector). */
   const boomLen = useRef(Math.hypot(CAMERA.shoulder, CAMERA.lift, CAMERA.distance))
@@ -266,7 +264,6 @@ export function PlayerController() {
       lookPitch.current = firstPerson ? 0 : topDown ? -Math.PI / 2 : PLAYER.pitchDefault
       bodyYaw.current = 0
       boomLen.current = Math.hypot(CAMERA.shoulder, CAMERA.lift, CAMERA.distance)
-      footClock.current.reset()
     }
 
     const { dx, dy } = game.consumeLook()
@@ -476,12 +473,7 @@ export function PlayerController() {
       MAP_SOLIDS,
     )
 
-    if (canPlay && grounded.current && moving.current) {
-      unlockAudio()
-      footClock.current.tick(dt, true, sprinting, (kind) => playFootstep(kind, 0))
-    } else {
-      footClock.current.reset()
-    }
+    // Footsteps are synced to Mixamo cycle phases in PlayerAvatar.
 
     rig.current.position.set(pos.current.x, pos.current.y, pos.current.z)
     game.setPlayerPos(pos.current.x, pos.current.y, pos.current.z)
@@ -490,7 +482,7 @@ export function PlayerController() {
   return (
     <group ref={rig} position={[PLAYER.spawn.x, 0, PLAYER.spawn.z]}>
       <group ref={avatarRoot}>
-        <PlayerAvatar yawRef={bodyYaw} movingRef={moving} />
+        <PlayerAvatar yawRef={bodyYaw} movingRef={moving} groundedRef={grounded} />
       </group>
       <WeaponSystem rigRef={rig} lookYaw={lookYaw} lookPitch={lookPitch} />
       <group ref={yawPivot} position={[0, CAMERA.height, 0]}>

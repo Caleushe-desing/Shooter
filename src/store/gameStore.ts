@@ -47,9 +47,12 @@ type GameState = {
   isSprinting: boolean
   /** Alive Mixamo hunters currently on the map. */
   enemyCount: number
+  /** Current hunter wave (1-based). */
+  wave: number
 
   setMove: (x: number, z: number) => void
   setEnemyCount: (n: number) => void
+  setWave: (n: number) => void
   setSprint: (on: boolean) => void
   toggleSprint: () => void
   /**
@@ -104,10 +107,14 @@ export const useGameStore = create<GameState>((set, get) => ({
   staminaRecovering: false,
   isSprinting: false,
   enemyCount: 0,
+  wave: 1,
 
   setMove: (x, z) => set((s) => ({ input: { ...s.input, moveX: x, moveZ: z } })),
   setEnemyCount: (n) => {
     if (get().enemyCount !== n) set({ enemyCount: n })
+  },
+  setWave: (n) => {
+    if (get().wave !== n) set({ wave: n })
   },
   setSprint: (on) => set((s) => ({ input: { ...s.input, sprint: on } })),
   toggleSprint: () =>
@@ -238,6 +245,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       staminaRecovering: false,
       isSprinting: false,
       enemyCount: 0,
+      wave: 1,
       playerX: PLAYER.spawn.x,
       playerY: 0,
       playerZ: PLAYER.spawn.z,

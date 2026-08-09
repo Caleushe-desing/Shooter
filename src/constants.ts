@@ -139,28 +139,34 @@ export const WEAPON_AMMO = {
 export const ENEMY = {
   radius: 0.38,
   height: 1.72,
-  count: 6,
+  /** First wave size; later waves grow by `waveIncrement`. */
+  waveStart: 10,
+  waveIncrement: 4,
+  /** Pause after a wave is cleared before the next spawns. */
+  waveGap: 2.8,
   hp: 3,
   catchRange: 1.15,
   /** Casual walking pace while patrolling. */
   patrolSpeed: 2.55,
-  chaseSpeed: 4.85,
+  chaseSpeed: 4.7,
   visionRange: VIEW_RANGE,
   visionHalfAngle: (48 * Math.PI) / 180,
   hearRadius: 12,
   /** Seconds without LOS before they give up and resume patrol. */
   searchTime: 3,
   stunTime: 1.6,
-  clearPlayer: 12,
-  minSeparation: 7,
+  clearPlayer: 14,
+  minSeparation: 5.5,
   /** Personal space between hunters (soft push). */
   crowdRadius: 1.15,
   /** Arrive distance for random patrol points. */
-  patrolArrive: 1.1,
+  patrolArrive: 1.25,
   patrolWaitMin: 0.6,
   patrolWaitMax: 2.4,
-  /** If blocked this long, pick a new route / sidestep. */
-  stuckTime: 0.85,
+  /** If blocked this long, repath / pick a new route. */
+  stuckTime: 0.7,
+  /** How often to refresh chase/search paths (seconds). */
+  repathInterval: 0.45,
   /** Tint — hostile dark kit vs player skin. */
   skin: '#8B5A4A',
   suit: '#3A2A32',

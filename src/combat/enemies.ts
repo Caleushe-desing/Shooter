@@ -26,6 +26,10 @@ export type Enemy = {
   waitTimer: number
   /** Accumulates when movement is blocked by geometry. */
   stuckTimer: number
+  /** Nav waypoints (cell centers) toward current goal. */
+  path: { x: number; z: number }[]
+  pathIndex: number
+  repathTimer: number
   /** Moving this frame — drives Mixamo walk/run. */
   moving: boolean
 }
@@ -78,6 +82,9 @@ export function spawnEnemy(x: number, z: number, opts: SpawnEnemyOpts = {}): Ene
     targetZ: opts.targetZ ?? z,
     waitTimer: 0.2 + Math.random() * 0.8,
     stuckTimer: 0,
+    path: [],
+    pathIndex: 0,
+    repathTimer: 0,
     moving: false,
   }
   enemies.push(enemy)
@@ -123,7 +130,6 @@ export function alertEnemy(e: Enemy, lx: number, lz: number, mode: EnemyMode = '
   e.lastKnownX = lx
   e.lastKnownZ = lz
   e.waitTimer = 0
-  // Keep search budget fresh while the player is perceived.
   e.searchTimer = ENEMY.searchTime
 }
 
@@ -134,5 +140,15 @@ export function resumePatrol(e: Enemy, tx: number, tz: number) {
   e.stuckTimer = 0
   e.targetX = tx
   e.targetZ = tz
-  e.waitTimer = ENEMY.patrolWaitMin + Math.random() * (ENEMY.patrolWaitMax - ENEMY.patrolWaitMin) * 0.35
+  e.path = []
+  e.pathIndex = 0
+  e.repathTimer = 0
+  e.waitTimer =
+    ENEMY.patrolWaitMin + Math.random() * (ENEMY.patrolWaitMax - ENEMY.patrolWaitMin) * 0.35
+}
+
+export function setEnemyPath(e: Enemy, path: { x: number; z: number }[]) {
+  e.path = path
+  e.pathIndex = 0
+  e.repathTimer = ENEMY.repathInterval
 }

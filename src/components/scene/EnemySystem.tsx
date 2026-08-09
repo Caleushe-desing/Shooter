@@ -18,17 +18,15 @@ import {
   aliveEnemyCount,
   alertEnemy,
   resumePatrol,
+  setEnemyPath,
   type Enemy,
 } from '../../combat/enemies'
 import { randomEnemySpawns, randomPatrolPoint } from '../../combat/spawnPoints'
-import { createFootstepClock, playFootstep } from '../../audio/footsteps'
+import { findPath, hasNavLine } from '../../combat/navGrid'
 import { useGameStore } from '../../store/gameStore'
 import { EnemyRig } from './EnemyRig'
 
 const MAP_SOLIDS = buildHavenInspiredMap().solids
-
-/** Local steering angles (rad) — try forward, then side slips around walls. */
-const STEER_ANGLES = [0, 0.55, -0.55, 1.05, -1.05, 1.55, -1.55]
 
 function enemyForward(yaw: number) {
   return { x: -Math.sin(yaw), z: -Math.cos(yaw) }
@@ -60,67 +58,64 @@ function applyFeet(e: Enemy) {
   e.y = resolveSunkFeet(e.x, e.z, support, ENEMY.radius, MAP_SOLIDS)
 }
 
-/**
- * Move toward a goal with local wall avoidance (probe side angles).
- * Returns true if the hunter made meaningful progress.
- */
-function steerToward(e: Enemy, goalX: number, goalZ: number, speed: number, dt: number): boolean {
-  const dx = goalX - e.x
-  const dz = goalZ - e.z
+function ensurePath(e: Enemy, goalX: number, goalZ: number, force = false) {
+  const need =
+    force ||
+    e.path.length === 0 ||
+    e.pathIndex >= e.path.length ||
+    e.repathTimer <= 0 ||
+    e.stuckTimer >= ENEMY.stuckTime
+  if (!need) return
+  const path = findPath(e.x, e.z, goalX, goalZ)
+  if (path.length === 0) {
+    e.repathTimer = ENEMY.repathInterval * 0.5
+    return
+  }
+  setEnemyPath(e, path)
+  e.stuckTimer = 0
+}
+
+/** Follow nav waypoints; never aim straight through walls. */
+function followPath(e: Enemy, speed: number, dt: number): boolean {
+  if (e.pathIndex >= e.path.length) return false
+  const wp = e.path[e.pathIndex]
+  const dx = wp.x - e.x
+  const dz = wp.z - e.z
   const dist = Math.hypot(dx, dz)
-  if (dist < 0.08) return false
-
-  const wantX = dx / dist
-  const wantZ = dz / dist
-  const step = speed * dt
-  let bestX = e.x
-  let bestZ = e.z
-  let bestFx = wantX
-  let bestFz = wantZ
-  let bestScore = -Infinity
-  let found = false
-
-  for (const ang of STEER_ANGLES) {
-    const c = Math.cos(ang)
-    const s = Math.sin(ang)
-    const fx = wantX * c - wantZ * s
-    const fz = wantX * s + wantZ * c
-    const trial = clampToArena(e.x + fx * step, e.z + fz * step, ENEMY.radius)
-    const hit = resolveCircleSolids(
-      trial.x,
-      trial.z,
-      ENEMY.radius,
-      MAP_SOLIDS,
-      e.y,
-      ENEMY.height,
-      COLLISION.stepHeight,
-    )
-    const movedX = hit.x - e.x
-    const movedZ = hit.z - e.z
-    const moved = Math.hypot(movedX, movedZ)
-    if (moved < step * 0.18) continue
-    const progress = movedX * wantX + movedZ * wantZ
-    const score = progress * 2.2 + moved - Math.abs(ang) * 0.35
-    if (score > bestScore) {
-      bestScore = score
-      bestX = hit.x
-      bestZ = hit.z
-      bestFx = fx
-      bestFz = fz
-      found = true
-    }
+  if (dist < 0.55) {
+    e.pathIndex++
+    return e.pathIndex < e.path.length
   }
 
-  if (!found) {
+  // If the next hop is blocked, skip / repath next frame.
+  if (!hasNavLine(e.x, e.z, wp.x, wp.z) && dist > 1.2) {
     e.stuckTimer += dt
     return false
   }
 
-  e.x = bestX
-  e.z = bestZ
-  e.yaw = Math.atan2(-bestFx, -bestFz)
+  const step = Math.min(speed * dt, dist)
+  const nx = e.x + (dx / dist) * step
+  const nz = e.z + (dz / dist) * step
+  const bounded = clampToArena(nx, nz, ENEMY.radius)
+  const hit = resolveCircleSolids(
+    bounded.x,
+    bounded.z,
+    ENEMY.radius,
+    MAP_SOLIDS,
+    e.y,
+    ENEMY.height,
+    COLLISION.stepHeight,
+  )
+  const moved = Math.hypot(hit.x - e.x, hit.z - e.z)
+  if (moved < step * 0.2) {
+    e.stuckTimer += dt
+    return false
+  }
+  e.x = hit.x
+  e.z = hit.z
+  e.yaw = Math.atan2(-dx, -dz)
   e.moving = true
-  e.stuckTimer = Math.max(0, e.stuckTimer - dt * 2.5)
+  e.stuckTimer = Math.max(0, e.stuckTimer - dt * 2)
   return true
 }
 
@@ -170,32 +165,45 @@ function separateEnemies(list: Enemy[]) {
 function assignRandomPatrol(e: Enemy) {
   const p = randomPatrolPoint(e.x, e.z)
   resumePatrol(e, p.x, p.z)
+  setEnemyPath(e, findPath(e.x, e.z, p.x, p.z))
 }
 
 /**
- * Mixamo hunters: random roam, chase on sight/hear,
- * give up after 3s without LOS, avoid wall-sticking.
+ * Mixamo hunters: nav-grid paths, random patrol, chase on sight/hear,
+ * give up after 3s without LOS. Waves grow while orbs remain.
  */
 export function EnemySystem() {
   const lastRunId = useRef(useGameStore.getState().runId)
-  const footClocks = useRef(new Map<number, ReturnType<typeof createFootstepClock>>())
+  const waveRef = useRef(1)
+  const waveTimer = useRef(0)
   const [, bump] = useState(0)
 
-  const resetAll = () => {
-    clearEnemies()
-    footClocks.current.clear()
-    const spots = randomEnemySpawns(ENEMY.count)
+  const spawnWave = (wave: number) => {
+    const count = ENEMY.waveStart + (wave - 1) * ENEMY.waveIncrement
+    const game = useGameStore.getState()
+    const spots = randomEnemySpawns(count, {
+      awayFrom: { x: game.playerX, z: game.playerZ },
+      minAway: wave === 1 ? 10 : 16,
+    })
     spots.forEach((s) => {
       const e = spawnEnemy(s.x, s.z)
       applyFeet(e)
       const p = randomPatrolPoint(e.x, e.z, 4, 14)
       e.targetX = p.x
       e.targetZ = p.z
-      e.waitTimer = 0.15 + Math.random() * 1.1
-      footClocks.current.set(e.id, createFootstepClock(0.42, 0.28))
+      setEnemyPath(e, findPath(e.x, e.z, p.x, p.z))
+      e.waitTimer = 0.1 + Math.random() * 0.9
     })
-    useGameStore.getState().setEnemyCount(aliveEnemyCount())
+    game.setWave(wave)
+    game.setEnemyCount(aliveEnemyCount())
     bump((n) => n + 1)
+  }
+
+  const resetAll = () => {
+    clearEnemies()
+    waveRef.current = 1
+    waveTimer.current = 0
+    spawnWave(1)
   }
 
   useEffect(() => {
@@ -232,6 +240,18 @@ export function EnemySystem() {
       return
     }
 
+    // Wave reinforce: when cleared, wait, then spawn a larger horde.
+    if (count === 0) {
+      waveTimer.current += dt
+      if (waveTimer.current >= ENEMY.waveGap) {
+        waveTimer.current = 0
+        waveRef.current += 1
+        spawnWave(waveRef.current)
+      }
+    } else {
+      waveTimer.current = 0
+    }
+
     const px = game.playerX
     const pz = game.playerZ
     const playerSprinting = game.isSprinting
@@ -241,55 +261,43 @@ export function EnemySystem() {
       e.stun = Math.max(0, e.stun - dt)
       e.hitFlash = Math.max(0, e.hitFlash - dt)
       e.moving = false
+      e.repathTimer = Math.max(0, e.repathTimer - dt)
 
       const dx = px - e.x
       const dz = pz - e.z
       const dist = Math.hypot(dx, dz)
       const vision = canSeePlayer(e, px, pz)
 
-      // Perception: see → chase; hear sprint → chase to noise.
       if (vision.seen) {
         alertEnemy(e, px, pz, 'chase')
       } else if (playerSprinting && dist <= ENEMY.hearRadius) {
         alertEnemy(e, px, pz, 'chase')
       } else if (e.mode === 'chase' || e.mode === 'search') {
-        // Lost the player — count down, then resume random patrol.
         e.mode = 'search'
         e.searchTimer -= dt
-        if (e.searchTimer <= 0) {
-          assignRandomPatrol(e)
-        }
+        if (e.searchTimer <= 0) assignRandomPatrol(e)
       }
 
       if (e.stun <= 0) {
         if (e.mode === 'chase') {
-          if (dist > ENEMY.catchRange * 0.55) {
-            const ok = steerToward(e, px, pz, ENEMY.chaseSpeed, dt)
-            if (!ok && e.stuckTimer >= ENEMY.stuckTime) {
-              // Sidestep around the obstacle instead of vibrating into it.
-              const side = Math.random() < 0.5 ? 1 : -1
-              const sx = e.x + (-dz / Math.max(dist, 0.01)) * side * 3.5
-              const sz = e.z + (dx / Math.max(dist, 0.01)) * side * 3.5
-              steerToward(e, sx, sz, ENEMY.chaseSpeed * 0.9, dt)
-              e.stuckTimer = 0
-            }
+          ensurePath(e, px, pz)
+          if (!followPath(e, ENEMY.chaseSpeed, dt) && e.stuckTimer >= ENEMY.stuckTime) {
+            ensurePath(e, px, pz, true)
           }
         } else if (e.mode === 'search') {
+          ensurePath(e, e.lastKnownX, e.lastKnownZ)
           const ldx = e.lastKnownX - e.x
           const ldz = e.lastKnownZ - e.z
           const ld = Math.hypot(ldx, ldz)
-          if (ld > 1.35) {
-            const ok = steerToward(e, e.lastKnownX, e.lastKnownZ, ENEMY.chaseSpeed * 0.82, dt)
-            if (!ok && e.stuckTimer >= ENEMY.stuckTime) {
-              // Can't reach last known — abort search early, roam again.
+          if (ld > 1.4) {
+            if (!followPath(e, ENEMY.chaseSpeed * 0.82, dt) && e.stuckTimer >= ENEMY.stuckTime) {
               assignRandomPatrol(e)
             }
           } else {
-            // Peek around the last known spot.
             e.yaw += dt * 1.35
+            e.path = []
           }
         } else {
-          // Random patrol: pause, walk to a free point, repeat.
           if (e.waitTimer > 0) {
             e.waitTimer -= dt
             e.yaw += Math.sin(e.id * 12.7 + performance.now() * 0.001) * dt * 0.35
@@ -297,21 +305,26 @@ export function EnemySystem() {
             const tdx = e.targetX - e.x
             const tdz = e.targetZ - e.z
             const td = Math.hypot(tdx, tdz)
-            if (td < ENEMY.patrolArrive) {
-              const p = randomPatrolPoint(e.x, e.z)
-              e.targetX = p.x
-              e.targetZ = p.z
-              e.waitTimer =
-                ENEMY.patrolWaitMin + Math.random() * (ENEMY.patrolWaitMax - ENEMY.patrolWaitMin)
-              e.stuckTimer = 0
+            if (td < ENEMY.patrolArrive || e.pathIndex >= e.path.length) {
+              if (td < ENEMY.patrolArrive || e.path.length === 0) {
+                const p = randomPatrolPoint(e.x, e.z)
+                e.targetX = p.x
+                e.targetZ = p.z
+                e.waitTimer =
+                  ENEMY.patrolWaitMin +
+                  Math.random() * (ENEMY.patrolWaitMax - ENEMY.patrolWaitMin)
+                setEnemyPath(e, findPath(e.x, e.z, p.x, p.z))
+              } else {
+                ensurePath(e, e.targetX, e.targetZ, true)
+              }
             } else {
-              const ok = steerToward(e, e.targetX, e.targetZ, ENEMY.patrolSpeed, dt)
-              if (!ok && e.stuckTimer >= ENEMY.stuckTime) {
+              ensurePath(e, e.targetX, e.targetZ)
+              if (!followPath(e, ENEMY.patrolSpeed, dt) && e.stuckTimer >= ENEMY.stuckTime) {
                 const p = randomPatrolPoint(e.x, e.z, 5, 18)
                 e.targetX = p.x
                 e.targetZ = p.z
+                setEnemyPath(e, findPath(e.x, e.z, p.x, p.z))
                 e.stuckTimer = 0
-                e.waitTimer = 0.15 + Math.random() * 0.4
               }
             }
           }
@@ -319,19 +332,6 @@ export function EnemySystem() {
       }
 
       applyFeet(e)
-
-      if (e.moving) {
-        let clock = footClocks.current.get(e.id)
-        if (!clock) {
-          clock = createFootstepClock(0.42, 0.28)
-          footClocks.current.set(e.id, clock)
-        }
-        const running = e.mode === 'chase' || e.mode === 'search'
-        const hearDist = Math.hypot(px - e.x, pz - e.z)
-        clock.tick(dt, true, running, (kind) => playFootstep(kind, hearDist))
-      } else {
-        footClocks.current.get(e.id)?.reset()
-      }
 
       if (e.mode === 'chase' && e.stun <= 0 && dist <= ENEMY.catchRange && vision.seen) {
         useGameStore.getState().setLost()
