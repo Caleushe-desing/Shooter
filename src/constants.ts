@@ -142,17 +142,25 @@ export const ENEMY = {
   count: 6,
   hp: 3,
   catchRange: 1.15,
-  patrolSpeed: 3.2,
-  chaseSpeed: 5.4,
+  /** Casual walking pace while patrolling. */
+  patrolSpeed: 2.55,
+  chaseSpeed: 4.85,
   visionRange: VIEW_RANGE,
-  visionHalfAngle: (50 * Math.PI) / 180,
-  hearRadius: 14,
-  searchTime: 9,
+  visionHalfAngle: (48 * Math.PI) / 180,
+  hearRadius: 12,
+  /** Seconds without LOS before they give up and resume patrol. */
+  searchTime: 3,
   stunTime: 1.6,
   clearPlayer: 12,
   minSeparation: 7,
-  /** How close to an orb they consider “guarding”. */
-  orbGuardRadius: 9,
+  /** Personal space between hunters (soft push). */
+  crowdRadius: 1.15,
+  /** Arrive distance for random patrol points. */
+  patrolArrive: 1.1,
+  patrolWaitMin: 0.6,
+  patrolWaitMax: 2.4,
+  /** If blocked this long, pick a new route / sidestep. */
+  stuckTime: 0.85,
   /** Tint — hostile dark kit vs player skin. */
   skin: '#8B5A4A',
   suit: '#3A2A32',

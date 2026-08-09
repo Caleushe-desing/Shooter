@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import {
   ENEMY,
@@ -10,7 +10,6 @@ import {
   hasLineOfSight,
 } from '../../constants'
 import { buildHavenInspiredMap } from '../../map/havenLayout'
-import { ORB_SPAWNS } from '../../map/pickupsLayout'
 import {
   clearEnemies,
   getEnemies,
@@ -18,14 +17,18 @@ import {
   pruneDeadEnemies,
   aliveEnemyCount,
   alertEnemy,
+  resumePatrol,
   type Enemy,
 } from '../../combat/enemies'
-import { buildEnemyWaypoints, randomEnemySpawns } from '../../combat/spawnPoints'
+import { randomEnemySpawns, randomPatrolPoint } from '../../combat/spawnPoints'
 import { createFootstepClock, playFootstep } from '../../audio/footsteps'
 import { useGameStore } from '../../store/gameStore'
 import { EnemyRig } from './EnemyRig'
 
 const MAP_SOLIDS = buildHavenInspiredMap().solids
+
+/** Local steering angles (rad) — try forward, then side slips around walls. */
+const STEER_ANGLES = [0, 0.55, -0.55, 1.05, -1.05, 1.55, -1.55]
 
 function enemyForward(yaw: number) {
   return { x: -Math.sin(yaw), z: -Math.cos(yaw) }
@@ -45,13 +48,136 @@ function canSeePlayer(e: Enemy, px: number, pz: number) {
   return { seen: true, dist }
 }
 
+function applyFeet(e: Enemy) {
+  const support = findSupportY(
+    e.x,
+    e.z,
+    e.y + 0.15,
+    ENEMY.radius * COLLISION.supportRadiusScale,
+    MAP_SOLIDS,
+    Math.max(0.6, COLLISION.stepHeight + 0.25),
+  )
+  e.y = resolveSunkFeet(e.x, e.z, support, ENEMY.radius, MAP_SOLIDS)
+}
+
 /**
- * Mixamo hunters: patrol orb routes, chase on sight/hear,
- * catch = game over (block orb capture).
+ * Move toward a goal with local wall avoidance (probe side angles).
+ * Returns true if the hunter made meaningful progress.
+ */
+function steerToward(e: Enemy, goalX: number, goalZ: number, speed: number, dt: number): boolean {
+  const dx = goalX - e.x
+  const dz = goalZ - e.z
+  const dist = Math.hypot(dx, dz)
+  if (dist < 0.08) return false
+
+  const wantX = dx / dist
+  const wantZ = dz / dist
+  const step = speed * dt
+  let bestX = e.x
+  let bestZ = e.z
+  let bestFx = wantX
+  let bestFz = wantZ
+  let bestScore = -Infinity
+  let found = false
+
+  for (const ang of STEER_ANGLES) {
+    const c = Math.cos(ang)
+    const s = Math.sin(ang)
+    const fx = wantX * c - wantZ * s
+    const fz = wantX * s + wantZ * c
+    const trial = clampToArena(e.x + fx * step, e.z + fz * step, ENEMY.radius)
+    const hit = resolveCircleSolids(
+      trial.x,
+      trial.z,
+      ENEMY.radius,
+      MAP_SOLIDS,
+      e.y,
+      ENEMY.height,
+      COLLISION.stepHeight,
+    )
+    const movedX = hit.x - e.x
+    const movedZ = hit.z - e.z
+    const moved = Math.hypot(movedX, movedZ)
+    if (moved < step * 0.18) continue
+    const progress = movedX * wantX + movedZ * wantZ
+    const score = progress * 2.2 + moved - Math.abs(ang) * 0.35
+    if (score > bestScore) {
+      bestScore = score
+      bestX = hit.x
+      bestZ = hit.z
+      bestFx = fx
+      bestFz = fz
+      found = true
+    }
+  }
+
+  if (!found) {
+    e.stuckTimer += dt
+    return false
+  }
+
+  e.x = bestX
+  e.z = bestZ
+  e.yaw = Math.atan2(-bestFx, -bestFz)
+  e.moving = true
+  e.stuckTimer = Math.max(0, e.stuckTimer - dt * 2.5)
+  return true
+}
+
+function separateEnemies(list: Enemy[]) {
+  const r = ENEMY.crowdRadius
+  for (let i = 0; i < list.length; i++) {
+    const a = list[i]
+    if (!a.alive || a.stun > 0) continue
+    for (let j = i + 1; j < list.length; j++) {
+      const b = list[j]
+      if (!b.alive || b.stun > 0) continue
+      const dx = b.x - a.x
+      const dz = b.z - a.z
+      const d = Math.hypot(dx, dz)
+      if (d < 0.05 || d >= r) continue
+      const push = ((r - d) / d) * 0.5
+      const ox = dx * push * 0.5
+      const oz = dz * push * 0.5
+      const aPos = clampToArena(a.x - ox, a.z - oz, ENEMY.radius)
+      const bPos = clampToArena(b.x + ox, b.z + oz, ENEMY.radius)
+      const aHit = resolveCircleSolids(
+        aPos.x,
+        aPos.z,
+        ENEMY.radius,
+        MAP_SOLIDS,
+        a.y,
+        ENEMY.height,
+        COLLISION.stepHeight,
+      )
+      const bHit = resolveCircleSolids(
+        bPos.x,
+        bPos.z,
+        ENEMY.radius,
+        MAP_SOLIDS,
+        b.y,
+        ENEMY.height,
+        COLLISION.stepHeight,
+      )
+      a.x = aHit.x
+      a.z = aHit.z
+      b.x = bHit.x
+      b.z = bHit.z
+    }
+  }
+}
+
+function assignRandomPatrol(e: Enemy) {
+  const p = randomPatrolPoint(e.x, e.z)
+  resumePatrol(e, p.x, p.z)
+}
+
+/**
+ * Mixamo hunters: random roam, chase on sight/hear,
+ * give up after 3s without LOS, avoid wall-sticking.
  */
 export function EnemySystem() {
   const lastRunId = useRef(useGameStore.getState().runId)
-  const waypoints = useMemo(() => buildEnemyWaypoints(), [])
   const footClocks = useRef(new Map<number, ReturnType<typeof createFootstepClock>>())
   const [, bump] = useState(0)
 
@@ -59,10 +185,13 @@ export function EnemySystem() {
     clearEnemies()
     footClocks.current.clear()
     const spots = randomEnemySpawns(ENEMY.count)
-    spots.forEach((s, i) => {
-      const e = spawnEnemy(s.x, s.z, { waypoint: i % Math.max(1, waypoints.length) })
-      const support = findSupportY(e.x, e.z, 0.5, ENEMY.radius, MAP_SOLIDS, 2)
-      e.y = support
+    spots.forEach((s) => {
+      const e = spawnEnemy(s.x, s.z)
+      applyFeet(e)
+      const p = randomPatrolPoint(e.x, e.z, 4, 14)
+      e.targetX = p.x
+      e.targetZ = p.z
+      e.waitTimer = 0.15 + Math.random() * 1.1
       footClocks.current.set(e.id, createFootstepClock(0.42, 0.28))
     })
     useGameStore.getState().setEnemyCount(aliveEnemyCount())
@@ -107,15 +236,6 @@ export function EnemySystem() {
     const pz = game.playerZ
     const playerSprinting = game.isSprinting
 
-    // Player near an orb → nearby hunters get suspicious (guard the orbs).
-    let nearOrb = false
-    for (const o of ORB_SPAWNS) {
-      if (Math.hypot(px - o.x, pz - o.z) < ENEMY.orbGuardRadius) {
-        nearOrb = true
-        break
-      }
-    }
-
     for (const e of list) {
       if (!e.alive) continue
       e.stun = Math.max(0, e.stun - dt)
@@ -127,92 +247,78 @@ export function EnemySystem() {
       const dist = Math.hypot(dx, dz)
       const vision = canSeePlayer(e, px, pz)
 
-      if (playerSprinting && dist <= ENEMY.hearRadius) {
-        alertEnemy(e, px, pz, 'chase')
-      }
+      // Perception: see → chase; hear sprint → chase to noise.
       if (vision.seen) {
         alertEnemy(e, px, pz, 'chase')
-      } else if (nearOrb && dist <= ENEMY.orbGuardRadius * 1.35 && e.mode === 'patrol') {
-        // Soft alert toward player when they threaten a nearby orb.
-        alertEnemy(e, px, pz, 'search')
-      } else if (e.mode === 'chase' && !vision.seen) {
+      } else if (playerSprinting && dist <= ENEMY.hearRadius) {
+        alertEnemy(e, px, pz, 'chase')
+      } else if (e.mode === 'chase' || e.mode === 'search') {
+        // Lost the player — count down, then resume random patrol.
         e.mode = 'search'
-        e.searchTimer = ENEMY.searchTime
+        e.searchTimer -= dt
+        if (e.searchTimer <= 0) {
+          assignRandomPatrol(e)
+        }
       }
 
       if (e.stun <= 0) {
-        let tx = e.x
-        let tz = e.z
-        let speed: number = ENEMY.patrolSpeed
-
         if (e.mode === 'chase') {
-          speed = ENEMY.chaseSpeed
-          if (dist > 0.08) {
-            tx = e.x + (dx / dist) * speed * dt
-            tz = e.z + (dz / dist) * speed * dt
-            e.yaw = Math.atan2(-dx, -dz)
-            e.moving = true
+          if (dist > ENEMY.catchRange * 0.55) {
+            const ok = steerToward(e, px, pz, ENEMY.chaseSpeed, dt)
+            if (!ok && e.stuckTimer >= ENEMY.stuckTime) {
+              // Sidestep around the obstacle instead of vibrating into it.
+              const side = Math.random() < 0.5 ? 1 : -1
+              const sx = e.x + (-dz / Math.max(dist, 0.01)) * side * 3.5
+              const sz = e.z + (dx / Math.max(dist, 0.01)) * side * 3.5
+              steerToward(e, sx, sz, ENEMY.chaseSpeed * 0.9, dt)
+              e.stuckTimer = 0
+            }
           }
         } else if (e.mode === 'search') {
-          speed = ENEMY.chaseSpeed * 0.9
           const ldx = e.lastKnownX - e.x
           const ldz = e.lastKnownZ - e.z
           const ld = Math.hypot(ldx, ldz)
-          if (ld > 1.6) {
-            tx = e.x + (ldx / ld) * speed * dt
-            tz = e.z + (ldz / ld) * speed * dt
-            e.yaw = Math.atan2(-ldx, -ldz)
-            e.moving = true
+          if (ld > 1.35) {
+            const ok = steerToward(e, e.lastKnownX, e.lastKnownZ, ENEMY.chaseSpeed * 0.82, dt)
+            if (!ok && e.stuckTimer >= ENEMY.stuckTime) {
+              // Can't reach last known — abort search early, roam again.
+              assignRandomPatrol(e)
+            }
           } else {
-            e.yaw += dt * 1.2
-          }
-          e.searchTimer -= dt
-          if (e.searchTimer <= 0) {
-            e.mode = 'patrol'
-            e.alert = false
-            e.searchTimer = 0
+            // Peek around the last known spot.
+            e.yaw += dt * 1.35
           }
         } else {
-          // Patrol between orb waypoints — deny easy orb routes.
-          const wp = waypoints[e.waypoint % waypoints.length]
-          const wdx = wp.x - e.x
-          const wdz = wp.z - e.z
-          const wd = Math.hypot(wdx, wdz)
-          if (wd < 1.4) {
-            e.waypoint = (e.waypoint + 1) % waypoints.length
+          // Random patrol: pause, walk to a free point, repeat.
+          if (e.waitTimer > 0) {
+            e.waitTimer -= dt
+            e.yaw += Math.sin(e.id * 12.7 + performance.now() * 0.001) * dt * 0.35
           } else {
-            tx = e.x + (wdx / wd) * speed * dt
-            tz = e.z + (wdz / wd) * speed * dt
-            e.yaw = Math.atan2(-wdx, -wdz)
-            e.moving = true
+            const tdx = e.targetX - e.x
+            const tdz = e.targetZ - e.z
+            const td = Math.hypot(tdx, tdz)
+            if (td < ENEMY.patrolArrive) {
+              const p = randomPatrolPoint(e.x, e.z)
+              e.targetX = p.x
+              e.targetZ = p.z
+              e.waitTimer =
+                ENEMY.patrolWaitMin + Math.random() * (ENEMY.patrolWaitMax - ENEMY.patrolWaitMin)
+              e.stuckTimer = 0
+            } else {
+              const ok = steerToward(e, e.targetX, e.targetZ, ENEMY.patrolSpeed, dt)
+              if (!ok && e.stuckTimer >= ENEMY.stuckTime) {
+                const p = randomPatrolPoint(e.x, e.z, 5, 18)
+                e.targetX = p.x
+                e.targetZ = p.z
+                e.stuckTimer = 0
+                e.waitTimer = 0.15 + Math.random() * 0.4
+              }
+            }
           }
         }
-
-        const bounded = clampToArena(tx, tz, ENEMY.radius)
-        const hit = resolveCircleSolids(
-          bounded.x,
-          bounded.z,
-          ENEMY.radius,
-          MAP_SOLIDS,
-          e.y,
-          ENEMY.height,
-          COLLISION.stepHeight,
-        )
-        e.x = hit.x
-        e.z = hit.z
       }
 
-      // Keep hunters on walkable tops (stairs / ledges) — no sinking.
-      const support = findSupportY(
-        e.x,
-        e.z,
-        e.y + 0.15,
-        ENEMY.radius * COLLISION.supportRadiusScale,
-        MAP_SOLIDS,
-        Math.max(0.6, COLLISION.stepHeight + 0.25),
-      )
-      e.y = support
-      e.y = resolveSunkFeet(e.x, e.z, e.y, ENEMY.radius, MAP_SOLIDS)
+      applyFeet(e)
 
       if (e.moving) {
         let clock = footClocks.current.get(e.id)
@@ -227,9 +333,14 @@ export function EnemySystem() {
         footClocks.current.get(e.id)?.reset()
       }
 
-      if (e.mode === 'chase' && e.stun <= 0 && dist <= ENEMY.catchRange) {
+      if (e.mode === 'chase' && e.stun <= 0 && dist <= ENEMY.catchRange && vision.seen) {
         useGameStore.getState().setLost()
       }
+    }
+
+    separateEnemies(list)
+    for (const e of list) {
+      if (e.alive) applyFeet(e)
     }
   })
 

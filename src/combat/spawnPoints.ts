@@ -69,21 +69,36 @@ export function randomEnemySpawns(count: number): { x: number; z: number }[] {
   return placed
 }
 
-/** Patrol waypoints built from orb locations (guard circuit). */
-export function buildEnemyWaypoints(): { x: number; z: number }[] {
-  if (ORB_SPAWNS.length === 0) {
-    return [
-      { x: -12, z: 4 },
-      { x: 12, z: 4 },
-      { x: 12, z: -12 },
-      { x: -12, z: -12 },
-    ]
+/**
+ * Pick a random walkable patrol point. Prefers points away from the hunter's
+ * current position so they actually roam.
+ */
+export function randomPatrolPoint(
+  fromX: number,
+  fromZ: number,
+  minDist = 6,
+  maxDist = 22,
+): { x: number; z: number } {
+  const half = ARENA.size / 2 - 4
+  const rClear = ENEMY.radius + 0.45
+
+  for (let attempt = 0; attempt < 40; attempt++) {
+    const ang = Math.random() * Math.PI * 2
+    const rad = minDist + Math.random() * (maxDist - minDist)
+    const x = fromX + Math.cos(ang) * rad
+    const z = fromZ + Math.sin(ang) * rad
+    if (Math.abs(x) > half || Math.abs(z) > half) continue
+    if (hitsSolid(x, z, rClear, MAP_SOLIDS)) continue
+    return { x, z }
   }
-  // Spread: take every Nth orb so the route covers the map.
-  const step = Math.max(1, Math.floor(ORB_SPAWNS.length / 10))
-  const points: { x: number; z: number }[] = []
-  for (let i = 0; i < ORB_SPAWNS.length; i += step) {
-    points.push({ x: ORB_SPAWNS[i].x, z: ORB_SPAWNS[i].z })
+
+  // Fallback: any free spot in the arena.
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const x = (Math.random() * 2 - 1) * half
+    const z = (Math.random() * 2 - 1) * half
+    if (hitsSolid(x, z, rClear, MAP_SOLIDS)) continue
+    return { x, z }
   }
-  return points.length >= 3 ? points : ORB_SPAWNS.slice(0, 6)
+
+  return { x: fromX + 4, z: fromZ - 3 }
 }
