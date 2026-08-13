@@ -1,6 +1,6 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useRef } from "react";
-import { PerspectiveCamera, Vector3 } from "three";
+import { Vector3 } from "three";
 import { TILE } from "../../constants";
 import type { CacamanEngine } from "../../game/engine";
 import { gridToWorld } from "../../maze/grid";
@@ -14,7 +14,7 @@ const lookSmooth = new Vector3();
 /** Fixed world offset for 3rd-person: camera does not orbit on turns. */
 const CAM_OFFSET_3D = { x: 0, y: 9.4, z: 8.6 };
 /** High enough to see the whole maze on phones in top-down. */
-const CAM_HEIGHT_2D = Math.max(COLS, ROWS) * TILE * 1.05;
+const CAM_HEIGHT_2D = Math.max(COLS, ROWS) * TILE * 0.88;
 
 export function CameraRig({ engine }: { engine: CacamanEngine }) {
   const { camera } = useThree();
@@ -29,14 +29,6 @@ export function CameraRig({ engine }: { engine: CacamanEngine }) {
     if (modeChanged) {
       lastMode.current = viewMode;
       snapped.current = false;
-    }
-
-    if (camera instanceof PerspectiveCamera) {
-      const wantFov = viewMode === "2d" ? 42 : 50;
-      if (Math.abs(camera.fov - wantFov) > 0.1) {
-        camera.fov = wantFov;
-        camera.updateProjectionMatrix();
-      }
     }
 
     if (engine.status === "menu" && viewMode === "3d") {
