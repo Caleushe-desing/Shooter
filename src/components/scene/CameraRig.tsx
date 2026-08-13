@@ -6,6 +6,7 @@ import { gridToWorld } from "../../maze/grid";
 
 const desired = new Vector3();
 const look = new Vector3();
+const lookSmooth = new Vector3();
 
 /** Fixed world offset: camera does not orbit when the player turns. */
 const CAM_OFFSET = { x: 0, y: 9.4, z: 8.6 };
@@ -31,14 +32,16 @@ export function CameraRig({ engine }: { engine: CacamanEngine }) {
     const jump = camera.position.distanceTo(desired) > 10;
     if (jump || !snapped.current) {
       camera.position.copy(desired);
-      camera.lookAt(look);
+      lookSmooth.copy(look);
+      camera.lookAt(lookSmooth);
       snapped.current = true;
       return;
     }
 
-    const k = 1 - Math.exp(-dt * 6.2);
+    const k = 1 - Math.exp(-dt * 7);
     camera.position.lerp(desired, k);
-    camera.lookAt(look);
+    lookSmooth.lerp(look, k);
+    camera.lookAt(lookSmooth);
   });
 
   return null;

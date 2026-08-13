@@ -1,11 +1,11 @@
 import { useFrame } from "@react-three/fiber";
-import { useRef } from "react";
-import type { Group } from "three";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { InstancedMesh, Object3D, type Group, type Mesh } from "three";
 import { SOAP_COLORS } from "../../constants";
 import type { CacamanEngine } from "../../game/engine";
+import type { GhostId, GhostMode } from "../../game/types";
 import { gridToWorld } from "../../maze/grid";
 import { useHud } from "../../store/gameStore";
-import { Poop } from "../models/Poop";
 import { SoapBar } from "../models/SoapBar";
 import { ToiletPaper } from "../models/ToiletPaper";
 
@@ -15,6 +15,8 @@ const YAW: Record<string, number> = {
   left: Math.PI / 2,
   right: -Math.PI / 2,
 };
+
+const _dummy = new Object3D();
 
 function shortestAngle(from: number, to: number): number {
   let d = to - from;
@@ -56,12 +58,12 @@ export function GhostActors({ engine }: { engine: CacamanEngine }) {
   );
 }
 
-function GhostMesh({ engine, id }: { engine: CacamanEngine; id: (typeof engine.ghosts)[number]["id"] }) {
+function GhostMesh({ engine, id }: { engine: CacamanEngine; id: GhostId }) {
   const ref = useRef<Group>(null);
-  const mode = useHud((s) => {
-    void s.ghostPhase;
-    return engine.ghosts.find((x) => x.id === id)?.mode ?? "scatter";
-  });
+  const [mode, setMode] = useState<GhostMode>(
+    () => engine.ghosts.find((x) => x.id === id)?.mode ?? "scatter",
+  );
+  const modeRef = useRef(mode);
 
   useFrame(() => {
     const g = ref.current;
@@ -70,6 +72,10 @@ function GhostMesh({ engine, id }: { engine: CacamanEngine; id: (typeof engine.g
     const w = gridToWorld(ghost.col, ghost.row);
     g.position.set(w.x, 0, w.z);
     g.rotation.y = YAW[ghost.dir] ?? 0;
+    if (ghost.mode !== modeRef.current) {
+      modeRef.current = ghost.mode;
+      setMode(ghost.mode);
+    }
   });
 
   return (
@@ -79,31 +85,63 @@ function GhostMesh({ engine, id }: { engine: CacamanEngine; id: (typeof engine.g
   );
 }
 
+/** One draw call for all normal pellets; power pellets stay as a few cheap meshes. */
 export function Pellets({ engine }: { engine: CacamanEngine }) {
+  const mesh = useRef<InstancedMesh>(null);
   const remaining = useHud((s) => s.remaining);
   const status = useHud((s) => s.status);
-  void status;
+  const keys = useMemo(() => [...engine.pellets], [remaining, status]);
+  const power = useMemo(() => [...engine.powerPellets], [remaining, status]);
+
+  useLayoutEffect(() => {
+    const m = mesh.current;
+    if (!m) return;
+    let i = 0;
+    for (const k of keys) {
+      const [c, r] = k.split(",").map(Number);
+      const w = gridToWorld(c, r);
+      _dummy.position.set(w.x, 0.12, w.z);
+      _dummy.scale.setScalar(1);
+      _dummy.updateMatrix();
+      m.setMatrixAt(i++, _dummy.matrix);
+    }
+    m.count = keys.length;
+    m.instanceMatrix.needsUpdate = true;
+  }, [keys]);
 
   return (
-    <>
-      {[...engine.pellets].map((k) => {
+    <group>
+      <instancedMesh
+        ref={mesh}
+        args={[undefined, undefined, Math.max(keys.length, 1)]}
+        frustumCulled={false}
+      >
+        <sphereGeometry args={[0.11, 6, 5]} />
+        <meshLambertMaterial color="#6b3a1f" />
+      </instancedMesh>
+      {power.map((k) => {
         const [c, r] = k.split(",").map(Number);
         const w = gridToWorld(c, r);
-        return (
-          <group key={`p-${k}-${remaining}`} position={[w.x, 0, w.z]}>
-            <Poop />
-          </group>
-        );
+        return <PowerPellet key={k} x={w.x} z={w.z} />;
       })}
-      {[...engine.powerPellets].map((k) => {
-        const [c, r] = k.split(",").map(Number);
-        const w = gridToWorld(c, r);
-        return (
-          <group key={`o-${k}-${remaining}`} position={[w.x, 0, w.z]}>
-            <Poop power />
-          </group>
-        );
-      })}
-    </>
+    </group>
+  );
+}
+
+function PowerPellet({ x, z }: { x: number; z: number }) {
+  const ref = useRef<Mesh>(null);
+  useFrame(({ clock }) => {
+    const m = ref.current;
+    if (!m) return;
+    const t = clock.elapsedTime;
+    const pulse = 1 + Math.sin(t * 4) * 0.1;
+    m.scale.setScalar(pulse);
+    m.rotation.y = t * 1.2;
+  });
+  return (
+    <mesh ref={ref} position={[x, 0.22, z]}>
+      <sphereGeometry args={[0.22, 8, 6]} />
+      <meshLambertMaterial color="#8b5330" emissive="#4a2a10" emissiveIntensity={0.55} />
+    </mesh>
   );
 }

@@ -1,5 +1,5 @@
 import { useFrame } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
+import { useRef } from "react";
 import type { Group } from "three";
 import { usePaperTexture } from "./textures";
 
@@ -25,46 +25,29 @@ export function ToiletPaper({ dying = false, moving = false }: ToiletPaperProps)
     }
     death.current = 0;
     g.scale.setScalar(1);
-    g.position.y = 0.38 + Math.sin(performance.now() / 280) * (moving ? 0.035 : 0.015);
+    // Cheap bob only — avoid high-frequency wobble on mobile GPUs.
+    g.position.y = 0.38 + (moving ? Math.sin(performance.now() * 0.004) * 0.03 : 0.01);
     g.rotation.x = 0;
-    if (moving) g.rotation.z = Math.sin(performance.now() / 110) * 0.07;
-    else g.rotation.z *= 0.88;
+    g.rotation.z = 0;
   });
-
-  const tubeMat = useMemo(
-    () => ({ color: "#c4a574", roughness: 0.85, metalness: 0.05 }),
-    [],
-  );
 
   return (
     <group ref={group} position={[0, 0.42, 0]} scale={1.15}>
-      <mesh castShadow>
-        <cylinderGeometry args={[0.34, 0.34, 0.52, 28]} />
-        <meshStandardMaterial map={paper} roughness={0.72} metalness={0} color="#ffffff" />
+      <mesh>
+        <cylinderGeometry args={[0.34, 0.34, 0.52, 12]} />
+        <meshLambertMaterial map={paper} color="#ffffff" />
       </mesh>
       <mesh>
-        <cylinderGeometry args={[0.14, 0.14, 0.54, 16]} />
-        <meshStandardMaterial {...tubeMat} />
-      </mesh>
-      <mesh position={[0.22, -0.08, 0.18]} rotation={[0.4, 0.6, 0.2]} castShadow>
-        <boxGeometry args={[0.28, 0.02, 0.22]} />
-        <meshStandardMaterial map={paper} roughness={0.7} />
+        <cylinderGeometry args={[0.14, 0.14, 0.54, 8]} />
+        <meshLambertMaterial color="#c4a574" />
       </mesh>
       <mesh position={[0.13, 0.12, 0.28]}>
-        <sphereGeometry args={[0.07, 12, 12]} />
-        <meshStandardMaterial color="#1a1a1a" />
+        <sphereGeometry args={[0.07, 6, 6]} />
+        <meshBasicMaterial color="#1a1a1a" />
       </mesh>
       <mesh position={[-0.13, 0.12, 0.28]}>
-        <sphereGeometry args={[0.07, 12, 12]} />
-        <meshStandardMaterial color="#1a1a1a" />
-      </mesh>
-      <mesh position={[0.13, 0.135, 0.335]}>
-        <sphereGeometry args={[0.025, 8, 8]} />
-        <meshStandardMaterial color="#ffffff" />
-      </mesh>
-      <mesh position={[-0.13, 0.135, 0.335]}>
-        <sphereGeometry args={[0.025, 8, 8]} />
-        <meshStandardMaterial color="#ffffff" />
+        <sphereGeometry args={[0.07, 6, 6]} />
+        <meshBasicMaterial color="#1a1a1a" />
       </mesh>
     </group>
   );

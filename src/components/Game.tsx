@@ -1,4 +1,3 @@
-import { ContactShadows } from "@react-three/drei";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { useEffect } from "react";
 import {
@@ -14,6 +13,7 @@ import {
 } from "../audio/sfx";
 import { dirFromKeys } from "../game/engine";
 import { engine } from "../game/instance";
+import { MAX_DPR } from "../perf";
 import { useHud } from "../store/gameStore";
 import { GhostActors, Pellets, PlayerActor } from "./scene/Actors";
 import { CameraRig } from "./scene/CameraRig";
@@ -57,13 +57,20 @@ export function Game() {
   return (
     <div className="relative w-full h-full">
       <Canvas
-        shadows
-        camera={{ position: [0, 10, 12], fov: 50, near: 0.1, far: 80 }}
-        dpr={[1, 1.75]}
+        dpr={MAX_DPR}
+        flat
+        camera={{ position: [0, 10, 12], fov: 50, near: 0.1, far: 60 }}
+        gl={{
+          antialias: false,
+          powerPreference: "high-performance",
+          stencil: false,
+          depth: true,
+          alpha: false,
+        }}
+        performance={{ min: 0.5 }}
       >
         <Lights />
         <Maze />
-        <ContactShadows position={[0, 0.02, 0]} opacity={0.45} scale={28} blur={2.2} far={8} />
         <PlayerActor engine={engine} />
         <GhostActors engine={engine} />
         <Pellets engine={engine} />
@@ -82,19 +89,19 @@ function startOrRestart(): void {
   if (engine.status === "menu" || engine.status === "gameover") {
     engine.startGame();
     playStart();
-    syncHud();
+    syncHud(true);
   } else if (engine.status === "paused") {
     engine.status = "playing";
-    syncHud();
+    syncHud(true);
   }
 }
 
 function SimLoop() {
-  const mobileDir = useHud((s) => s.mobileDir);
-
   useFrame((_, dt) => {
+    const mobileDir = useHud.getState().mobileDir;
     if (mobileDir) engine.setInput(mobileDir);
-    const events = engine.update(dt);
+    // Cap sim step so a hitch doesn't teleport actors.
+    const events = engine.update(Math.min(dt, 1 / 30));
     for (const ev of events) {
       if (ev.kind === "pellet") playWaka();
       if (ev.kind === "power") playPower();
@@ -103,19 +110,31 @@ function SimLoop() {
       if (ev.kind === "winFanfare") playWin();
       if (ev.kind === "ready") playReady();
     }
-    syncHud();
+    syncHud(false);
   });
   return null;
 }
 
-function syncHud(): void {
-  useHud.getState().setHud({
+function syncHud(force: boolean): void {
+  const next = {
     status: engine.status,
     score: engine.score,
     lives: engine.lives,
     level: engine.level,
     remaining: engine.remainingPellets(),
     frightened: engine.frightenedTimer > 0,
-    ghostPhase: engine.ghosts.map((g) => g.mode).join(","),
-  });
+  };
+  const cur = useHud.getState();
+  if (
+    !force &&
+    cur.status === next.status &&
+    cur.score === next.score &&
+    cur.lives === next.lives &&
+    cur.level === next.level &&
+    cur.remaining === next.remaining &&
+    cur.frightened === next.frightened
+  ) {
+    return;
+  }
+  useHud.getState().setHud(next);
 }

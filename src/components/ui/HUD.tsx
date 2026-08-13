@@ -4,7 +4,14 @@ import { useHud } from "../../store/gameStore";
 import { MiniMap } from "./MiniMap";
 
 export function HUD() {
-  const { score, lives, level, remaining, status, frightened, muted } = useHud();
+  const status = useHud((s) => s.status);
+  const score = useHud((s) => s.score);
+  const lives = useHud((s) => s.lives);
+  const level = useHud((s) => s.level);
+  const remaining = useHud((s) => s.remaining);
+  const frightened = useHud((s) => s.frightened);
+  const muted = useHud((s) => s.muted);
+
   if (status === "menu") return null;
 
   const floater = engine.floaters[engine.floaters.length - 1];
@@ -13,7 +20,9 @@ export function HUD() {
     <div className="pointer-events-none absolute inset-0 p-3 md:p-5 flex flex-col justify-between">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="title-font text-2xl md:text-3xl text-amber-200 drop-shadow-[0_3px_0_#000]">CACAMAN</div>
+          <div className="title-font text-2xl md:text-3xl text-amber-200 drop-shadow-[0_3px_0_#000]">
+            CACAMAN
+          </div>
           <div className="text-sm md:text-base font-extrabold tracking-wide text-amber-50/90">
             Puntos {score.toString().padStart(6, "0")}
             {floater && floater.age < 0.8 && (
@@ -28,7 +37,7 @@ export function HUD() {
           <div className="font-black text-amber-50">Nivel {level}</div>
           <div className="text-sm text-[#c4a574] font-bold">Caca {remaining}</div>
           {frightened && (
-            <div className="text-cyan-300 font-black text-sm animate-pulse">¡JABONES MOJADOS!</div>
+            <div className="text-cyan-300 font-black text-sm">¡JABONES MOJADOS!</div>
           )}
         </div>
       </div>
@@ -48,7 +57,7 @@ export function HUD() {
           {Array.from({ length: Math.max(0, lives) }).map((_, i) => (
             <span
               key={i}
-              className="inline-block w-6 h-7 rounded-sm bg-[#f7f4ee] border-2 border-[#c4a574] shadow"
+              className="inline-block w-6 h-7 rounded-sm bg-[#f7f4ee] border-2 border-[#c4a574]"
               title="vida"
             />
           ))}
