@@ -13,8 +13,8 @@ export function Lights() {
       camera.near = 0.5;
       camera.updateProjectionMatrix();
     } else {
-      camera.far = 60;
-      camera.near = 0.1;
+      camera.far = 70;
+      camera.near = 0.2;
       camera.updateProjectionMatrix();
     }
   }, [viewMode, scene, camera]);
@@ -22,7 +22,7 @@ export function Lights() {
   return (
     <>
       <color attach="background" args={["#241816"]} />
-      {viewMode === "3d" && <fog attach="fog" args={["#241816", 18, 36]} />}
+      {viewMode === "3d" && <fog attach="fog" args={["#241816", 24, 52]} />}
       <hemisphereLight args={["#fff4e5", "#3a2a22", 1.15]} />
       <ambientLight intensity={0.55} />
       <directionalLight position={[8, 16, 6]} intensity={1.25} />

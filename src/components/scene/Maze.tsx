@@ -10,7 +10,8 @@ const _dummy = new Object3D();
 export function Maze() {
   const wallTex = useWallTexture();
   const floorTex = useTileTexture("#efe6d6", "#e4d8c4", "#c9bba6");
-  floorTex.repeat.set(COLS / 2, ROWS / 2);
+  // One texture tile per maze cell — stable under camera motion.
+  floorTex.repeat.set(COLS, ROWS);
 
   const { walls, doors } = useMemo(() => {
     const walls: { x: number; z: number }[] = [];
@@ -50,8 +51,13 @@ export function Maze() {
 
   return (
     <group>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
-        <planeGeometry args={[floorW, floorD]} />
+      {/* Skirt sits fully below the walkable floor to avoid z-fighting shimmer. */}
+      <mesh position={[0, -0.2, 0]}>
+        <boxGeometry args={[floorW + 1.2, 0.28, floorD + 1.2]} />
+        <meshLambertMaterial color="#b9a48a" />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
+        <planeGeometry args={[floorW, floorD, 1, 1]} />
         <meshLambertMaterial map={floorTex} />
       </mesh>
       <instancedMesh ref={wallMesh} args={[undefined, undefined, walls.length]} frustumCulled>
@@ -64,10 +70,6 @@ export function Maze() {
           <meshLambertMaterial color="#7ec8e8" emissive="#3aa0c8" emissiveIntensity={0.35} transparent opacity={0.75} />
         </mesh>
       ))}
-      <mesh position={[0, -0.12, 0]}>
-        <boxGeometry args={[floorW + 1.2, 0.24, floorD + 1.2]} />
-        <meshLambertMaterial color="#b9a48a" />
-      </mesh>
     </group>
   );
 }

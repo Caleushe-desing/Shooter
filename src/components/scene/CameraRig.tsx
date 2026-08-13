@@ -11,7 +11,7 @@ const look = new Vector3();
 const lookSmooth = new Vector3();
 
 /** Close 3rd-person follow — fixed world angle, no orbit on turns. */
-const CAM_OFFSET_3D = { x: 0, y: 5.4, z: 4.8 };
+const CAM_OFFSET_3D = { x: 0, y: 6.2, z: 5.4 };
 
 /** How many tiles visible on the short screen axis in 2D. */
 const TILES_VISIBLE_2D = 9.5;

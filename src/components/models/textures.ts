@@ -1,5 +1,11 @@
 import { useMemo } from "react";
-import { CanvasTexture, NearestFilter, RepeatWrapping } from "three";
+import {
+  CanvasTexture,
+  LinearFilter,
+  LinearMipmapLinearFilter,
+  NearestFilter,
+  RepeatWrapping,
+} from "three";
 
 export function usePaperTexture(): CanvasTexture {
   return useMemo(() => {
@@ -28,25 +34,32 @@ export function usePaperTexture(): CanvasTexture {
   }, []);
 }
 
+/** One bathroom tile — repeated once per maze cell to avoid swimming. */
 export function useTileTexture(a: string, b: string, grout: string): CanvasTexture {
   return useMemo(() => {
     const canvas = document.createElement("canvas");
-    canvas.width = 64;
-    canvas.height = 64;
+    canvas.width = 128;
+    canvas.height = 128;
     const g = canvas.getContext("2d")!;
     g.fillStyle = grout;
-    g.fillRect(0, 0, 64, 64);
-    g.fillStyle = a;
-    g.fillRect(2, 2, 28, 28);
-    g.fillRect(34, 34, 28, 28);
-    g.fillStyle = b;
-    g.fillRect(34, 2, 28, 28);
-    g.fillRect(2, 34, 28, 28);
+    g.fillRect(0, 0, 128, 128);
+    // Soft fill (no harsh pixel edges that shimmer under motion).
+    const grad = g.createLinearGradient(8, 8, 120, 120);
+    grad.addColorStop(0, a);
+    grad.addColorStop(1, b);
+    g.fillStyle = grad;
+    g.fillRect(6, 6, 116, 116);
+    g.strokeStyle = "rgba(120, 100, 80, 0.18)";
+    g.lineWidth = 2;
+    g.strokeRect(7, 7, 114, 114);
     const tex = new CanvasTexture(canvas);
     tex.wrapS = RepeatWrapping;
     tex.wrapT = RepeatWrapping;
-    tex.anisotropy = 1;
-    tex.generateMipmaps = false;
+    tex.anisotropy = 4;
+    tex.generateMipmaps = true;
+    tex.minFilter = LinearMipmapLinearFilter;
+    tex.magFilter = LinearFilter;
+    tex.needsUpdate = true;
     return tex;
   }, [a, b, grout]);
 }
@@ -70,7 +83,9 @@ export function useWallTexture(): CanvasTexture {
     const tex = new CanvasTexture(canvas);
     tex.wrapS = RepeatWrapping;
     tex.wrapT = RepeatWrapping;
-    tex.generateMipmaps = false;
+    tex.generateMipmaps = true;
+    tex.minFilter = LinearMipmapLinearFilter;
+    tex.magFilter = LinearFilter;
     return tex;
   }, []);
 }
