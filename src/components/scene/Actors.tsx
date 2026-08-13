@@ -1,7 +1,7 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { InstancedMesh, Object3D, Vector3, type Group, type Mesh } from "three";
-import { SOAP_COLORS } from "../../constants";
+import { SOAP_COLORS, PALETTE } from "../../constants";
 import type { CacamanEngine } from "../../game/engine";
 import type { GhostId, GhostMode } from "../../game/types";
 import { gridToWorld } from "../../maze/grid";
@@ -151,7 +151,7 @@ export function Pellets({ engine }: { engine: CacamanEngine }) {
         frustumCulled={false}
       >
         <sphereGeometry args={[0.11, 6, 5]} />
-        <meshLambertMaterial color="#6b3a1f" />
+        <meshLambertMaterial color={PALETTE.poop} />
       </instancedMesh>
       {power.map((k) => {
         const [c, r] = k.split(",").map(Number);
@@ -175,7 +175,11 @@ function PowerPellet({ x, z }: { x: number; z: number }) {
   return (
     <mesh ref={ref} position={[x, 0.22, z]}>
       <sphereGeometry args={[0.22, 8, 6]} />
-      <meshLambertMaterial color="#8b5330" emissive="#4a2a10" emissiveIntensity={0.55} />
+      <meshLambertMaterial
+        color={PALETTE.poopPower}
+        emissive={PALETTE.poopGlow}
+        emissiveIntensity={0.55}
+      />
     </mesh>
   );
 }

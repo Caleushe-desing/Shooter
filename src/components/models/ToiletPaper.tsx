@@ -1,6 +1,7 @@
 import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import type { Group } from "three";
+import { PALETTE } from "../../constants";
 import { usePaperTexture } from "./textures";
 
 interface ToiletPaperProps {
@@ -25,7 +26,6 @@ export function ToiletPaper({ dying = false, moving = false }: ToiletPaperProps)
     }
     death.current = 0;
     g.scale.setScalar(1);
-    // Cheap bob only — avoid high-frequency wobble on mobile GPUs.
     g.position.y = 0.38 + (moving ? Math.sin(performance.now() * 0.004) * 0.03 : 0.01);
     g.rotation.x = 0;
     g.rotation.z = 0;
@@ -35,19 +35,19 @@ export function ToiletPaper({ dying = false, moving = false }: ToiletPaperProps)
     <group ref={group} position={[0, 0.42, 0]} scale={1.15}>
       <mesh>
         <cylinderGeometry args={[0.34, 0.34, 0.52, 12]} />
-        <meshLambertMaterial map={paper} color="#ffffff" />
+        <meshLambertMaterial map={paper} color={PALETTE.paper} />
       </mesh>
       <mesh>
         <cylinderGeometry args={[0.14, 0.14, 0.54, 8]} />
-        <meshLambertMaterial color="#c4a574" />
+        <meshLambertMaterial color={PALETTE.paperCore} />
       </mesh>
       <mesh position={[0.13, 0.12, 0.28]}>
         <sphereGeometry args={[0.07, 6, 6]} />
-        <meshBasicMaterial color="#1a1a1a" />
+        <meshBasicMaterial color="#0a1a22" />
       </mesh>
       <mesh position={[-0.13, 0.12, 0.28]}>
         <sphereGeometry args={[0.07, 6, 6]} />
-        <meshBasicMaterial color="#1a1a1a" />
+        <meshBasicMaterial color="#0a1a22" />
       </mesh>
     </group>
   );

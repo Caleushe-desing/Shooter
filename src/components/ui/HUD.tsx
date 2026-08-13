@@ -21,13 +21,13 @@ export function HUD() {
     <div className="pointer-events-none absolute inset-0 p-3 md:p-5 flex flex-col justify-between">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="title-font text-2xl md:text-3xl text-amber-200 drop-shadow-[0_3px_0_#000]">
+          <div className="title-font text-2xl md:text-3xl text-[#5dffd2] drop-shadow-[0_3px_0_#031018]">
             CACAMAN
           </div>
-          <div className="text-sm md:text-base font-extrabold tracking-wide text-amber-50/90">
+          <div className="text-sm md:text-base font-extrabold tracking-wide text-[#e8fbff]/90">
             Puntos {score.toString().padStart(6, "0")}
             {floater && floater.age < 0.8 && (
-              <span className="ml-2 text-yellow-300 title-font">{floater.text}</span>
+              <span className="ml-2 text-[#ffe566] title-font">{floater.text}</span>
             )}
           </div>
           {viewMode === "3d" && (
@@ -37,20 +37,20 @@ export function HUD() {
           )}
         </div>
         <div className="text-right flex flex-col items-end gap-2">
-          <div className="font-black text-amber-50">Nivel {level}</div>
-          <div className="text-sm text-[#c4a574] font-bold">Caca {remaining}</div>
+          <div className="font-black text-[#e8fbff]">Nivel {level}</div>
+          <div className="text-sm text-[#2ec4a0] font-bold">Caca {remaining}</div>
           {frightened && (
-            <div className="text-cyan-300 font-black text-sm">¡JABONES MOJADOS!</div>
+            <div className="text-[#7af0ff] font-black text-sm">¡JABONES MOJADOS!</div>
           )}
           <div className="pointer-events-auto flex gap-2">
             <button
-              className="rounded-full bg-black/45 px-3 py-1 text-xs font-black border border-white/20"
+              className="rounded-none bg-[#102033]/90 px-3 py-1 text-xs font-black border border-[#5dffd2]/50 text-[#5dffd2]"
               onClick={() => useHud.getState().toggleViewMode()}
             >
               {viewMode === "2d" ? "Vista 3D" : "Vista 2D"}
             </button>
             <button
-              className="rounded-full bg-black/45 px-3 py-1 text-xs font-black border border-white/20"
+              className="rounded-none bg-[#102033]/90 px-3 py-1 text-xs font-black border border-[#5dffd2]/50 text-[#5dffd2]"
               onClick={() => {
                 useHud.getState().toggleMuted();
                 setMuted(!isMuted());
@@ -64,7 +64,7 @@ export function HUD() {
 
       {(status === "ready" || status === "dying" || status === "levelclear") && (
         <div className="absolute inset-0 grid place-items-center pointer-events-none">
-          <div className="title-font text-4xl md:text-6xl text-yellow-300 drop-shadow-[0_4px_0_#000] text-center px-4">
+          <div className="title-font text-4xl md:text-6xl text-[#ffe566] drop-shadow-[0_4px_0_#031018] text-center px-4">
             {status === "ready" && "¡LISTO!"}
             {status === "dying" && "¡AY!"}
             {status === "levelclear" && "¡BAÑO LIMPIO!"}
@@ -77,12 +77,12 @@ export function HUD() {
           {Array.from({ length: Math.max(0, lives) }).map((_, i) => (
             <span
               key={i}
-              className="inline-block w-6 h-7 rounded-sm bg-[#f7f4ee] border-2 border-[#c4a574]"
+              className="inline-block w-6 h-7 rounded-sm bg-[#f5fffd] border-2 border-[#5dffd2]"
               title="vida"
             />
           ))}
         </div>
-        <div className="hidden md:flex gap-3 text-[11px] font-bold text-white/70">
+        <div className="hidden md:flex gap-3 text-[11px] font-bold text-[#e8fbff]/60">
           <span>WASD / flechas</span>
           <span>V vista 2D/3D</span>
           <span>P pausa</span>
@@ -92,8 +92,8 @@ export function HUD() {
       </div>
 
       {status === "paused" && (
-        <div className="absolute inset-0 grid place-items-center bg-black/50">
-          <div className="title-font text-4xl text-white">PAUSA</div>
+        <div className="absolute inset-0 grid place-items-center bg-[#0b1520]/70">
+          <div className="title-font text-4xl text-[#5dffd2]">PAUSA</div>
         </div>
       )}
     </div>

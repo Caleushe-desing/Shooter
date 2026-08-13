@@ -1,6 +1,6 @@
 import { useLayoutEffect, useMemo, useRef } from "react";
 import { InstancedMesh, Object3D } from "three";
-import { TILE } from "../../constants";
+import { PALETTE, TILE } from "../../constants";
 import { gridToWorld } from "../../maze/grid";
 import { COLS, ROWS, isDoor, isWall } from "../../maze/layout";
 import { useTileTexture, useWallTexture } from "../models/textures";
@@ -9,7 +9,7 @@ const _dummy = new Object3D();
 
 export function Maze() {
   const wallTex = useWallTexture();
-  const floorTex = useTileTexture("#efe6d6", "#e4d8c4", "#c9bba6");
+  const floorTex = useTileTexture(PALETTE.floorA, PALETTE.floorB, PALETTE.floorGrout);
   // One texture tile per maze cell — stable under camera motion.
   floorTex.repeat.set(COLS, ROWS);
 
@@ -54,7 +54,7 @@ export function Maze() {
       {/* Skirt sits fully below the walkable floor to avoid z-fighting shimmer. */}
       <mesh position={[0, -0.2, 0]}>
         <boxGeometry args={[floorW + 1.2, 0.28, floorD + 1.2]} />
-        <meshLambertMaterial color="#b9a48a" />
+        <meshLambertMaterial color={PALETTE.skirt} />
       </mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
         <planeGeometry args={[floorW, floorD, 1, 1]} />
@@ -68,12 +68,18 @@ export function Maze() {
       >
         {/* Slightly shorter so a steep chase cam clears corridor tops more often. */}
         <boxGeometry args={[TILE * 0.96, 1.15, TILE * 0.96]} />
-        <meshLambertMaterial map={wallTex} color="#f2f8fa" />
+        <meshLambertMaterial map={wallTex} color={PALETTE.wallTint} />
       </instancedMesh>
       {doors.map((d, i) => (
         <mesh key={i} position={[d.x, 0.18, d.z]}>
           <boxGeometry args={[TILE * 0.92, 0.22, 0.12]} />
-          <meshLambertMaterial color="#7ec8e8" emissive="#3aa0c8" emissiveIntensity={0.35} transparent opacity={0.75} />
+          <meshLambertMaterial
+            color={PALETTE.door}
+            emissive={PALETTE.doorGlow}
+            emissiveIntensity={0.45}
+            transparent
+            opacity={0.8}
+          />
         </mesh>
       ))}
     </group>
