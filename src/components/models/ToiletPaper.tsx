@@ -25,10 +25,10 @@ export function ToiletPaper({ dying = false, moving = false }: ToiletPaperProps)
     }
     death.current = 0;
     g.scale.setScalar(1);
-    g.position.y = 0.38 + Math.sin(performance.now() / 220) * (moving ? 0.05 : 0.02);
+    g.position.y = 0.38 + Math.sin(performance.now() / 280) * (moving ? 0.035 : 0.015);
     g.rotation.x = 0;
-    if (moving) g.rotation.z = Math.sin(performance.now() / 70) * 0.12;
-    else g.rotation.z *= 0.9;
+    if (moving) g.rotation.z = Math.sin(performance.now() / 110) * 0.07;
+    else g.rotation.z *= 0.88;
   });
 
   const tubeMat = useMemo(

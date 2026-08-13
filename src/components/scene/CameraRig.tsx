@@ -1,13 +1,14 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useRef } from "react";
 import { Vector3 } from "three";
-import { DIR_VEC } from "../../game/types";
 import type { CacamanEngine } from "../../game/engine";
 import { gridToWorld } from "../../maze/grid";
 
 const desired = new Vector3();
 const look = new Vector3();
-const offset = new Vector3();
+
+/** Fixed world offset: camera does not orbit when the player turns. */
+const CAM_OFFSET = { x: 0, y: 9.4, z: 8.6 };
 
 export function CameraRig({ engine }: { engine: CacamanEngine }) {
   const { camera } = useThree();
@@ -16,19 +17,14 @@ export function CameraRig({ engine }: { engine: CacamanEngine }) {
   useFrame((_, dt) => {
     const p = engine.player;
     const { x, z } = gridToWorld(p.col, p.row);
-    const fwd = DIR_VEC[p.dir];
 
     if (engine.status === "menu") {
       const t = performance.now() / 1000;
       desired.set(Math.sin(t * 0.15) * 9, 12, Math.cos(t * 0.15) * 9);
       look.set(0, 0.2, 0);
     } else {
-      offset.set(-fwd.c, 0, -fwd.r);
-      if (offset.lengthSq() < 0.01) offset.set(0, 0, 1);
-      offset.normalize().multiplyScalar(5.8);
-      offset.y = 7.6;
-      desired.set(x + offset.x, offset.y, z + offset.z);
-      look.set(x + fwd.c * 1.4, 0.35, z + fwd.r * 1.4);
+      desired.set(x + CAM_OFFSET.x, CAM_OFFSET.y, z + CAM_OFFSET.z);
+      look.set(x, 0.45, z);
     }
 
     camera.up.set(0, 1, 0);
@@ -40,7 +36,7 @@ export function CameraRig({ engine }: { engine: CacamanEngine }) {
       return;
     }
 
-    const k = 1 - Math.exp(-dt * 3.4);
+    const k = 1 - Math.exp(-dt * 6.2);
     camera.position.lerp(desired, k);
     camera.lookAt(look);
   });

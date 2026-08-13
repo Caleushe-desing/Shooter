@@ -6,19 +6,29 @@ interface MobilePadProps {
   onDir: (dir: Dir) => void;
 }
 
-const SIZE = 148;
-const KNOB = 64;
+const SIZE = 156;
+const KNOB = 66;
 const MAX_TRAVEL = (SIZE - KNOB) / 2;
-const DEADZONE = 18;
+const DEADZONE = 22;
+/** Need this much more on the other axis before switching direction. */
+const AXIS_BIAS = 1.28;
 
-function dirFromStick(dx: number, dy: number): Dir | null {
+function dirFromStick(dx: number, dy: number, current: Dir | null): Dir | null {
   const dist = Math.hypot(dx, dy);
-  if (dist < DEADZONE) return null;
-  // Prefer the dominant axis so diagonals don't flicker.
-  if (Math.abs(dx) >= Math.abs(dy)) {
+  if (dist < DEADZONE) return current;
+
+  const ax = Math.abs(dx);
+  const ay = Math.abs(dy);
+
+  if (current === "left" || current === "right") {
+    if (ay > ax * AXIS_BIAS) return dy > 0 ? "down" : "up";
     return dx > 0 ? "right" : "left";
   }
-  return dy > 0 ? "down" : "up";
+  if (current === "up" || current === "down") {
+    if (ax > ay * AXIS_BIAS) return dx > 0 ? "right" : "left";
+    return dy > 0 ? "down" : "up";
+  }
+  return ax >= ay ? (dx > 0 ? "right" : "left") : dy > 0 ? "down" : "up";
 }
 
 export function MobilePad({ onDir }: MobilePadProps) {
@@ -26,6 +36,7 @@ export function MobilePad({ onDir }: MobilePadProps) {
   const setMobileDir = useHud((s) => s.setMobileDir);
   const baseRef = useRef<HTMLDivElement>(null);
   const pointerId = useRef<number | null>(null);
+  const lastDir = useRef<Dir | null>(null);
   const [knob, setKnob] = useState({ x: 0, y: 0 });
   const [active, setActive] = useState(false);
 
@@ -45,9 +56,12 @@ export function MobilePad({ onDir }: MobilePadProps) {
         dy *= s;
       }
       setKnob({ x: dx, y: dy });
-      const dir = dirFromStick(dx, dy);
-      setMobileDir(dir);
-      if (dir) onDir(dir);
+      const dir = dirFromStick(dx, dy, lastDir.current);
+      if (dir) {
+        lastDir.current = dir;
+        setMobileDir(dir);
+        onDir(dir);
+      }
     },
     [onDir, setMobileDir],
   );
@@ -56,6 +70,8 @@ export function MobilePad({ onDir }: MobilePadProps) {
     pointerId.current = null;
     setKnob({ x: 0, y: 0 });
     setActive(false);
+    // Keep lastDir so the next touch inherits hysteresis context;
+    // clear live input so keyboard still works cleanly.
     setMobileDir(null);
   }, [setMobileDir]);
 
@@ -68,9 +84,7 @@ export function MobilePad({ onDir }: MobilePadProps) {
       <div
         ref={baseRef}
         className={`relative rounded-full border transition-colors ${
-          active
-            ? "border-amber-200/50 bg-black/55"
-            : "border-white/25 bg-black/40"
+          active ? "border-amber-200/50 bg-black/55" : "border-white/25 bg-black/40"
         }`}
         style={{ width: SIZE, height: SIZE }}
         onPointerDown={(e) => {

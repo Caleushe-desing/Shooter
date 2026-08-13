@@ -217,6 +217,8 @@ export class CacamanEngine {
   private movePlayer(dt: number): void {
     const p = this.player;
     if (this.queuedInput) p.queued = this.queuedInput;
+    // Allow corner cuts every frame (not only exactly on tile center).
+    tryTurn(p, false);
 
     const speed = PLAYER_SPEED + (this.level - 1) * 0.12;
     advanceActor(p, speed * dt, false, () => tryTurn(p, false));
@@ -389,6 +391,9 @@ function spawnGhosts(level: number): GhostState[] {
   ];
 }
 
+/** How close to tile center before a 90° turn snaps in (Pac-Man corner cut). */
+const TURN_SLACK = 0.32;
+
 function tryTurn(actor: Actor, ghost: boolean): void {
   if (!actor.queued || actor.queued === actor.dir) return;
   const vec = DIR_VEC[actor.queued];
@@ -399,6 +404,12 @@ function tryTurn(actor: Actor, ghost: boolean): void {
 
   const tileC = wrapCol(Math.round(actor.col));
   const tileR = Math.round(actor.row);
+  const offC = Math.abs(actor.col - Math.round(actor.col));
+  const offR = Math.abs(actor.row - Math.round(actor.row));
+  // Must be aligned on the axis we're leaving so the turn doesn't clip walls.
+  const aligned = vec.c === 0 ? offC <= TURN_SLACK : offR <= TURN_SLACK;
+  if (!aligned) return;
+
   const next = neighbor(tileC, tileR, actor.queued);
   if (!isWalkable(next.c, next.r, ghost)) return;
 

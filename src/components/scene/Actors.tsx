@@ -16,18 +16,27 @@ const YAW: Record<string, number> = {
   right: -Math.PI / 2,
 };
 
+function shortestAngle(from: number, to: number): number {
+  let d = to - from;
+  while (d > Math.PI) d -= Math.PI * 2;
+  while (d < -Math.PI) d += Math.PI * 2;
+  return d;
+}
+
 export function PlayerActor({ engine }: { engine: CacamanEngine }) {
   const ref = useRef<Group>(null);
   const dying = useHud((s) => s.status === "dying");
   const moving = useHud((s) => s.status === "playing");
 
-  useFrame(() => {
+  useFrame((_, dt) => {
     const g = ref.current;
     if (!g) return;
     const p = engine.player;
     const w = gridToWorld(p.col, p.row);
     g.position.set(w.x, 0, w.z);
-    g.rotation.y = YAW[p.dir] ?? 0;
+    const target = YAW[p.dir] ?? 0;
+    const k = 1 - Math.exp(-dt * 14);
+    g.rotation.y += shortestAngle(g.rotation.y, target) * k;
   });
 
   return (
