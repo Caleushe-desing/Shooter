@@ -1,6 +1,6 @@
-import { useFrame } from "@react-three/fiber";
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
-import { InstancedMesh, Object3D, type Group, type Mesh } from "three";
+import { useFrame, useThree } from "@react-three/fiber";
+import { useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { InstancedMesh, Object3D, Vector3, type Group, type Mesh } from "three";
 import { SOAP_COLORS } from "../../constants";
 import type { CacamanEngine } from "../../game/engine";
 import type { GhostId, GhostMode } from "../../game/types";
@@ -8,6 +8,7 @@ import { gridToWorld } from "../../maze/grid";
 import { useHud } from "../../store/gameStore";
 import { SoapBar } from "../models/SoapBar";
 import { ToiletPaper } from "../models/ToiletPaper";
+import { isBlockedByWalls, setMeshesDepthTest } from "./occlusion";
 
 const YAW: Record<string, number> = {
   up: Math.PI,
@@ -17,6 +18,8 @@ const YAW: Record<string, number> = {
 };
 
 const _dummy = new Object3D();
+const _from = new Vector3();
+const _to = new Vector3();
 
 function shortestAngle(from: number, to: number): number {
   let d = to - from;
@@ -25,10 +28,39 @@ function shortestAngle(from: number, to: number): number {
   return d;
 }
 
+function useWallXray(ref: RefObject<Group | null>, enabled: boolean) {
+  const { camera, scene } = useThree();
+  const wasOccluded = useRef(false);
+
+  useFrame(() => {
+    const g = ref.current;
+    if (!g) return;
+    if (!enabled) {
+      if (wasOccluded.current) {
+        setMeshesDepthTest(g, true);
+        g.renderOrder = 0;
+        wasOccluded.current = false;
+      }
+      return;
+    }
+    const walls = scene.getObjectByName("maze-walls");
+    _from.copy(camera.position);
+    _to.set(g.position.x, g.position.y + 0.45, g.position.z);
+    const occluded = isBlockedByWalls(_from, _to, walls, 0.2);
+    if (occluded !== wasOccluded.current) {
+      setMeshesDepthTest(g, !occluded);
+      g.renderOrder = occluded ? 10 : 0;
+      wasOccluded.current = occluded;
+    }
+  });
+}
+
 export function PlayerActor({ engine }: { engine: CacamanEngine }) {
   const ref = useRef<Group>(null);
   const dying = useHud((s) => s.status === "dying");
   const moving = useHud((s) => s.status === "playing");
+  const viewMode = useHud((s) => s.viewMode);
+  useWallXray(ref, viewMode === "3d");
 
   useFrame((_, dt) => {
     const g = ref.current;
@@ -60,6 +92,8 @@ export function GhostActors({ engine }: { engine: CacamanEngine }) {
 
 function GhostMesh({ engine, id }: { engine: CacamanEngine; id: GhostId }) {
   const ref = useRef<Group>(null);
+  const viewMode = useHud((s) => s.viewMode);
+  useWallXray(ref, viewMode === "3d");
   const [mode, setMode] = useState<GhostMode>(
     () => engine.ghosts.find((x) => x.id === id)?.mode ?? "scatter",
   );

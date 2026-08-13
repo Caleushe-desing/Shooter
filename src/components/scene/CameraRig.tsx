@@ -5,32 +5,35 @@ import { TILE } from "../../constants";
 import type { CacamanEngine } from "../../game/engine";
 import { gridToWorld } from "../../maze/grid";
 import { useHud } from "../../store/gameStore";
+import { resolveChaseCamera } from "./occlusion";
 
 const desired = new Vector3();
 const look = new Vector3();
 const lookSmooth = new Vector3();
+const playerPos = new Vector3();
+const baseCam = new Vector3();
 
-/** Close 3rd-person follow — fixed world angle, no orbit on turns. */
-const CAM_OFFSET_3D = { x: 0, y: 6.2, z: 5.4 };
+/**
+ * Close 3rd-person follow — fixed world angle (no orbit on turns).
+ * Steeper by default so maze walls hide the cast less often.
+ */
+const CAM_OFFSET_3D = { x: 0, y: 7.6, z: 4.2 };
 
 /** How many tiles visible on the short screen axis in 2D. */
 const TILES_VISIBLE_2D = 9.5;
 
 function heightFor2d(aspect: number, fovDeg: number): number {
-  // Fit ~TILES_VISIBLE_2D on the narrower screen axis.
   const fov = (fovDeg * Math.PI) / 180;
   const shortSpan = TILES_VISIBLE_2D * TILE;
   if (aspect >= 1) {
-    // Landscape: vertical FOV limits height span.
     return shortSpan / (2 * Math.tan(fov / 2));
   }
-  // Portrait: horizontal FOV is narrower → raise cam so sideways still feels close.
   const hFov = 2 * Math.atan(Math.tan(fov / 2) * aspect);
   return shortSpan / (2 * Math.tan(hFov / 2));
 }
 
 export function CameraRig({ engine }: { engine: CacamanEngine }) {
-  const { camera, size } = useThree();
+  const { camera, size, scene } = useThree();
   const viewMode = useHud((s) => s.viewMode);
   const snapped = useRef(false);
   const lastMode = useRef(viewMode);
@@ -46,7 +49,7 @@ export function CameraRig({ engine }: { engine: CacamanEngine }) {
     }
 
     if (camera instanceof PerspectiveCamera) {
-      const wantFov = viewMode === "2d" ? (aspect < 1 ? 48 : 46) : aspect < 1 ? 58 : 52;
+      const wantFov = viewMode === "2d" ? (aspect < 1 ? 48 : 46) : aspect < 1 ? 55 : 50;
       if (Math.abs(camera.fov - wantFov) > 0.15) {
         camera.fov = wantFov;
         camera.updateProjectionMatrix();
@@ -61,18 +64,18 @@ export function CameraRig({ engine }: { engine: CacamanEngine }) {
     } else if (viewMode === "2d") {
       const fov = camera instanceof PerspectiveCamera ? camera.fov : 48;
       const h = heightFor2d(aspect, fov);
-      // Hard follow the player — close tactical framing.
       desired.set(x, h, z);
       look.set(x, 0, z);
       camera.up.set(0, 0, -1);
     } else {
-      // Portrait: pull a bit closer/higher so the character fills the frame.
       const portrait = aspect < 1;
-      const ox = CAM_OFFSET_3D.x;
-      const oy = portrait ? CAM_OFFSET_3D.y * 1.08 : CAM_OFFSET_3D.y;
-      const oz = portrait ? CAM_OFFSET_3D.z * 0.88 : CAM_OFFSET_3D.z;
-      desired.set(x + ox, oy, z + oz);
-      look.set(x, 0.4, z);
+      const oy = portrait ? CAM_OFFSET_3D.y * 1.1 : CAM_OFFSET_3D.y;
+      const oz = portrait ? CAM_OFFSET_3D.z * 0.85 : CAM_OFFSET_3D.z;
+      playerPos.set(x, 0, z);
+      baseCam.set(x + CAM_OFFSET_3D.x, oy, z + oz);
+      const walls = scene.getObjectByName("maze-walls");
+      resolveChaseCamera(playerPos, baseCam, walls, desired);
+      look.set(x, 0.55, z);
       camera.up.set(0, 1, 0);
     }
 
@@ -85,7 +88,6 @@ export function CameraRig({ engine }: { engine: CacamanEngine }) {
       return;
     }
 
-    // Snappy follow so it stays locked on the character.
     const k = 1 - Math.exp(-dt * (viewMode === "2d" ? 14 : 11));
     camera.position.lerp(desired, k);
     lookSmooth.lerp(look, k);

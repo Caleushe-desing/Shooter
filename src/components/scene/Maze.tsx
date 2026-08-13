@@ -36,7 +36,7 @@ export function Maze() {
     if (!mesh) return;
     for (let i = 0; i < walls.length; i++) {
       const w = walls[i];
-      _dummy.position.set(w.x, 0.72, w.z);
+      _dummy.position.set(w.x, 0.575, w.z);
       _dummy.rotation.set(0, 0, 0);
       _dummy.scale.set(1, 1, 1);
       _dummy.updateMatrix();
@@ -60,8 +60,14 @@ export function Maze() {
         <planeGeometry args={[floorW, floorD, 1, 1]} />
         <meshLambertMaterial map={floorTex} />
       </mesh>
-      <instancedMesh ref={wallMesh} args={[undefined, undefined, walls.length]} frustumCulled>
-        <boxGeometry args={[TILE * 0.96, 1.44, TILE * 0.96]} />
+      <instancedMesh
+        name="maze-walls"
+        ref={wallMesh}
+        args={[undefined, undefined, walls.length]}
+        frustumCulled
+      >
+        {/* Slightly shorter so a steep chase cam clears corridor tops more often. */}
+        <boxGeometry args={[TILE * 0.96, 1.15, TILE * 0.96]} />
         <meshLambertMaterial map={wallTex} color="#f2f8fa" />
       </instancedMesh>
       {doors.map((d, i) => (
