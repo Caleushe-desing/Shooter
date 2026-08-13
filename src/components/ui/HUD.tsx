@@ -11,6 +11,7 @@ export function HUD() {
   const remaining = useHud((s) => s.remaining);
   const frightened = useHud((s) => s.frightened);
   const muted = useHud((s) => s.muted);
+  const viewMode = useHud((s) => s.viewMode);
 
   if (status === "menu") return null;
 
@@ -29,16 +30,35 @@ export function HUD() {
               <span className="ml-2 text-yellow-300 title-font">{floater.text}</span>
             )}
           </div>
-          <div className="mt-2">
-            <MiniMap />
-          </div>
+          {viewMode === "3d" && (
+            <div className="mt-2">
+              <MiniMap />
+            </div>
+          )}
         </div>
-        <div className="text-right">
+        <div className="text-right flex flex-col items-end gap-2">
           <div className="font-black text-amber-50">Nivel {level}</div>
           <div className="text-sm text-[#c4a574] font-bold">Caca {remaining}</div>
           {frightened && (
             <div className="text-cyan-300 font-black text-sm">¡JABONES MOJADOS!</div>
           )}
+          <div className="pointer-events-auto flex gap-2">
+            <button
+              className="rounded-full bg-black/45 px-3 py-1 text-xs font-black border border-white/20"
+              onClick={() => useHud.getState().toggleViewMode()}
+            >
+              {viewMode === "2d" ? "Vista 3D" : "Vista 2D"}
+            </button>
+            <button
+              className="rounded-full bg-black/45 px-3 py-1 text-xs font-black border border-white/20"
+              onClick={() => {
+                useHud.getState().toggleMuted();
+                setMuted(!isMuted());
+              }}
+            >
+              {muted ? "SONIDO" : "MUTE"}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -64,18 +84,11 @@ export function HUD() {
         </div>
         <div className="hidden md:flex gap-3 text-[11px] font-bold text-white/70">
           <span>WASD / flechas</span>
+          <span>V vista 2D/3D</span>
           <span>P pausa</span>
           <span>M silencio</span>
         </div>
-        <button
-          className="pointer-events-auto rounded-full bg-black/40 px-3 py-1 text-xs font-black"
-          onClick={() => {
-            useHud.getState().toggleMuted();
-            setMuted(!isMuted());
-          }}
-        >
-          {muted ? "SONIDO" : "MUTE"}
-        </button>
+        <span className="md:hidden w-16" />
       </div>
 
       {status === "paused" && (

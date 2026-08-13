@@ -40,6 +40,7 @@ export function Game() {
         useHud.getState().toggleMuted();
         setMuted(useHud.getState().muted);
       }
+      if (key === "v") useHud.getState().toggleViewMode();
       if (key === "p" || key === "escape") engine.pauseToggle();
       if (key === "enter" || key === " ") startOrRestart();
     };
