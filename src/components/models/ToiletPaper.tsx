@@ -37,7 +37,7 @@ export function ToiletPaper({ dying = false, moving = false }: ToiletPaperProps)
   );
 
   return (
-    <group ref={group} position={[0, 0.38, 0]}>
+    <group ref={group} position={[0, 0.42, 0]} scale={1.15}>
       <mesh castShadow>
         <cylinderGeometry args={[0.34, 0.34, 0.52, 28]} />
         <meshStandardMaterial map={paper} roughness={0.72} metalness={0} color="#ffffff" />

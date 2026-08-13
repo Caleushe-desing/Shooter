@@ -2,7 +2,7 @@ export function Lights() {
   return (
     <>
       <color attach="background" args={["#241816"]} />
-      <fog attach="fog" args={["#241816", 16, 34]} />
+      <fog attach="fog" args={["#241816", 22, 48]} />
       <hemisphereLight args={["#fff4e5", "#3a2a22", 0.85]} />
       <ambientLight intensity={0.35} />
       <directionalLight

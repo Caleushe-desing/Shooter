@@ -15,7 +15,7 @@ export function MobilePad({ onDir }: MobilePadProps) {
   };
   const release = () => setMobileDir(null);
 
-  if (status === "menu" || status === "gameover" || status === "levelclear") {
+  if (status === "menu" || status === "gameover") {
     return null;
   }
 

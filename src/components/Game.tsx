@@ -1,8 +1,7 @@
 import { ContactShadows } from "@react-three/drei";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import {
-  isMuted,
   playDeath,
   playEatGhost,
   playPower,
@@ -20,7 +19,6 @@ import { GhostActors, Pellets, PlayerActor } from "./scene/Actors";
 import { CameraRig } from "./scene/CameraRig";
 import { Lights } from "./scene/Lights";
 import { Maze } from "./scene/Maze";
-import { ReadyBanner, ScorePops } from "./scene/ScorePops";
 import { HUD } from "./ui/HUD";
 import { MobilePad } from "./ui/MobilePad";
 import { Overlay } from "./ui/Overlay";
@@ -69,8 +67,6 @@ export function Game() {
         <PlayerActor engine={engine} />
         <GhostActors engine={engine} />
         <Pellets engine={engine} />
-        <ScorePops engine={engine} />
-        <ReadyBanner engine={engine} />
         <CameraRig engine={engine} />
         <SimLoop />
       </Canvas>
@@ -94,7 +90,6 @@ function startOrRestart(): void {
 }
 
 function SimLoop() {
-  const lastSig = useRef("");
   const mobileDir = useHud((s) => s.mobileDir);
 
   useFrame((_, dt) => {
@@ -108,27 +103,9 @@ function SimLoop() {
       if (ev.kind === "winFanfare") playWin();
       if (ev.kind === "ready") playReady();
     }
-    const sig = hudSignature();
-    if (sig !== lastSig.current) {
-      lastSig.current = sig;
-      syncHud();
-    }
+    syncHud();
   });
   return null;
-}
-
-function hudSignature(): string {
-  return [
-    engine.status,
-    engine.score,
-    engine.lives,
-    engine.level,
-    engine.remainingPellets(),
-    engine.frightenedTimer > 1.5 ? "f" : engine.frightenedTimer > 0 ? "b" : "n",
-    engine.ghosts.map((g) => g.mode).join(""),
-    engine.floaters.length,
-    isMuted() ? "m" : "s",
-  ].join("|");
 }
 
 function syncHud(): void {
