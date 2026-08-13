@@ -4,8 +4,8 @@ Pac-Man en tercera persona y 3D. Tú eres un **rollo de papel higiénico** que r
 
 ## Cómo jugar
 
-- **Moverse:** WASD o flechas (en móvil, stick virtual)
-- **Vista:** botón Vista 2D/3D · tecla **V**
+- **Moverse:** WASD o flechas (en móvil, stick digital 4 direcciones)
+- **Vista:** botón Vista 2D/3D · tecla **V** (cámara cercana siguiendo al personaje)
 - Recoge toda la caca para pasar de nivel
 - Las **cacas grandes** (esquinas) asustan a los jabones: entonces puedes comerlos
 - Si un jabón te toca en estado normal, pierdes una vida (un rollo)

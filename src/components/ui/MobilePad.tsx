@@ -7,28 +7,23 @@ interface MobilePadProps {
 }
 
 const SIZE = 156;
-const KNOB = 66;
-const MAX_TRAVEL = (SIZE - KNOB) / 2;
-const DEADZONE = 22;
-/** Need this much more on the other axis before switching direction. */
-const AXIS_BIAS = 1.28;
+const KNOB = 58;
+const MAX_TRAVEL = (SIZE - KNOB) / 2 - 4;
+/** Anything past this locks to a full cardinal direction (no analog blend). */
+const DEADZONE = 16;
 
-function dirFromStick(dx: number, dy: number, current: Dir | null): Dir | null {
-  const dist = Math.hypot(dx, dy);
-  if (dist < DEADZONE) return current;
+const DIR_OFFSET: Record<Dir, { x: number; y: number }> = {
+  up: { x: 0, y: -MAX_TRAVEL },
+  down: { x: 0, y: MAX_TRAVEL },
+  left: { x: -MAX_TRAVEL, y: 0 },
+  right: { x: MAX_TRAVEL, y: 0 },
+};
 
-  const ax = Math.abs(dx);
-  const ay = Math.abs(dy);
-
-  if (current === "left" || current === "right") {
-    if (ay > ax * AXIS_BIAS) return dy > 0 ? "down" : "up";
-    return dx > 0 ? "right" : "left";
-  }
-  if (current === "up" || current === "down") {
-    if (ax > ay * AXIS_BIAS) return dx > 0 ? "right" : "left";
-    return dy > 0 ? "down" : "up";
-  }
-  return ax >= ay ? (dx > 0 ? "right" : "left") : dy > 0 ? "down" : "up";
+/** Pure 4-way: full up/down/left/right only — tactical, not progressive. */
+function dirFromDelta(dx: number, dy: number): Dir | null {
+  if (Math.hypot(dx, dy) < DEADZONE) return null;
+  if (Math.abs(dx) >= Math.abs(dy)) return dx > 0 ? "right" : "left";
+  return dy > 0 ? "down" : "up";
 }
 
 export function MobilePad({ onDir }: MobilePadProps) {
@@ -36,32 +31,29 @@ export function MobilePad({ onDir }: MobilePadProps) {
   const setMobileDir = useHud((s) => s.setMobileDir);
   const baseRef = useRef<HTMLDivElement>(null);
   const pointerId = useRef<number | null>(null);
-  const lastDir = useRef<Dir | null>(null);
   const [knob, setKnob] = useState({ x: 0, y: 0 });
   const [active, setActive] = useState(false);
+  const [held, setHeld] = useState<Dir | null>(null);
 
   const applyStick = useCallback(
     (clientX: number, clientY: number) => {
       const el = baseRef.current;
       if (!el) return;
       const rect = el.getBoundingClientRect();
-      const cx = rect.left + rect.width / 2;
-      const cy = rect.top + rect.height / 2;
-      let dx = clientX - cx;
-      let dy = clientY - cy;
-      const dist = Math.hypot(dx, dy);
-      if (dist > MAX_TRAVEL && dist > 0) {
-        const s = MAX_TRAVEL / dist;
-        dx *= s;
-        dy *= s;
+      const dx = clientX - (rect.left + rect.width / 2);
+      const dy = clientY - (rect.top + rect.height / 2);
+      const dir = dirFromDelta(dx, dy);
+      if (!dir) {
+        setKnob({ x: 0, y: 0 });
+        setHeld(null);
+        setMobileDir(null);
+        return;
       }
-      setKnob({ x: dx, y: dy });
-      const dir = dirFromStick(dx, dy, lastDir.current);
-      if (dir) {
-        lastDir.current = dir;
-        setMobileDir(dir);
-        onDir(dir);
-      }
+      // Snap knob to the full cardinal stop — never partial travel.
+      setKnob(DIR_OFFSET[dir]);
+      setHeld(dir);
+      setMobileDir(dir);
+      onDir(dir);
     },
     [onDir, setMobileDir],
   );
@@ -69,9 +61,8 @@ export function MobilePad({ onDir }: MobilePadProps) {
   const endStick = useCallback(() => {
     pointerId.current = null;
     setKnob({ x: 0, y: 0 });
+    setHeld(null);
     setActive(false);
-    // Keep lastDir so the next touch inherits hysteresis context;
-    // clear live input so keyboard still works cleanly.
     setMobileDir(null);
   }, [setMobileDir]);
 
@@ -84,7 +75,7 @@ export function MobilePad({ onDir }: MobilePadProps) {
       <div
         ref={baseRef}
         className={`relative rounded-full border transition-colors ${
-          active ? "border-amber-200/50 bg-black/55" : "border-white/25 bg-black/40"
+          active ? "border-amber-200/55 bg-black/60" : "border-white/25 bg-black/40"
         }`}
         style={{ width: SIZE, height: SIZE }}
         onPointerDown={(e) => {
@@ -105,11 +96,28 @@ export function MobilePad({ onDir }: MobilePadProps) {
         }}
         onPointerCancel={endStick}
       >
-        <div className="pointer-events-none absolute inset-3 rounded-full border border-white/10" />
+        {/* Cardinal guides */}
+        {(
+          [
+            ["up", "top-2 left-1/2 -translate-x-1/2"],
+            ["down", "bottom-2 left-1/2 -translate-x-1/2"],
+            ["left", "left-2 top-1/2 -translate-y-1/2"],
+            ["right", "right-2 top-1/2 -translate-y-1/2"],
+          ] as const
+        ).map(([dir, pos]) => (
+          <span
+            key={dir}
+            className={`pointer-events-none absolute text-[10px] font-black ${pos} ${
+              held === dir ? "text-amber-200" : "text-white/35"
+            }`}
+          >
+            {dir === "up" ? "▲" : dir === "down" ? "▼" : dir === "left" ? "◀" : "▶"}
+          </span>
+        ))}
         <div className="pointer-events-none absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/25" />
         <div
-          className={`pointer-events-none absolute rounded-full shadow-lg ${
-            active ? "bg-amber-200" : "bg-white/85"
+          className={`pointer-events-none absolute rounded-full shadow-lg transition-[left,top] duration-75 ${
+            active && held ? "bg-amber-200" : "bg-white/85"
           }`}
           style={{
             width: KNOB,

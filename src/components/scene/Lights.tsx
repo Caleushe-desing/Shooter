@@ -22,7 +22,7 @@ export function Lights() {
   return (
     <>
       <color attach="background" args={["#241816"]} />
-      {viewMode === "3d" && <fog attach="fog" args={["#241816", 26, 48]} />}
+      {viewMode === "3d" && <fog attach="fog" args={["#241816", 18, 36]} />}
       <hemisphereLight args={["#fff4e5", "#3a2a22", 1.15]} />
       <ambientLight intensity={0.55} />
       <directionalLight position={[8, 16, 6]} intensity={1.25} />
