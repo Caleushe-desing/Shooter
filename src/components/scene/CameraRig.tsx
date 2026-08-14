@@ -30,15 +30,17 @@ function shortestAngle(from: number, to: number): number {
   return d;
 }
 
-/** Vista 3D: encima del hombro derecho, mirando hacia adelante. */
-const SHOULDER = {
-  back: 2.05,
-  side: 0.72,
-  height: 1.28,
-  lookAhead: 3.6,
-  lookY: 0.42,
-  /** Empuja el look un poco a la izquierda para enmarcar al personaje. */
-  lookBias: -0.18,
+/**
+ * 3D chase elevado: detrás + un poco a la derecha (hombro),
+ * lo bastante alto/lejos para leer el laberinto.
+ */
+const CHASE = {
+  back: 6.2,
+  side: 1.55,
+  height: 5.4,
+  lookAhead: 1.4,
+  lookY: 0.25,
+  lookBias: -0.45,
 };
 
 /** How many tiles visible on the short screen axis in 2D. */
@@ -73,7 +75,7 @@ export function CameraRig({ engine }: { engine: CacamanEngine }) {
 
     if (camera instanceof PerspectiveCamera) {
       const wantFov =
-        viewMode === "2d" ? (aspect < 1 ? 48 : 46) : aspect < 1 ? 62 : 58;
+        viewMode === "2d" ? (aspect < 1 ? 48 : 46) : aspect < 1 ? 52 : 48;
       if (Math.abs(camera.fov - wantFov) > 0.15) {
         camera.fov = wantFov;
         camera.updateProjectionMatrix();
@@ -82,7 +84,7 @@ export function CameraRig({ engine }: { engine: CacamanEngine }) {
 
     if (engine.status === "menu" && viewMode === "3d") {
       const t = performance.now() / 1000;
-      desired.set(Math.sin(t * 0.15) * 9, 12, Math.cos(t * 0.15) * 9);
+      desired.set(Math.sin(t * 0.15) * 10, 14, Math.cos(t * 0.15) * 10);
       look.set(0, 0.2, 0);
       camera.up.set(0, 1, 0);
     } else if (viewMode === "2d") {
@@ -93,18 +95,18 @@ export function CameraRig({ engine }: { engine: CacamanEngine }) {
       camera.up.set(0, 0, -1);
     } else {
       const targetYaw = yawFromDir(p.dir);
-      const turn = 1 - Math.exp(-dt * 9);
+      // Giros más suaves: menos mareo en corredores.
+      const turn = 1 - Math.exp(-dt * 6.5);
       yawSmooth.current += shortestAngle(yawSmooth.current, targetYaw) * turn;
       const yaw = yawSmooth.current;
 
-      // forward en XZ; right = up × forward (hombro derecho del personaje)
       forward.set(Math.sin(yaw), 0, Math.cos(yaw));
       right.set(Math.cos(yaw), 0, -Math.sin(yaw));
 
       const portrait = aspect < 1;
-      const back = portrait ? SHOULDER.back * 0.92 : SHOULDER.back;
-      const side = portrait ? SHOULDER.side * 0.9 : SHOULDER.side;
-      const height = portrait ? SHOULDER.height * 1.08 : SHOULDER.height;
+      const back = portrait ? CHASE.back * 1.05 : CHASE.back;
+      const side = portrait ? CHASE.side * 0.85 : CHASE.side;
+      const height = portrait ? CHASE.height * 1.12 : CHASE.height;
 
       playerPos.set(x, 0, z);
       baseCam
@@ -118,13 +120,13 @@ export function CameraRig({ engine }: { engine: CacamanEngine }) {
 
       look
         .copy(playerPos)
-        .addScaledVector(forward, SHOULDER.lookAhead)
-        .addScaledVector(right, SHOULDER.lookBias);
-      look.y = SHOULDER.lookY;
+        .addScaledVector(forward, CHASE.lookAhead)
+        .addScaledVector(right, CHASE.lookBias);
+      look.y = CHASE.lookY;
       camera.up.set(0, 1, 0);
     }
 
-    const jump = camera.position.distanceTo(desired) > 8 || !snapped.current;
+    const jump = camera.position.distanceTo(desired) > 10 || !snapped.current;
     if (jump) {
       camera.position.copy(desired);
       lookSmooth.copy(look);
@@ -133,7 +135,8 @@ export function CameraRig({ engine }: { engine: CacamanEngine }) {
       return;
     }
 
-    const k = 1 - Math.exp(-dt * (viewMode === "2d" ? 14 : 13));
+    // Chase más suave en 3D para que no “pegue” en las paredes.
+    const k = 1 - Math.exp(-dt * (viewMode === "2d" ? 14 : 8));
     camera.position.lerp(desired, k);
     lookSmooth.lerp(look, k);
     camera.lookAt(lookSmooth);

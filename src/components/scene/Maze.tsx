@@ -32,7 +32,7 @@ export function Maze() {
     if (!mesh) return;
     for (let i = 0; i < walls.length; i++) {
       const w = walls[i];
-      _dummy.position.set(w.x, 0.55, w.z);
+      _dummy.position.set(w.x, 0.4, w.z);
       _dummy.rotation.set(0, 0, 0);
       _dummy.scale.set(1, 1, 1);
       _dummy.updateMatrix();
@@ -70,7 +70,7 @@ export function Maze() {
       _dummy.scale.set(1, 1, 1);
       _dummy.updateMatrix();
       mesh.setMatrixAt(i, _dummy.matrix);
-      _color.set(t.dark ? "#101018" : "#181822");
+      _color.set(t.dark ? "#14141c" : "#1e1e2a");
       mesh.setColorAt(i, _color);
     }
     mesh.instanceMatrix.needsUpdate = true;
@@ -103,7 +103,7 @@ export function Maze() {
         args={[undefined, undefined, walls.length]}
         frustumCulled
       >
-        <boxGeometry args={[TILE * 0.9, 1.05, TILE * 0.9]} />
+        <boxGeometry args={[TILE * 0.9, 0.78, TILE * 0.9]} />
         <meshStandardMaterial roughness={0.32} metalness={0.12} toneMapped={false} />
       </instancedMesh>
       {doors.map((d, i) => (

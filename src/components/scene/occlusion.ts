@@ -24,8 +24,8 @@ export function isBlockedByWalls(
 }
 
 /**
- * If walls block the shoulder cam, pull in along the offset and lift
- * until the line of sight to the player is clear.
+ * Prefer lift over yanking the chase cam into the player.
+ * Keeps the elevated third-person framing readable in corridors.
  */
 export function resolveShoulderCamera(
   player: Vector3,
@@ -34,26 +34,32 @@ export function resolveShoulderCamera(
   out: Vector3,
 ): Vector3 {
   out.copy(baseCam);
-  _origin.set(player.x, 0.55, player.z);
+  _origin.set(player.x, 0.45, player.z);
   if (!isBlockedByWalls(_origin, out, walls)) return out;
 
   const ox = baseCam.x - player.x;
   const oy = baseCam.y - player.y;
   const oz = baseCam.z - player.z;
 
-  for (let i = 0; i < 12; i++) {
-    const pull = 1 - (i + 1) * 0.07;
-    const lift = oy + (i + 1) * 0.38;
+  // 1) Lift first — keep distance, raise over walls.
+  for (let i = 0; i < 10; i++) {
+    const lift = oy + (i + 1) * 0.55;
+    out.set(player.x + ox, player.y + lift, player.z + oz);
+    if (!isBlockedByWalls(_origin, out, walls)) return out;
+  }
+
+  // 2) Then gently pull in while staying high.
+  for (let i = 0; i < 8; i++) {
+    const pull = 1 - (i + 1) * 0.08;
+    const lift = oy + 4.5 + i * 0.25;
     out.set(player.x + ox * pull, player.y + lift, player.z + oz * pull);
     if (!isBlockedByWalls(_origin, out, walls)) return out;
   }
 
-  // Last resort: almost overhead, still slightly offset.
-  out.set(player.x + ox * 0.15, player.y + Math.max(oy + 5, 9), player.z + oz * 0.15);
+  out.set(player.x + ox * 0.2, player.y + Math.max(oy + 6, 11), player.z + oz * 0.2);
   return out;
 }
 
-/** @deprecated Use resolveShoulderCamera */
 export const resolveChaseCamera = resolveShoulderCamera;
 
 export function setMeshesDepthTest(root: Object3D, depthTest: boolean): void {
