@@ -8,7 +8,7 @@ interface QuiltroProps {
   moving?: boolean;
 }
 
-/** Quiltro santiaguino — héroe callejero. */
+/** Quiltro minimal 80s: esferas + cajas flat. */
 export function Quiltro({ dying = false, moving = false }: QuiltroProps) {
   const group = useRef<Group>(null);
   const death = useRef(0);
@@ -18,85 +18,50 @@ export function Quiltro({ dying = false, moving = false }: QuiltroProps) {
     if (!g) return;
     if (dying) {
       death.current += dt;
-      g.rotation.z = death.current * 3;
-      g.position.y = Math.max(-0.2, 0.2 - death.current * 0.35);
-      g.scale.setScalar(Math.max(0.2, 1 - death.current * 0.4));
+      g.rotation.z = death.current * 4;
+      g.scale.setScalar(Math.max(0.15, 1 - death.current * 0.5));
       return;
     }
     death.current = 0;
     g.scale.setScalar(1);
-    g.position.y = 0.02 + (moving ? Math.sin(performance.now() * 0.012) * 0.04 : 0);
-    g.rotation.z = moving ? Math.sin(performance.now() * 0.02) * 0.08 : 0;
+    g.position.y = moving ? Math.sin(performance.now() * 0.015) * 0.05 : 0;
+    g.rotation.z = 0;
   });
 
   return (
-    <group ref={group} position={[0, 0.15, 0]} scale={1.05}>
-      {/* cuerpo */}
-      <mesh position={[0, 0.22, 0]} castShadow={false}>
-        <sphereGeometry args={[0.28, 10, 8]} />
-        <meshLambertMaterial color={PALETTE.paper} />
+    <group ref={group} position={[0, 0.28, 0]}>
+      <mesh>
+        <sphereGeometry args={[0.32, 8, 6]} />
+        <meshBasicMaterial color={PALETTE.paper} toneMapped={false} />
       </mesh>
-      {/* cabeza */}
-      <mesh position={[0, 0.42, 0.18]}>
-        <sphereGeometry args={[0.2, 10, 8]} />
-        <meshLambertMaterial color={PALETTE.paper} />
+      <mesh position={[-0.18, 0.28, 0]} rotation={[0, 0, 0.35]}>
+        <coneGeometry args={[0.1, 0.22, 4]} />
+        <meshBasicMaterial color={PALETTE.paperCore} toneMapped={false} />
       </mesh>
-      {/* orejas */}
-      <mesh position={[-0.14, 0.56, 0.12]} rotation={[0.2, 0, -0.4]}>
-        <coneGeometry args={[0.07, 0.18, 5]} />
-        <meshLambertMaterial color="#c48a4a" />
+      <mesh position={[0.18, 0.28, 0]} rotation={[0, 0, -0.35]}>
+        <coneGeometry args={[0.1, 0.22, 4]} />
+        <meshBasicMaterial color={PALETTE.paperCore} toneMapped={false} />
       </mesh>
-      <mesh position={[0.14, 0.56, 0.12]} rotation={[0.2, 0, 0.4]}>
-        <coneGeometry args={[0.07, 0.18, 5]} />
-        <meshLambertMaterial color="#c48a4a" />
+      <mesh position={[-0.1, 0.08, 0.26]}>
+        <boxGeometry args={[0.08, 0.08, 0.04]} />
+        <meshBasicMaterial color="#000000" toneMapped={false} />
       </mesh>
-      {/* hocico */}
-      <mesh position={[0, 0.38, 0.34]}>
-        <sphereGeometry args={[0.08, 6, 6]} />
-        <meshLambertMaterial color="#f7e6c8" />
+      <mesh position={[0.1, 0.08, 0.26]}>
+        <boxGeometry args={[0.08, 0.08, 0.04]} />
+        <meshBasicMaterial color="#000000" toneMapped={false} />
       </mesh>
-      <mesh position={[0, 0.38, 0.41]}>
-        <sphereGeometry args={[0.035, 5, 5]} />
-        <meshBasicMaterial color="#1a1010" />
+      {/* bandera flat */}
+      <mesh position={[0, -0.05, 0.3]}>
+        <boxGeometry args={[0.12, 0.08, 0.02]} />
+        <meshBasicMaterial color="#0033a0" toneMapped={false} />
       </mesh>
-      {/* ojos */}
-      <mesh position={[-0.07, 0.46, 0.32]}>
-        <sphereGeometry args={[0.04, 6, 6]} />
-        <meshBasicMaterial color="#111111" />
+      <mesh position={[0.1, -0.05, 0.3]}>
+        <boxGeometry args={[0.08, 0.08, 0.021]} />
+        <meshBasicMaterial color="#d52b1e" toneMapped={false} />
       </mesh>
-      <mesh position={[0.07, 0.46, 0.32]}>
-        <sphereGeometry args={[0.04, 6, 6]} />
-        <meshBasicMaterial color="#111111" />
-      </mesh>
-      {/* patas */}
-      {[
-        [-0.14, -0.12],
-        [0.14, -0.12],
-        [-0.14, 0.12],
-        [0.14, 0.12],
-      ].map(([x, z], i) => (
-        <mesh key={i} position={[x, 0.02, z]}>
-          <cylinderGeometry args={[0.045, 0.05, 0.22, 6]} />
-          <meshLambertMaterial color="#b88955" />
-        </mesh>
-      ))}
-      {/* cola */}
-      <mesh position={[0, 0.28, -0.28]} rotation={[0.8, 0, 0]}>
-        <cylinderGeometry args={[0.03, 0.045, 0.22, 5]} />
-        <meshLambertMaterial color="#c48a4a" />
-      </mesh>
-      {/* pañuelo tricolor chileno (rompe con lo “lindo”) */}
-      <mesh position={[0, 0.34, 0.02]} rotation={[0.2, 0, 0]}>
-        <boxGeometry args={[0.34, 0.06, 0.08]} />
-        <meshBasicMaterial color="#0033a0" />
-      </mesh>
-      <mesh position={[0.12, 0.34, 0.02]}>
-        <boxGeometry args={[0.1, 0.06, 0.085]} />
-        <meshBasicMaterial color="#d52b1e" />
-      </mesh>
-      <mesh position={[-0.12, 0.34, 0.02]}>
-        <boxGeometry args={[0.1, 0.06, 0.085]} />
-        <meshBasicMaterial color="#ffffff" />
+      <mesh position={[-0.1, -0.05, 0.3]}>
+        <boxGeometry args={[0.08, 0.08, 0.021]} />
+        <meshBasicMaterial color="#ffffff" toneMapped={false} />
       </mesh>
     </group>
   );

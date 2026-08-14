@@ -1,12 +1,13 @@
 @import "tailwindcss";
 
 :root {
-  --stgo-bg: #090614;
-  --stgo-ink: #fff7fb;
-  --stgo-magenta: #ff2d95;
-  --stgo-yellow: #ffe600;
-  --stgo-teal: #00d4c8;
-  --stgo-panel: #160b24;
+  --arcade-bg: #000000;
+  --arcade-ink: #ffffff;
+  --arcade-pink: #ff00aa;
+  --arcade-cyan: #00ffff;
+  --arcade-yellow: #ffff00;
+  --arcade-orange: #ff6600;
+  --arcade-green: #00ff66;
 }
 
 html,
@@ -16,17 +17,34 @@ body,
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: var(--stgo-bg);
-  font-family: Nunito, system-ui, sans-serif;
+  background: var(--arcade-bg);
+  font-family: "Press Start 2P", Bungee, monospace;
   user-select: none;
   touch-action: none;
 }
 
 body {
-  color: var(--stgo-ink);
+  color: var(--arcade-ink);
 }
 
 .title-font {
   font-family: Bungee, Impact, sans-serif;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* CRT scanlines suaves — vibe 80s sin matar FPS */
+.arcade-scan::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.03) 0px,
+    rgba(255, 255, 255, 0.03) 1px,
+    transparent 2px,
+    transparent 4px
+  );
+  z-index: 50;
 }

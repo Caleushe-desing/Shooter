@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { SOAP_COLORS } from "../../constants";
+import { NEON_WALLS, SOAP_COLORS } from "../../constants";
 import { engine } from "../../game/instance";
 import { COLS, ROWS, isDoor, isWall } from "../../maze/layout";
 import { LOW_GFX } from "../../perf";
@@ -24,18 +24,17 @@ export function MiniMap() {
       cache.width = canvas.width;
       cache.height = canvas.height;
       const c = cache.getContext("2d")!;
-      c.fillStyle = "rgba(9, 6, 20, 0.9)";
+      c.fillStyle = "#000000";
       c.fillRect(0, 0, cache.width, cache.height);
       for (let r = 0; r < ROWS; r++) {
         for (let col = 0; col < COLS; col++) {
           const x = col * SCALE;
           const y = r * SCALE;
           if (isWall(col, r)) {
-            const palette = ["#ff2d95", "#00d4c8", "#ffe600", "#7c5cff"];
-            c.fillStyle = palette[(col + r) % palette.length];
+            c.fillStyle = NEON_WALLS[(col + r * 3) % NEON_WALLS.length];
             c.fillRect(x, y, SCALE, SCALE);
           } else if (isDoor(col, r)) {
-            c.fillStyle = "#7c5cff";
+            c.fillStyle = "#aa00ff";
             c.fillRect(x, y, SCALE, SCALE);
           }
         }
@@ -54,20 +53,20 @@ export function MiniMap() {
       ctx.drawImage(wallCache.current!, 0, 0);
       for (const k of engine.pellets) {
         const [c, r] = k.split(",").map(Number);
-        ctx.fillStyle = "#ffe600";
+        ctx.fillStyle = "#ffff00";
         ctx.fillRect(c * SCALE + 2, r * SCALE + 2, 2, 2);
       }
       for (const k of engine.powerPellets) {
         const [c, r] = k.split(",").map(Number);
-        ctx.fillStyle = "#7cfc00";
+        ctx.fillStyle = "#00ff66";
         ctx.fillRect(c * SCALE + 1, r * SCALE + 1, 3, 3);
       }
       const p = engine.player;
-      ctx.fillStyle = "#f4c27a";
+      ctx.fillStyle = "#ffcc00";
       ctx.fillRect(p.col * SCALE + 1, p.row * SCALE + 1, SCALE - 2, SCALE - 2);
       for (const g of engine.ghosts) {
         ctx.fillStyle =
-          g.mode === "frightened" ? "#7c5cff" : g.mode === "eaten" ? "#ffffff" : SOAP_COLORS[g.id];
+          g.mode === "frightened" ? "#aa00ff" : g.mode === "eaten" ? "#ffffff" : SOAP_COLORS[g.id];
         ctx.fillRect(g.col * SCALE + 1, g.row * SCALE + 1, SCALE - 2, SCALE - 2);
       }
     };
@@ -82,7 +81,7 @@ export function MiniMap() {
       ref={canvasRef}
       width={COLS * SCALE}
       height={ROWS * SCALE}
-      className="rounded-none border-2 border-[#ff2d95] shadow-[0_0_16px_rgba(255,45,149,0.35)] w-28 md:w-36 h-auto"
+      className="rounded-none border-2 border-[#00ffff] shadow-[0_0_12px_#ff00aa] w-28 md:w-36 h-auto"
     />
   );
 }

@@ -151,8 +151,8 @@ export function Pellets({ engine }: { engine: CacamanEngine }) {
         args={[undefined, undefined, Math.max(keys.length, 1)]}
         frustumCulled={false}
       >
-        <cylinderGeometry args={[0.12, 0.12, 0.04, 10]} />
-        <meshLambertMaterial color={PALETTE.poop} emissive="#b89a00" emissiveIntensity={0.25} />
+        <cylinderGeometry args={[0.1, 0.1, 0.05, 6]} />
+        <meshBasicMaterial color={PALETTE.poop} toneMapped={false} />
       </instancedMesh>
       {power.map((k) => {
         const [c, r] = k.split(",").map(Number);
@@ -169,25 +169,18 @@ function Completo({ x, z }: { x: number; z: number }) {
     const g = ref.current;
     if (!g) return;
     const t = clock.elapsedTime;
-    g.scale.setScalar(1 + Math.sin(t * 4) * 0.08);
-    g.rotation.y = t * 1.4;
+    g.scale.setScalar(1 + Math.sin(t * 5) * 0.1);
+    g.rotation.y = t * 2;
   });
   return (
-    <group ref={ref} position={[x, 0.22, z]}>
-      {/* pan */}
+    <group ref={ref} position={[x, 0.25, z]}>
       <mesh>
-        <boxGeometry args={[0.42, 0.14, 0.18]} />
-        <meshLambertMaterial color="#e8b86d" />
+        <boxGeometry args={[0.4, 0.16, 0.2]} />
+        <meshBasicMaterial color="#ffaa00" toneMapped={false} />
       </mesh>
-      {/* vienesa */}
-      <mesh position={[0, 0.06, 0]} rotation={[0, 0, Math.PI / 2]}>
-        <cylinderGeometry args={[0.05, 0.05, 0.36, 8]} />
-        <meshLambertMaterial color="#d4553a" />
-      </mesh>
-      {/* palta */}
-      <mesh position={[0, 0.12, 0]}>
-        <boxGeometry args={[0.34, 0.04, 0.14]} />
-        <meshLambertMaterial color={PALETTE.poopPower} emissive={PALETTE.poopGlow} emissiveIntensity={0.4} />
+      <mesh position={[0, 0.1, 0]}>
+        <boxGeometry args={[0.32, 0.06, 0.14]} />
+        <meshBasicMaterial color={PALETTE.poopPower} toneMapped={false} />
       </mesh>
     </group>
   );

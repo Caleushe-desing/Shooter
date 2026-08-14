@@ -1,37 +1,49 @@
 /**
- * Temática Chile actual: la cagá de Santiago de noche.
- * Colores Valparaíso / neón urbano — rompe el “baño limpio”.
+ * Arcade 80s — neón, flat, muchos colores.
+ * Sigue siendo Chile callejero, pero look de máquina recreativa.
  */
 export const PALETTE = {
-  bg: "#090614",
-  fog: "#090614",
-  ink: "#fff7fb",
-  accent: "#ff2d95",
-  accentDim: "#ff6bb5",
-  accentHot: "#ffe600",
-  panel: "#160b24",
-  panelBorder: "#ff2d95",
-  // Asfalto + cruce peatonal
-  floorA: "#2a2f3a",
-  floorB: "#1c212b",
-  floorGrout: "#ffe600",
-  skirt: "#12151c",
-  // Muros: bloques muralistas (Valpo)
-  wallA: "#ff2d95",
-  wallB: "#00d4c8",
-  wallC: "#ffe600",
-  wallBase: "#3d2a7a",
+  bg: "#000000",
+  fog: "#000000",
+  ink: "#ffffff",
+  accent: "#ff00aa",
+  accentDim: "#ff66cc",
+  accentHot: "#ffff00",
+  panel: "#000000",
+  panelBorder: "#00ffff",
+  floorA: "#111111",
+  floorB: "#222222",
+  floorGrout: "#ffff00",
+  skirt: "#000000",
+  wallA: "#ff00aa",
+  wallB: "#00ffff",
+  wallC: "#ffff00",
+  wallBase: "#ff6600",
   wallTint: "#ffffff",
-  door: "#7c5cff",
-  doorGlow: "#b49bff",
-  paper: "#f4c27a", // quiltro pelaje
-  paperCore: "#2b1a10",
-  poop: "#ffe600", // moneda
-  poopPower: "#7cfc00", // completo palta
-  poopGlow: "#ff2d95",
-  hemiSky: "#ffd6ec",
-  hemiGround: "#1a0a28",
+  door: "#aa00ff",
+  doorGlow: "#ff00ff",
+  paper: "#ffcc00", // quiltro arcade
+  paperCore: "#ff6600",
+  poop: "#ffff00",
+  poopPower: "#00ff66",
+  poopGlow: "#ff00aa",
+  hemiSky: "#ffffff",
+  hemiGround: "#000000",
 } as const;
+
+/** Paredes del laberinto: arcoíris 80s. */
+export const NEON_WALLS = [
+  "#ff00aa",
+  "#00ffff",
+  "#ffff00",
+  "#ff6600",
+  "#00ff66",
+  "#ff0044",
+  "#44aaff",
+  "#ffaa00",
+  "#aa00ff",
+  "#66ff00",
+] as const;
 
 export const TILE = 1.15;
 
@@ -61,12 +73,11 @@ export const SCATTER_CHASE: { mode: "scatter" | "chase"; seconds: number }[] = [
   { mode: "chase", seconds: 9999 },
 ];
 
-/** Enemigos de la calle chilena actual. */
 export const SOAP_COLORS = {
-  blinky: "#e30613", // Micro Red
-  pinky: "#e8e8e8", // Gaviota
-  inky: "#00c853", // Delivery
-  clyde: "#ffd600", // Inspector / cono
+  blinky: "#ff0044",
+  pinky: "#ffffff",
+  inky: "#00ff66",
+  clyde: "#ffff00",
 } as const;
 
 export const SOAP_NAMES = {
@@ -78,12 +89,12 @@ export const SOAP_NAMES = {
 
 export const THEME = {
   title: "CACAMAN",
-  tagline: "Un quiltro en la cagá de Santiago",
+  tagline: "Arcade 80s · quiltro en Santiago",
   collectLabel: "Lucas",
   powerLabel: "¡COMPLETO!",
   ready: "¡CACHAI!",
   death: "¡TE PILLARON!",
   clear: "¡BARRIO LIMPIO!",
-  gameover: "Quedaste en la calle",
-  frightened: "¡VAN PA'TRÁS!",
+  gameover: "GAME OVER",
+  frightened: "¡POWER!",
 } as const;

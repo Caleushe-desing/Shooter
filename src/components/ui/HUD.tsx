@@ -19,16 +19,16 @@ export function HUD() {
   const floater = engine.floaters[engine.floaters.length - 1];
 
   return (
-    <div className="pointer-events-none absolute inset-0 p-3 md:p-5 flex flex-col justify-between">
+    <div className="pointer-events-none absolute inset-0 p-3 md:p-5 flex flex-col justify-between arcade-scan">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="title-font text-2xl md:text-3xl text-[#ff2d95] drop-shadow-[0_3px_0_#ffe600]">
+          <div className="title-font text-2xl md:text-3xl text-[#ff00aa] drop-shadow-[0_0_8px_#ff00aa]">
             {THEME.title}
           </div>
-          <div className="text-sm md:text-base font-extrabold tracking-wide text-[#fff7fb]/95">
-            Puntos {score.toString().padStart(6, "0")}
+          <div className="text-sm md:text-base font-black tracking-widest text-[#00ffff]">
+            SCORE {score.toString().padStart(6, "0")}
             {floater && floater.age < 0.8 && (
-              <span className="ml-2 text-[#ffe600] title-font">{floater.text}</span>
+              <span className="ml-2 text-[#ffff00]">{floater.text}</span>
             )}
           </div>
           {viewMode === "3d" && (
@@ -38,28 +38,28 @@ export function HUD() {
           )}
         </div>
         <div className="text-right flex flex-col items-end gap-2">
-          <div className="font-black text-[#fff7fb]">Nivel {level}</div>
-          <div className="text-sm text-[#00d4c8] font-bold">
+          <div className="font-black text-[#ffff00]">LVL {level}</div>
+          <div className="text-sm text-[#00ff66] font-black">
             {THEME.collectLabel} {remaining}
           </div>
           {frightened && (
-            <div className="text-[#7c5cff] font-black text-sm">{THEME.frightened}</div>
+            <div className="text-[#aa00ff] font-black text-sm animate-pulse">{THEME.frightened}</div>
           )}
           <div className="pointer-events-auto flex gap-2">
             <button
-              className="rounded-none bg-[#160b24]/90 px-3 py-1 text-xs font-black border-2 border-[#ff2d95] text-[#ffe600]"
+              className="rounded-none bg-black px-3 py-1 text-xs font-black border-2 border-[#00ffff] text-[#00ffff]"
               onClick={() => useHud.getState().toggleViewMode()}
             >
-              {viewMode === "2d" ? "Vista 3D" : "Vista 2D"}
+              {viewMode === "2d" ? "3D" : "2D"}
             </button>
             <button
-              className="rounded-none bg-[#160b24]/90 px-3 py-1 text-xs font-black border-2 border-[#00d4c8] text-[#00d4c8]"
+              className="rounded-none bg-black px-3 py-1 text-xs font-black border-2 border-[#ff6600] text-[#ff6600]"
               onClick={() => {
                 useHud.getState().toggleMuted();
                 setMuted(!isMuted());
               }}
             >
-              {muted ? "SONIDO" : "MUTE"}
+              {muted ? "SND" : "MUTE"}
             </button>
           </div>
         </div>
@@ -67,7 +67,7 @@ export function HUD() {
 
       {(status === "ready" || status === "dying" || status === "levelclear") && (
         <div className="absolute inset-0 grid place-items-center pointer-events-none">
-          <div className="title-font text-4xl md:text-6xl text-[#ffe600] drop-shadow-[0_4px_0_#ff2d95] text-center px-4">
+          <div className="title-font text-4xl md:text-6xl text-[#ffff00] drop-shadow-[0_0_12px_#ff00aa] text-center px-4">
             {status === "ready" && THEME.ready}
             {status === "dying" && THEME.death}
             {status === "levelclear" && THEME.clear}
@@ -80,23 +80,23 @@ export function HUD() {
           {Array.from({ length: Math.max(0, lives) }).map((_, i) => (
             <span
               key={i}
-              className="inline-block w-7 h-6 rounded-full bg-[#f4c27a] border-2 border-[#ff2d95]"
+              className="inline-block w-5 h-5 rounded-full bg-[#ffcc00] border-2 border-[#ff00aa]"
               title="vida"
             />
           ))}
         </div>
-        <div className="hidden md:flex gap-3 text-[11px] font-bold text-[#fff7fb]/55">
-          <span>WASD / flechas</span>
-          <span>V vista 2D/3D</span>
-          <span>P pausa</span>
-          <span>M silencio</span>
+        <div className="hidden md:flex gap-3 text-[10px] font-black text-[#00ffff]/70 tracking-widest">
+          <span>WASD</span>
+          <span>V 2D/3D</span>
+          <span>P PAUSE</span>
+          <span>M MUTE</span>
         </div>
         <span className="md:hidden w-16" />
       </div>
 
       {status === "paused" && (
-        <div className="absolute inset-0 grid place-items-center bg-[#090614]/75">
-          <div className="title-font text-4xl text-[#ff2d95]">PAUSA</div>
+        <div className="absolute inset-0 grid place-items-center bg-black/80">
+          <div className="title-font text-4xl text-[#ff00aa]">PAUSE</div>
         </div>
       )}
     </div>
