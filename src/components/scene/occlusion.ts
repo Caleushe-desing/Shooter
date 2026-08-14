@@ -24,43 +24,37 @@ export function isBlockedByWalls(
 }
 
 /**
- * Prefer lift over yanking the chase cam into the player.
- * Keeps the elevated third-person framing readable in corridors.
+ * Keep XZ behind the player; only lift if a wall blocks LOS.
+ * Never yank sideways — that made the chase feel wild.
  */
-export function resolveShoulderCamera(
+export function resolveBehindCamera(
   player: Vector3,
   baseCam: Vector3,
   walls: Object3D | null | undefined,
   out: Vector3,
 ): Vector3 {
   out.copy(baseCam);
-  _origin.set(player.x, 0.45, player.z);
+  _origin.set(player.x, 0.55, player.z);
   if (!isBlockedByWalls(_origin, out, walls)) return out;
 
   const ox = baseCam.x - player.x;
-  const oy = baseCam.y - player.y;
   const oz = baseCam.z - player.z;
+  let y = baseCam.y;
 
-  // 1) Lift first — keep distance, raise over walls.
-  for (let i = 0; i < 10; i++) {
-    const lift = oy + (i + 1) * 0.55;
-    out.set(player.x + ox, player.y + lift, player.z + oz);
+  for (let i = 0; i < 14; i++) {
+    y += 0.35;
+    out.set(player.x + ox, y, player.z + oz);
     if (!isBlockedByWalls(_origin, out, walls)) return out;
   }
 
-  // 2) Then gently pull in while staying high.
-  for (let i = 0; i < 8; i++) {
-    const pull = 1 - (i + 1) * 0.08;
-    const lift = oy + 4.5 + i * 0.25;
-    out.set(player.x + ox * pull, player.y + lift, player.z + oz * pull);
-    if (!isBlockedByWalls(_origin, out, walls)) return out;
-  }
-
-  out.set(player.x + ox * 0.2, player.y + Math.max(oy + 6, 11), player.z + oz * 0.2);
+  // Soft fallback: a bit higher, still on the same behind-axis.
+  out.set(player.x + ox * 0.85, Math.max(y, 8), player.z + oz * 0.85);
   return out;
 }
 
-export const resolveChaseCamera = resolveShoulderCamera;
+/** @deprecated */
+export const resolveShoulderCamera = resolveBehindCamera;
+export const resolveChaseCamera = resolveBehindCamera;
 
 export function setMeshesDepthTest(root: Object3D, depthTest: boolean): void {
   root.traverse((obj) => {

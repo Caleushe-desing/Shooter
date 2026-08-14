@@ -29,9 +29,9 @@ export function Quiltro({ dying = false, moving = false }: QuiltroProps) {
   });
 
   return (
-    <group ref={group} position={[0, 0.3, 0]}>
+    <group ref={group} position={[0, 0.52, 0]}>
       <mesh castShadow={false}>
-        <sphereGeometry args={[0.32, 32, 24]} />
+        <sphereGeometry args={[0.34, 32, 24]} />
         <meshStandardMaterial
           color={PALETTE.paper}
           emissive={PALETTE.paper}
@@ -41,7 +41,18 @@ export function Quiltro({ dying = false, moving = false }: QuiltroProps) {
           toneMapped={false}
         />
       </mesh>
-      <mesh position={[-0.18, 0.26, 0]} rotation={[0, 0, 0.4]}>
+      {/* cuerpo bajo — se ve entero desde atrás */}
+      <mesh position={[0, -0.22, 0]}>
+        <sphereGeometry args={[0.26, 24, 16]} />
+        <meshStandardMaterial
+          color={PALETTE.paper}
+          emissive={PALETTE.paper}
+          emissiveIntensity={0.18}
+          roughness={0.4}
+          toneMapped={false}
+        />
+      </mesh>
+      <mesh position={[-0.18, 0.28, 0]} rotation={[0, 0, 0.4]}>
         <sphereGeometry args={[0.1, 16, 12]} />
         <meshStandardMaterial
           color={PALETTE.paperCore}
@@ -51,7 +62,7 @@ export function Quiltro({ dying = false, moving = false }: QuiltroProps) {
           toneMapped={false}
         />
       </mesh>
-      <mesh position={[0.18, 0.26, 0]} rotation={[0, 0, -0.4]}>
+      <mesh position={[0.18, 0.28, 0]} rotation={[0, 0, -0.4]}>
         <sphereGeometry args={[0.1, 16, 12]} />
         <meshStandardMaterial
           color={PALETTE.paperCore}
@@ -61,24 +72,23 @@ export function Quiltro({ dying = false, moving = false }: QuiltroProps) {
           toneMapped={false}
         />
       </mesh>
-      <mesh position={[-0.1, 0.08, 0.26]}>
+      <mesh position={[-0.1, 0.08, 0.28]}>
         <sphereGeometry args={[0.045, 12, 10]} />
         <meshStandardMaterial color="#111111" roughness={0.5} toneMapped={false} />
       </mesh>
-      <mesh position={[0.1, 0.08, 0.26]}>
+      <mesh position={[0.1, 0.08, 0.28]}>
         <sphereGeometry args={[0.045, 12, 10]} />
         <meshStandardMaterial color="#111111" roughness={0.5} toneMapped={false} />
       </mesh>
-      {/* bandera suave */}
-      <mesh position={[0, -0.04, 0.3]}>
+      <mesh position={[0, -0.06, 0.32]}>
         <boxGeometry args={[0.28, 0.09, 0.02]} />
         <meshStandardMaterial color="#0033a0" roughness={0.45} toneMapped={false} />
       </mesh>
-      <mesh position={[0.1, -0.04, 0.301]}>
+      <mesh position={[0.1, -0.06, 0.321]}>
         <boxGeometry args={[0.09, 0.09, 0.02]} />
         <meshStandardMaterial color="#d52b1e" roughness={0.45} toneMapped={false} />
       </mesh>
-      <mesh position={[-0.1, -0.04, 0.301]}>
+      <mesh position={[-0.1, -0.06, 0.321]}>
         <boxGeometry args={[0.09, 0.09, 0.02]} />
         <meshStandardMaterial color="#ffffff" roughness={0.45} toneMapped={false} />
       </mesh>

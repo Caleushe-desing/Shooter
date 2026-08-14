@@ -29,6 +29,20 @@ export const OPPOSITE: Record<Dir, Dir> = {
 
 export const DIR_PRIORITY: Dir[] = ["up", "left", "down", "right"];
 
+/** Clockwise from north — used for camera-relative / facing-relative input. */
+export const DIR_CLOCK: Dir[] = ["up", "right", "down", "left"];
+
+/**
+ * Screen / stick intent relative to where the character faces.
+ * "up" on screen = keep going forward (facing).
+ */
+export function relativeToFacing(screen: Dir, facing: Dir): Dir {
+  const face = DIR_CLOCK.indexOf(facing);
+  const intent = DIR_CLOCK.indexOf(screen);
+  if (face < 0 || intent < 0) return screen;
+  return DIR_CLOCK[(face + intent) % 4];
+}
+
 export function keyCell(c: number, r: number): string {
   return `${c},${r}`;
 }

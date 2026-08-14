@@ -15,7 +15,7 @@ export function Lights() {
       camera.near = 0.5;
     } else {
       camera.far = 80;
-      camera.near = 0.08;
+      camera.near = 0.12;
     }
     camera.updateProjectionMatrix();
   }, [viewMode, scene, camera]);

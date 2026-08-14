@@ -4,10 +4,9 @@ import { PerspectiveCamera, Vector3 } from "three";
 import { TILE } from "../../constants";
 import type { CacamanEngine } from "../../game/engine";
 import type { Dir } from "../../game/types";
-import { DIR_VEC } from "../../game/types";
 import { gridToWorld } from "../../maze/grid";
 import { useHud } from "../../store/gameStore";
-import { resolveShoulderCamera } from "./occlusion";
+import { resolveBehindCamera } from "./occlusion";
 
 const desired = new Vector3();
 const look = new Vector3();
@@ -15,13 +14,14 @@ const lookSmooth = new Vector3();
 const playerPos = new Vector3();
 const baseCam = new Vector3();
 const forward = new Vector3();
-const right = new Vector3();
 
-/** Ángulo yaw en XZ: 0 = +Z (abajo en el mapa). */
-function yawFromDir(dir: Dir): number {
-  const v = DIR_VEC[dir];
-  return Math.atan2(v.c, v.r);
-}
+/** Misma tabla que el actor: cámara siempre exactamente detrás. */
+const YAW: Record<Dir, number> = {
+  up: Math.PI,
+  down: 0,
+  left: -Math.PI / 2,
+  right: Math.PI / 2,
+};
 
 function shortestAngle(from: number, to: number): number {
   let d = to - from;
@@ -31,19 +31,17 @@ function shortestAngle(from: number, to: number): number {
 }
 
 /**
- * 3D chase elevado: detrás + un poco a la derecha (hombro),
- * lo bastante alto/lejos para leer el laberinto.
+ * Chase estable desde la espalda:
+ * centrado, personaje completo, giros lentos (sin locura).
  */
 const CHASE = {
-  back: 5.4,
-  side: 1.7,
-  height: 4.15,
-  lookAhead: 2.0,
-  lookY: 0.2,
-  lookBias: -0.4,
+  back: 3.85,
+  height: 2.55,
+  /** Mirar un poco adelante del pecho para dejar al quiltro entero abajo. */
+  lookAhead: 0.7,
+  lookY: 0.62,
 };
 
-/** How many tiles visible on the short screen axis in 2D. */
 const TILES_VISIBLE_2D = 9.5;
 
 function heightFor2d(aspect: number, fovDeg: number): number {
@@ -61,7 +59,7 @@ export function CameraRig({ engine }: { engine: CacamanEngine }) {
   const viewMode = useHud((s) => s.viewMode);
   const snapped = useRef(false);
   const lastMode = useRef(viewMode);
-  const yawSmooth = useRef(yawFromDir(engine.player.dir));
+  const yawSmooth = useRef(YAW[engine.player.dir]);
 
   useFrame((_, dt) => {
     const p = engine.player;
@@ -71,11 +69,12 @@ export function CameraRig({ engine }: { engine: CacamanEngine }) {
     if (modeChanged) {
       lastMode.current = viewMode;
       snapped.current = false;
+      yawSmooth.current = YAW[p.dir];
     }
 
     if (camera instanceof PerspectiveCamera) {
       const wantFov =
-        viewMode === "2d" ? (aspect < 1 ? 48 : 46) : aspect < 1 ? 52 : 48;
+        viewMode === "2d" ? (aspect < 1 ? 48 : 46) : aspect < 1 ? 55 : 50;
       if (Math.abs(camera.fov - wantFov) > 0.15) {
         camera.fov = wantFov;
         camera.updateProjectionMatrix();
@@ -84,8 +83,8 @@ export function CameraRig({ engine }: { engine: CacamanEngine }) {
 
     if (engine.status === "menu" && viewMode === "3d") {
       const t = performance.now() / 1000;
-      desired.set(Math.sin(t * 0.15) * 10, 14, Math.cos(t * 0.15) * 10);
-      look.set(0, 0.2, 0);
+      desired.set(Math.sin(t * 0.12) * 11, 13, Math.cos(t * 0.12) * 11);
+      look.set(0, 0.3, 0);
       camera.up.set(0, 1, 0);
     } else if (viewMode === "2d") {
       const fov = camera instanceof PerspectiveCamera ? camera.fov : 48;
@@ -94,39 +93,32 @@ export function CameraRig({ engine }: { engine: CacamanEngine }) {
       look.set(x, 0, z);
       camera.up.set(0, 0, -1);
     } else {
-      const targetYaw = yawFromDir(p.dir);
-      // Giros más suaves: menos mareo en corredores.
-      const turn = 1 - Math.exp(-dt * 6.5);
+      const targetYaw = YAW[p.dir];
+      // Giro muy suave: la cámara “sigue” la espalda sin latigazos.
+      const turn = 1 - Math.exp(-dt * 3.2);
       yawSmooth.current += shortestAngle(yawSmooth.current, targetYaw) * turn;
       const yaw = yawSmooth.current;
 
       forward.set(Math.sin(yaw), 0, Math.cos(yaw));
-      right.set(Math.cos(yaw), 0, -Math.sin(yaw));
 
       const portrait = aspect < 1;
-      const back = portrait ? CHASE.back * 1.05 : CHASE.back;
-      const side = portrait ? CHASE.side * 0.85 : CHASE.side;
-      const height = portrait ? CHASE.height * 1.12 : CHASE.height;
+      const back = portrait ? CHASE.back * 1.08 : CHASE.back;
+      const height = portrait ? CHASE.height * 1.1 : CHASE.height;
 
       playerPos.set(x, 0, z);
-      baseCam
-        .copy(playerPos)
-        .addScaledVector(forward, -back)
-        .addScaledVector(right, side);
-      baseCam.y += height;
+      baseCam.copy(playerPos).addScaledVector(forward, -back);
+      baseCam.y = height;
 
       const walls = scene.getObjectByName("maze-walls");
-      resolveShoulderCamera(playerPos, baseCam, walls, desired);
+      resolveBehindCamera(playerPos, baseCam, walls, desired);
 
-      look
-        .copy(playerPos)
-        .addScaledVector(forward, CHASE.lookAhead)
-        .addScaledVector(right, CHASE.lookBias);
+      // Look near the character so the full body stays on screen.
+      look.copy(playerPos).addScaledVector(forward, CHASE.lookAhead);
       look.y = CHASE.lookY;
       camera.up.set(0, 1, 0);
     }
 
-    const jump = camera.position.distanceTo(desired) > 10 || !snapped.current;
+    const jump = !snapped.current || camera.position.distanceTo(desired) > 14;
     if (jump) {
       camera.position.copy(desired);
       lookSmooth.copy(look);
@@ -135,10 +127,10 @@ export function CameraRig({ engine }: { engine: CacamanEngine }) {
       return;
     }
 
-    // Chase más suave en 3D para que no “pegue” en las paredes.
-    const k = 1 - Math.exp(-dt * (viewMode === "2d" ? 14 : 8));
+    const follow = viewMode === "2d" ? 14 : 4.2;
+    const k = 1 - Math.exp(-dt * follow);
     camera.position.lerp(desired, k);
-    lookSmooth.lerp(look, k);
+    lookSmooth.lerp(look, Math.min(1, k * 1.15));
     camera.lookAt(lookSmooth);
   });
 

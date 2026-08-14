@@ -31,7 +31,8 @@ export function Overlay({ onStart }: OverlayProps) {
               <li>
                 ▶ {SOAP_NAMES.blinky} / {SOAP_NAMES.pinky} / {SOAP_NAMES.inky} / {SOAP_NAMES.clyde}
               </li>
-              <li>▶ DESLIZÁ EL DEDO · SIN STICK</li>
+              <li>▶ 3D: SIEMPRE DESDE LA ESPALDA</li>
+              <li>▶ DESLIZÁ · ARRIBA = ADELANTE</li>
             </ul>
             <div className="mt-5 flex justify-center gap-2">
               <button
