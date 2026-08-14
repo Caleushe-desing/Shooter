@@ -24,14 +24,26 @@ export function Quiltro({ dying = false, moving = false }: QuiltroProps) {
     }
     death.current = 0;
     g.scale.setScalar(1);
-    g.position.y = moving ? Math.sin(performance.now() * 0.015) * 0.05 : 0;
+    g.position.y = moving ? Math.sin(performance.now() * 0.012) * 0.03 : 0;
     g.rotation.z = 0;
   });
 
   return (
-    <group ref={group} position={[0, 0.52, 0]}>
-      <mesh castShadow={false}>
-        <sphereGeometry args={[0.34, 32, 24]} />
+    <group ref={group} position={[0, 0.58, 0]}>
+      {/* cuerpo */}
+      <mesh position={[0, -0.18, 0]}>
+        <sphereGeometry args={[0.3, 28, 20]} />
+        <meshStandardMaterial
+          color={PALETTE.paper}
+          emissive={PALETTE.paper}
+          emissiveIntensity={0.2}
+          roughness={0.38}
+          toneMapped={false}
+        />
+      </mesh>
+      {/* cabeza */}
+      <mesh position={[0, 0.12, 0]}>
+        <sphereGeometry args={[0.3, 32, 24]} />
         <meshStandardMaterial
           color={PALETTE.paper}
           emissive={PALETTE.paper}
@@ -41,19 +53,8 @@ export function Quiltro({ dying = false, moving = false }: QuiltroProps) {
           toneMapped={false}
         />
       </mesh>
-      {/* cuerpo bajo — se ve entero desde atrás */}
-      <mesh position={[0, -0.22, 0]}>
-        <sphereGeometry args={[0.26, 24, 16]} />
-        <meshStandardMaterial
-          color={PALETTE.paper}
-          emissive={PALETTE.paper}
-          emissiveIntensity={0.18}
-          roughness={0.4}
-          toneMapped={false}
-        />
-      </mesh>
-      <mesh position={[-0.18, 0.28, 0]} rotation={[0, 0, 0.4]}>
-        <sphereGeometry args={[0.1, 16, 12]} />
+      <mesh position={[-0.16, 0.34, 0]} rotation={[0, 0, 0.4]}>
+        <sphereGeometry args={[0.09, 16, 12]} />
         <meshStandardMaterial
           color={PALETTE.paperCore}
           emissive={PALETTE.paperCore}
@@ -62,8 +63,8 @@ export function Quiltro({ dying = false, moving = false }: QuiltroProps) {
           toneMapped={false}
         />
       </mesh>
-      <mesh position={[0.18, 0.28, 0]} rotation={[0, 0, -0.4]}>
-        <sphereGeometry args={[0.1, 16, 12]} />
+      <mesh position={[0.16, 0.34, 0]} rotation={[0, 0, -0.4]}>
+        <sphereGeometry args={[0.09, 16, 12]} />
         <meshStandardMaterial
           color={PALETTE.paperCore}
           emissive={PALETTE.paperCore}
@@ -72,24 +73,24 @@ export function Quiltro({ dying = false, moving = false }: QuiltroProps) {
           toneMapped={false}
         />
       </mesh>
-      <mesh position={[-0.1, 0.08, 0.28]}>
-        <sphereGeometry args={[0.045, 12, 10]} />
+      <mesh position={[-0.09, 0.14, 0.26]}>
+        <sphereGeometry args={[0.04, 12, 10]} />
         <meshStandardMaterial color="#111111" roughness={0.5} toneMapped={false} />
       </mesh>
-      <mesh position={[0.1, 0.08, 0.28]}>
-        <sphereGeometry args={[0.045, 12, 10]} />
+      <mesh position={[0.09, 0.14, 0.26]}>
+        <sphereGeometry args={[0.04, 12, 10]} />
         <meshStandardMaterial color="#111111" roughness={0.5} toneMapped={false} />
       </mesh>
-      <mesh position={[0, -0.06, 0.32]}>
-        <boxGeometry args={[0.28, 0.09, 0.02]} />
+      <mesh position={[0, 0.02, 0.3]}>
+        <boxGeometry args={[0.26, 0.08, 0.02]} />
         <meshStandardMaterial color="#0033a0" roughness={0.45} toneMapped={false} />
       </mesh>
-      <mesh position={[0.1, -0.06, 0.321]}>
-        <boxGeometry args={[0.09, 0.09, 0.02]} />
+      <mesh position={[0.09, 0.02, 0.301]}>
+        <boxGeometry args={[0.08, 0.08, 0.02]} />
         <meshStandardMaterial color="#d52b1e" roughness={0.45} toneMapped={false} />
       </mesh>
-      <mesh position={[-0.1, -0.06, 0.321]}>
-        <boxGeometry args={[0.09, 0.09, 0.02]} />
+      <mesh position={[-0.09, 0.02, 0.301]}>
+        <boxGeometry args={[0.08, 0.08, 0.02]} />
         <meshStandardMaterial color="#ffffff" roughness={0.45} toneMapped={false} />
       </mesh>
     </group>

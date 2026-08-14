@@ -35,11 +35,11 @@ function shortestAngle(from: number, to: number): number {
  * centrado, personaje completo, giros lentos (sin locura).
  */
 const CHASE = {
-  back: 3.85,
-  height: 2.55,
+  back: 4.15,
+  height: 2.85,
   /** Mirar un poco adelante del pecho para dejar al quiltro entero abajo. */
-  lookAhead: 0.7,
-  lookY: 0.62,
+  lookAhead: 0.95,
+  lookY: 0.7,
 };
 
 const TILES_VISIBLE_2D = 9.5;

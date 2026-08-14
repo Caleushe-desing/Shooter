@@ -87,16 +87,6 @@ export function Maze() {
         <planeGeometry args={[TILE * 0.995, TILE * 0.995]} />
         <meshStandardMaterial roughness={0.85} metalness={0.05} toneMapped={false} />
       </instancedMesh>
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.014, 0]}>
-        <planeGeometry args={[0.06, floorD]} />
-        <meshStandardMaterial
-          color={PALETTE.accentHot}
-          emissive={PALETTE.accentHot}
-          emissiveIntensity={0.55}
-          roughness={0.4}
-          toneMapped={false}
-        />
-      </mesh>
       <instancedMesh
         name="maze-walls"
         ref={wallMesh}
