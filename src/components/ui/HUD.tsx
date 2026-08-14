@@ -19,7 +19,7 @@ export function HUD() {
   const floater = engine.floaters[engine.floaters.length - 1];
 
   return (
-    <div className="pointer-events-none absolute inset-0 p-3 md:p-5 flex flex-col justify-between arcade-scan">
+    <div className="pointer-events-none absolute inset-0 z-10 p-3 md:p-5 flex flex-col justify-between">
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="title-font text-2xl md:text-3xl text-[#ff00aa] drop-shadow-[0_0_8px_#ff00aa]">
@@ -87,11 +87,13 @@ export function HUD() {
         </div>
         <div className="hidden md:flex gap-3 text-[10px] font-black text-[#00ffff]/70 tracking-widest">
           <span>WASD</span>
+          <span>SWIPE</span>
           <span>V 2D/3D</span>
           <span>P PAUSE</span>
-          <span>M MUTE</span>
         </div>
-        <span className="md:hidden w-16" />
+        <div className="md:hidden text-[9px] font-black text-[#00ffff]/60 tracking-widest">
+          DESLIZÁ
+        </div>
       </div>
 
       {status === "paused" && (

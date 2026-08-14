@@ -32,19 +32,3 @@ body {
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
-
-/* CRT scanlines suaves — vibe 80s sin matar FPS */
-.arcade-scan::after {
-  content: "";
-  pointer-events: none;
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(
-    to bottom,
-    rgba(255, 255, 255, 0.03) 0px,
-    rgba(255, 255, 255, 0.03) 1px,
-    transparent 2px,
-    transparent 4px
-  );
-  z-index: 50;
-}

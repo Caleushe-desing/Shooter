@@ -7,7 +7,7 @@ import { COLS, ROWS, isDoor, isWall } from "../../maze/layout";
 const _dummy = new Object3D();
 const _color = new Color();
 
-/** Laberinto flat 80s: sin texturas, puro color neón. */
+/** Laberinto neón suave: mismos colores, bordes limpios. */
 export function Maze() {
   const { walls, doors } = useMemo(() => {
     const walls: { x: number; z: number; c: number; r: number }[] = [];
@@ -48,7 +48,6 @@ export function Maze() {
   const floorW = COLS * TILE + 2.4;
   const floorD = ROWS * TILE + 2.4;
 
-  // Checker flat floor tiles (minimal).
   const floorTiles = useMemo(() => {
     const list: { x: number; z: number; dark: boolean }[] = [];
     for (let r = 0; r < ROWS; r++) {
@@ -71,7 +70,7 @@ export function Maze() {
       _dummy.scale.set(1, 1, 1);
       _dummy.updateMatrix();
       mesh.setMatrixAt(i, _dummy.matrix);
-      _color.set(t.dark ? "#0a0a0a" : "#1a1a1a");
+      _color.set(t.dark ? "#101018" : "#181822");
       mesh.setColorAt(i, _color);
     }
     mesh.instanceMatrix.needsUpdate = true;
@@ -80,18 +79,23 @@ export function Maze() {
 
   return (
     <group>
-      <mesh position={[0, -0.15, 0]}>
+      <mesh position={[0, -0.12, 0]} receiveShadow={false}>
         <boxGeometry args={[floorW + 1.2, 0.2, floorD + 1.2]} />
-        <meshBasicMaterial color="#000000" />
+        <meshStandardMaterial color="#050508" roughness={0.9} metalness={0} />
       </mesh>
       <instancedMesh ref={floorMesh} args={[undefined, undefined, floorTiles.length]} frustumCulled={false}>
-        <planeGeometry args={[TILE * 0.98, TILE * 0.98]} />
-        <meshBasicMaterial toneMapped={false} />
+        <planeGeometry args={[TILE * 0.995, TILE * 0.995]} />
+        <meshStandardMaterial roughness={0.85} metalness={0.05} toneMapped={false} />
       </instancedMesh>
-      {/* yellow lane accents */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.015, 0]}>
-        <planeGeometry args={[0.08, floorD]} />
-        <meshBasicMaterial color={PALETTE.accentHot} toneMapped={false} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.014, 0]}>
+        <planeGeometry args={[0.06, floorD]} />
+        <meshStandardMaterial
+          color={PALETTE.accentHot}
+          emissive={PALETTE.accentHot}
+          emissiveIntensity={0.55}
+          roughness={0.4}
+          toneMapped={false}
+        />
       </mesh>
       <instancedMesh
         name="maze-walls"
@@ -99,13 +103,19 @@ export function Maze() {
         args={[undefined, undefined, walls.length]}
         frustumCulled
       >
-        <boxGeometry args={[TILE * 0.92, 1.1, TILE * 0.92]} />
-        <meshBasicMaterial toneMapped={false} />
+        <boxGeometry args={[TILE * 0.9, 1.05, TILE * 0.9]} />
+        <meshStandardMaterial roughness={0.32} metalness={0.12} toneMapped={false} />
       </instancedMesh>
       {doors.map((d, i) => (
-        <mesh key={i} position={[d.x, 0.2, d.z]}>
-          <boxGeometry args={[TILE * 0.9, 0.28, 0.1]} />
-          <meshBasicMaterial color={PALETTE.door} toneMapped={false} />
+        <mesh key={i} position={[d.x, 0.22, d.z]}>
+          <boxGeometry args={[TILE * 0.88, 0.22, 0.08]} />
+          <meshStandardMaterial
+            color={PALETTE.door}
+            emissive={PALETTE.door}
+            emissiveIntensity={0.55}
+            roughness={0.3}
+            toneMapped={false}
+          />
         </mesh>
       ))}
     </group>

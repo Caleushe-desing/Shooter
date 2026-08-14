@@ -134,8 +134,8 @@ export function Pellets({ engine }: { engine: CacamanEngine }) {
     for (const k of keys) {
       const [c, r] = k.split(",").map(Number);
       const w = gridToWorld(c, r);
-      _dummy.position.set(w.x, 0.14, w.z);
-      _dummy.rotation.set(Math.PI / 2, 0, 0);
+      _dummy.position.set(w.x, 0.16, w.z);
+      _dummy.rotation.set(0, 0, 0);
       _dummy.scale.setScalar(1);
       _dummy.updateMatrix();
       m.setMatrixAt(i++, _dummy.matrix);
@@ -151,8 +151,14 @@ export function Pellets({ engine }: { engine: CacamanEngine }) {
         args={[undefined, undefined, Math.max(keys.length, 1)]}
         frustumCulled={false}
       >
-        <cylinderGeometry args={[0.1, 0.1, 0.05, 6]} />
-        <meshBasicMaterial color={PALETTE.poop} toneMapped={false} />
+        <sphereGeometry args={[0.1, 16, 12]} />
+        <meshStandardMaterial
+          color={PALETTE.poop}
+          emissive={PALETTE.poop}
+          emissiveIntensity={0.35}
+          roughness={0.35}
+          toneMapped={false}
+        />
       </instancedMesh>
       {power.map((k) => {
         const [c, r] = k.split(",").map(Number);
@@ -175,12 +181,24 @@ function Completo({ x, z }: { x: number; z: number }) {
   return (
     <group ref={ref} position={[x, 0.25, z]}>
       <mesh>
-        <boxGeometry args={[0.4, 0.16, 0.2]} />
-        <meshBasicMaterial color="#ffaa00" toneMapped={false} />
+        <capsuleGeometry args={[0.1, 0.22, 6, 12]} />
+        <meshStandardMaterial
+          color="#ffaa00"
+          emissive="#ffaa00"
+          emissiveIntensity={0.3}
+          roughness={0.35}
+          toneMapped={false}
+        />
       </mesh>
-      <mesh position={[0, 0.1, 0]}>
-        <boxGeometry args={[0.32, 0.06, 0.14]} />
-        <meshBasicMaterial color={PALETTE.poopPower} toneMapped={false} />
+      <mesh position={[0, 0.12, 0]}>
+        <sphereGeometry args={[0.1, 14, 12]} />
+        <meshStandardMaterial
+          color={PALETTE.poopPower}
+          emissive={PALETTE.poopPower}
+          emissiveIntensity={0.4}
+          roughness={0.3}
+          toneMapped={false}
+        />
       </mesh>
     </group>
   );

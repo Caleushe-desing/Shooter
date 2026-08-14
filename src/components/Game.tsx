@@ -20,8 +20,8 @@ import { CameraRig } from "./scene/CameraRig";
 import { Lights } from "./scene/Lights";
 import { Maze } from "./scene/Maze";
 import { HUD } from "./ui/HUD";
-import { MobilePad } from "./ui/MobilePad";
 import { Overlay } from "./ui/Overlay";
+import { TouchControls } from "./ui/TouchControls";
 
 export function Game() {
   useEffect(() => {
@@ -59,10 +59,9 @@ export function Game() {
     <div className="relative w-full h-full">
       <Canvas
         dpr={MAX_DPR}
-        flat
         camera={{ position: [0, 10, 12], fov: 50, near: 0.1, far: 60 }}
         gl={{
-          antialias: false,
+          antialias: true,
           powerPreference: "high-performance",
           stencil: false,
           depth: true,
@@ -78,9 +77,9 @@ export function Game() {
         <CameraRig engine={engine} />
         <SimLoop />
       </Canvas>
+      <TouchControls onDir={(dir) => engine.setInput(dir)} />
       <HUD />
       <Overlay onStart={startOrRestart} />
-      <MobilePad onDir={(dir) => engine.setInput(dir)} />
     </div>
   );
 }

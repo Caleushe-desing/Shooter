@@ -8,7 +8,7 @@ interface QuiltroProps {
   moving?: boolean;
 }
 
-/** Quiltro minimal 80s: esferas + cajas flat. */
+/** Quiltro suave: mismas colores, mallas redondas. */
 export function Quiltro({ dying = false, moving = false }: QuiltroProps) {
   const group = useRef<Group>(null);
   const death = useRef(0);
@@ -29,39 +29,58 @@ export function Quiltro({ dying = false, moving = false }: QuiltroProps) {
   });
 
   return (
-    <group ref={group} position={[0, 0.28, 0]}>
-      <mesh>
-        <sphereGeometry args={[0.32, 8, 6]} />
-        <meshBasicMaterial color={PALETTE.paper} toneMapped={false} />
+    <group ref={group} position={[0, 0.3, 0]}>
+      <mesh castShadow={false}>
+        <sphereGeometry args={[0.32, 32, 24]} />
+        <meshStandardMaterial
+          color={PALETTE.paper}
+          emissive={PALETTE.paper}
+          emissiveIntensity={0.22}
+          roughness={0.35}
+          metalness={0.05}
+          toneMapped={false}
+        />
       </mesh>
-      <mesh position={[-0.18, 0.28, 0]} rotation={[0, 0, 0.35]}>
-        <coneGeometry args={[0.1, 0.22, 4]} />
-        <meshBasicMaterial color={PALETTE.paperCore} toneMapped={false} />
+      <mesh position={[-0.18, 0.26, 0]} rotation={[0, 0, 0.4]}>
+        <sphereGeometry args={[0.1, 16, 12]} />
+        <meshStandardMaterial
+          color={PALETTE.paperCore}
+          emissive={PALETTE.paperCore}
+          emissiveIntensity={0.15}
+          roughness={0.4}
+          toneMapped={false}
+        />
       </mesh>
-      <mesh position={[0.18, 0.28, 0]} rotation={[0, 0, -0.35]}>
-        <coneGeometry args={[0.1, 0.22, 4]} />
-        <meshBasicMaterial color={PALETTE.paperCore} toneMapped={false} />
+      <mesh position={[0.18, 0.26, 0]} rotation={[0, 0, -0.4]}>
+        <sphereGeometry args={[0.1, 16, 12]} />
+        <meshStandardMaterial
+          color={PALETTE.paperCore}
+          emissive={PALETTE.paperCore}
+          emissiveIntensity={0.15}
+          roughness={0.4}
+          toneMapped={false}
+        />
       </mesh>
       <mesh position={[-0.1, 0.08, 0.26]}>
-        <boxGeometry args={[0.08, 0.08, 0.04]} />
-        <meshBasicMaterial color="#000000" toneMapped={false} />
+        <sphereGeometry args={[0.045, 12, 10]} />
+        <meshStandardMaterial color="#111111" roughness={0.5} toneMapped={false} />
       </mesh>
       <mesh position={[0.1, 0.08, 0.26]}>
-        <boxGeometry args={[0.08, 0.08, 0.04]} />
-        <meshBasicMaterial color="#000000" toneMapped={false} />
+        <sphereGeometry args={[0.045, 12, 10]} />
+        <meshStandardMaterial color="#111111" roughness={0.5} toneMapped={false} />
       </mesh>
-      {/* bandera flat */}
-      <mesh position={[0, -0.05, 0.3]}>
-        <boxGeometry args={[0.12, 0.08, 0.02]} />
-        <meshBasicMaterial color="#0033a0" toneMapped={false} />
+      {/* bandera suave */}
+      <mesh position={[0, -0.04, 0.3]}>
+        <boxGeometry args={[0.28, 0.09, 0.02]} />
+        <meshStandardMaterial color="#0033a0" roughness={0.45} toneMapped={false} />
       </mesh>
-      <mesh position={[0.1, -0.05, 0.3]}>
-        <boxGeometry args={[0.08, 0.08, 0.021]} />
-        <meshBasicMaterial color="#d52b1e" toneMapped={false} />
+      <mesh position={[0.1, -0.04, 0.301]}>
+        <boxGeometry args={[0.09, 0.09, 0.02]} />
+        <meshStandardMaterial color="#d52b1e" roughness={0.45} toneMapped={false} />
       </mesh>
-      <mesh position={[-0.1, -0.05, 0.3]}>
-        <boxGeometry args={[0.08, 0.08, 0.021]} />
-        <meshBasicMaterial color="#ffffff" toneMapped={false} />
+      <mesh position={[-0.1, -0.04, 0.301]}>
+        <boxGeometry args={[0.09, 0.09, 0.02]} />
+        <meshStandardMaterial color="#ffffff" roughness={0.45} toneMapped={false} />
       </mesh>
     </group>
   );

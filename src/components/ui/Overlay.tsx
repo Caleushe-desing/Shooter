@@ -16,7 +16,7 @@ export function Overlay({ onStart }: OverlayProps) {
   const pick = (mode: ViewMode) => useHud.getState().setViewMode(mode);
 
   return (
-    <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/85 p-4 arcade-scan">
+    <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/85 p-4">
       <div className="max-w-lg w-full text-center rounded-none border-4 border-[#00ffff] bg-black px-6 py-8 shadow-[0_0_40px_#ff00aa]">
         <div className="mx-auto mb-4 h-10 w-10 rounded-full bg-[#ffcc00] border-4 border-[#ff00aa]" />
         <h1 className="title-font text-4xl md:text-5xl text-[#ff00aa] drop-shadow-[0_0_10px_#00ffff]">
@@ -31,7 +31,7 @@ export function Overlay({ onStart }: OverlayProps) {
               <li>
                 ▶ {SOAP_NAMES.blinky} / {SOAP_NAMES.pinky} / {SOAP_NAMES.inky} / {SOAP_NAMES.clyde}
               </li>
-              <li>▶ 3D = HOMBRO DER. · 2D = CENITAL</li>
+              <li>▶ DESLIZÁ EL DEDO · SIN STICK</li>
             </ul>
             <div className="mt-5 flex justify-center gap-2">
               <button
@@ -67,7 +67,7 @@ export function Overlay({ onStart }: OverlayProps) {
           {gameover ? "CONTINUE?" : "INSERT COIN"}
         </button>
         <p className="mt-5 text-[10px] font-black text-[#00ff66] tracking-widest">
-          WASD · STICK · V VIEW · P PAUSE
+          SWIPE · WASD · V VIEW · P PAUSE
         </p>
       </div>
     </div>

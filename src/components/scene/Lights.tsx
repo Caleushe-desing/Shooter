@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { PALETTE } from "../../constants";
 import { useHud } from "../../store/gameStore";
 
-/** Luz mínima 80s: negro + un toque, los meshBasic llevan el color. */
+/** Luz suave para neón limpio (sin look pixel). */
 export function Lights() {
   const viewMode = useHud((s) => s.viewMode);
   const { scene, camera } = useThree();
@@ -14,7 +14,6 @@ export function Lights() {
       camera.far = 120;
       camera.near = 0.5;
     } else {
-      // Shoulder cam is close; keep near low to avoid clipping the quiltro.
       camera.far = 80;
       camera.near = 0.08;
     }
@@ -24,7 +23,10 @@ export function Lights() {
   return (
     <>
       <color attach="background" args={[PALETTE.bg]} />
-      <ambientLight intensity={1} />
+      <ambientLight intensity={0.55} />
+      <hemisphereLight args={[PALETTE.hemiSky, PALETTE.hemiGround, 0.55]} />
+      <directionalLight position={[6, 14, 4]} intensity={0.85} />
+      <pointLight position={[0, 6, 0]} intensity={0.45} distance={40} color="#ffffff" />
     </>
   );
 }

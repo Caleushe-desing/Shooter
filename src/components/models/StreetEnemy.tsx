@@ -9,7 +9,28 @@ interface StreetEnemyProps {
   mode: GhostMode;
 }
 
-/** Enemigos flat 80s — una forma por tipo, sin detalles. */
+function BodyMat({
+  color,
+  scared,
+}: {
+  color: string;
+  scared: boolean;
+}) {
+  return (
+    <meshStandardMaterial
+      color={color}
+      emissive={color}
+      emissiveIntensity={scared ? 0.45 : 0.28}
+      roughness={0.32}
+      metalness={0.08}
+      transparent={scared}
+      opacity={scared ? 0.88 : 1}
+      toneMapped={false}
+    />
+  );
+}
+
+/** Enemigos suaves — mismos colores neón, sin low-poly. */
 export function StreetEnemy({ id, color, mode }: StreetEnemyProps) {
   const group = useRef<Group>(null);
   const eaten = mode === "eaten";
@@ -20,19 +41,19 @@ export function StreetEnemy({ id, color, mode }: StreetEnemyProps) {
   useFrame(({ clock }) => {
     const g = group.current;
     if (!g) return;
-    g.position.y = 0.28 + Math.sin(clock.elapsedTime * (scared ? 10 : 3) + id.length) * 0.04;
+    g.position.y = 0.3 + Math.sin(clock.elapsedTime * (scared ? 10 : 3) + id.length) * 0.04;
   });
 
   if (eaten) {
     return (
       <group ref={group}>
         <mesh position={[-0.1, 0, 0]}>
-          <boxGeometry args={[0.1, 0.1, 0.1]} />
-          <meshBasicMaterial color="#ffffff" toneMapped={false} />
+          <sphereGeometry args={[0.08, 12, 10]} />
+          <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.3} toneMapped={false} />
         </mesh>
         <mesh position={[0.1, 0, 0]}>
-          <boxGeometry args={[0.1, 0.1, 0.1]} />
-          <meshBasicMaterial color="#ffffff" toneMapped={false} />
+          <sphereGeometry args={[0.08, 12, 10]} />
+          <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.3} toneMapped={false} />
         </mesh>
       </group>
     );
@@ -42,35 +63,35 @@ export function StreetEnemy({ id, color, mode }: StreetEnemyProps) {
     <group ref={group} scale={house ? 0.8 : 1}>
       {id === "blinky" && (
         <mesh>
-          <boxGeometry args={[0.55, 0.4, 0.35]} />
-          <meshBasicMaterial color={body} toneMapped={false} transparent={scared} opacity={0.85} />
+          <capsuleGeometry args={[0.22, 0.18, 8, 16]} />
+          <BodyMat color={body} scared={scared} />
         </mesh>
       )}
       {id === "pinky" && (
         <mesh>
-          <sphereGeometry args={[0.28, 6, 5]} />
-          <meshBasicMaterial color={body} toneMapped={false} transparent={scared} opacity={0.85} />
+          <sphereGeometry args={[0.3, 24, 18]} />
+          <BodyMat color={body} scared={scared} />
         </mesh>
       )}
       {id === "inky" && (
-        <mesh>
-          <boxGeometry args={[0.35, 0.35, 0.35]} />
-          <meshBasicMaterial color={body} toneMapped={false} transparent={scared} opacity={0.85} />
+        <mesh rotation={[0, 0, Math.PI / 4]}>
+          <capsuleGeometry args={[0.18, 0.12, 6, 14]} />
+          <BodyMat color={body} scared={scared} />
         </mesh>
       )}
       {id === "clyde" && (
         <mesh>
-          <coneGeometry args={[0.28, 0.55, 5]} />
-          <meshBasicMaterial color={body} toneMapped={false} transparent={scared} opacity={0.85} />
+          <coneGeometry args={[0.28, 0.55, 24]} />
+          <BodyMat color={body} scared={scared} />
         </mesh>
       )}
-      <mesh position={[-0.1, 0.05, 0.2]}>
-        <boxGeometry args={[0.08, 0.08, 0.04]} />
-        <meshBasicMaterial color="#000000" toneMapped={false} />
+      <mesh position={[-0.1, 0.06, 0.22]}>
+        <sphereGeometry args={[0.045, 12, 10]} />
+        <meshStandardMaterial color="#111111" roughness={0.5} toneMapped={false} />
       </mesh>
-      <mesh position={[0.1, 0.05, 0.2]}>
-        <boxGeometry args={[0.08, 0.08, 0.04]} />
-        <meshBasicMaterial color="#000000" toneMapped={false} />
+      <mesh position={[0.1, 0.06, 0.22]}>
+        <sphereGeometry args={[0.045, 12, 10]} />
+        <meshStandardMaterial color="#111111" roughness={0.5} toneMapped={false} />
       </mesh>
     </group>
   );
