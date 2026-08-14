@@ -35,12 +35,12 @@ function shortestAngle(from: number, to: number): number {
  * lo bastante alto/lejos para leer el laberinto.
  */
 const CHASE = {
-  back: 6.2,
-  side: 1.55,
-  height: 5.4,
-  lookAhead: 1.4,
-  lookY: 0.25,
-  lookBias: -0.45,
+  back: 5.4,
+  side: 1.7,
+  height: 4.15,
+  lookAhead: 2.0,
+  lookY: 0.2,
+  lookBias: -0.4,
 };
 
 /** How many tiles visible on the short screen axis in 2D. */
