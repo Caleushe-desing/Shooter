@@ -18,13 +18,13 @@ import { wrapColFloat } from "../maze/grid";
 import {
   COLS,
   MAZE,
+  canStep,
   exits,
-  isWalkable,
   neighbor,
   wrapCol,
 } from "../maze/layout";
 import type { Actor, Dir, FloatingScore, GameStatus, GhostId, GhostMode, GhostState } from "./types";
-import { DIR_PRIORITY, DIR_VEC, OPPOSITE, keyCell } from "./types";
+import { DIR_PRIORITY, DIR_VEC, OPPOSITE, isDiagonal, keyCell } from "./types";
 
 export interface EngineEvent {
   kind:
@@ -391,7 +391,7 @@ function spawnGhosts(level: number): GhostState[] {
   ];
 }
 
-/** How close to tile center before a 90° turn snaps in (Pac-Man corner cut). */
+/** How close to tile center before a turn snaps in (Pac-Man corner cut). */
 const TURN_SLACK = 0.32;
 
 function tryTurn(actor: Actor, ghost: boolean): void {
@@ -406,15 +406,18 @@ function tryTurn(actor: Actor, ghost: boolean): void {
   const tileR = Math.round(actor.row);
   const offC = Math.abs(actor.col - Math.round(actor.col));
   const offR = Math.abs(actor.row - Math.round(actor.row));
-  // Must be aligned on the axis we're leaving so the turn doesn't clip walls.
-  const aligned = vec.c === 0 ? offC <= TURN_SLACK : offR <= TURN_SLACK;
+  const diag = isDiagonal(actor.queued);
+  const aligned = diag
+    ? offC <= TURN_SLACK && offR <= TURN_SLACK
+    : vec.c === 0
+      ? offC <= TURN_SLACK
+      : offR <= TURN_SLACK;
   if (!aligned) return;
 
-  const next = neighbor(tileC, tileR, actor.queued);
-  if (!isWalkable(next.c, next.r, ghost)) return;
+  if (!canStep(tileC, tileR, actor.queued, ghost)) return;
 
-  if (vec.c === 0) actor.col = tileC;
-  else actor.row = tileR;
+  if (diag || vec.c !== 0) actor.row = tileR;
+  if (diag || vec.r !== 0) actor.col = tileC;
   actor.dir = actor.queued;
 }
 
@@ -424,11 +427,14 @@ function isAtCenter(actor: Actor, eps = 1e-4): boolean {
 
 function distToNextCenter(actor: Actor): number {
   const vec = DIR_VEC[actor.dir];
-  if (vec.c > 0) return Math.floor(actor.col + 1e-4) + 1 - actor.col;
-  if (vec.c < 0) return actor.col - (Math.ceil(actor.col - 1e-4) - 1);
-  if (vec.r > 0) return Math.floor(actor.row + 1e-4) + 1 - actor.row;
-  if (vec.r < 0) return actor.row - (Math.ceil(actor.row - 1e-4) - 1);
-  return 0;
+  let dc = Infinity;
+  let dr = Infinity;
+  if (vec.c > 0) dc = Math.floor(actor.col + 1e-4) + 1 - actor.col;
+  if (vec.c < 0) dc = actor.col - (Math.ceil(actor.col - 1e-4) - 1);
+  if (vec.r > 0) dr = Math.floor(actor.row + 1e-4) + 1 - actor.row;
+  if (vec.r < 0) dr = actor.row - (Math.ceil(actor.row - 1e-4) - 1);
+  if (vec.c !== 0 && vec.r !== 0) return Math.min(dc, dr);
+  return vec.c !== 0 ? dc : dr;
 }
 
 function advanceActor(actor: Actor, dist: number, ghost: boolean, onCenter: () => void): void {
@@ -438,15 +444,18 @@ function advanceActor(actor: Actor, dist: number, ghost: boolean, onCenter: () =
       actor.col = wrapColFloat(Math.round(actor.col));
       actor.row = Math.round(actor.row);
       onCenter();
-      const next = neighbor(wrapCol(Math.round(actor.col)), Math.round(actor.row), actor.dir);
-      if (!isWalkable(next.c, next.r, ghost)) return;
+      const c = wrapCol(Math.round(actor.col));
+      const r = Math.round(actor.row);
+      if (!canStep(c, r, actor.dir, ghost)) return;
     }
     const vec = DIR_VEC[actor.dir];
     const toCenter = distToNextCenter(actor);
     const step = Math.min(remaining, Math.max(toCenter, 1e-6));
-    actor.col = wrapColFloat(actor.col + vec.c * step);
-    actor.row += vec.r * step;
-    remaining -= step;
+    const diag = isDiagonal(actor.dir);
+    // Misma velocidad de tile; en diagonal ambos ejes avanzan `step`.
+    actor.col = wrapColFloat(actor.col + Math.sign(vec.c) * step);
+    actor.row += Math.sign(vec.r) * step;
+    remaining -= diag ? step * Math.SQRT2 : step;
   }
 }
 

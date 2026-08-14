@@ -44,14 +44,14 @@ export function Game() {
 
       const view = useHud.getState().viewMode;
       if (view === "3d") {
-        // A/D o flechas: girar el mapa. El avance es siempre “al fondo”.
+        // A/D: girar el mapa de a 45°. Avance siempre al fondo.
         if (key === "a" || key === "arrowleft" || key === "h") {
-          setSpinYaw(DIR_YAW[engine.player.dir] + Math.PI / 2);
+          setSpinYaw(DIR_YAW[engine.player.dir] + Math.PI / 4);
           const facing = yawToFacing(getSpinYaw());
           setSpinYaw(DIR_YAW[facing]);
           engine.setInput(facing);
         } else if (key === "d" || key === "arrowright" || key === "l") {
-          setSpinYaw(DIR_YAW[engine.player.dir] - Math.PI / 2);
+          setSpinYaw(DIR_YAW[engine.player.dir] - Math.PI / 4);
           const facing = yawToFacing(getSpinYaw());
           setSpinYaw(DIR_YAW[facing]);
           engine.setInput(facing);

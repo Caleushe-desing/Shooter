@@ -12,10 +12,14 @@ import { StreetEnemy } from "../models/StreetEnemy";
 import { isBlockedByWalls, setMeshesDepthTest } from "./occlusion";
 
 const YAW: Record<string, number> = {
-  up: Math.PI,
   down: 0,
-  left: -Math.PI / 2,
+  downright: Math.PI / 4,
   right: Math.PI / 2,
+  upright: (3 * Math.PI) / 4,
+  up: Math.PI,
+  upleft: (-3 * Math.PI) / 4,
+  left: -Math.PI / 2,
+  downleft: -Math.PI / 4,
 };
 
 const _dummy = new Object3D();

@@ -1,4 +1,12 @@
-export type Dir = "up" | "down" | "left" | "right";
+export type Dir =
+  | "up"
+  | "down"
+  | "left"
+  | "right"
+  | "upleft"
+  | "upright"
+  | "downleft"
+  | "downright";
 
 export type GhostId = "blinky" | "pinky" | "inky" | "clyde";
 
@@ -13,11 +21,16 @@ export type GameStatus =
   | "levelclear"
   | "gameover";
 
+/** Vectores de tile (signos). Diagonales = 45°. */
 export const DIR_VEC: Record<Dir, { c: number; r: number }> = {
   up: { c: 0, r: -1 },
   down: { c: 0, r: 1 },
   left: { c: -1, r: 0 },
   right: { c: 1, r: 0 },
+  upleft: { c: -1, r: -1 },
+  upright: { c: 1, r: -1 },
+  downleft: { c: -1, r: 1 },
+  downright: { c: 1, r: 1 },
 };
 
 export const OPPOSITE: Record<Dir, Dir> = {
@@ -25,16 +38,43 @@ export const OPPOSITE: Record<Dir, Dir> = {
   down: "up",
   left: "right",
   right: "left",
+  upleft: "downright",
+  upright: "downleft",
+  downleft: "upright",
+  downright: "upleft",
 };
 
-export const DIR_PRIORITY: Dir[] = ["up", "left", "down", "right"];
+/** Solo cardinales — fantasmas / IA. */
+export const CARDINAL_DIRS: Dir[] = ["up", "left", "down", "right"];
 
-/** Clockwise from north — used for camera-relative / facing-relative input. */
+/** Fantasmas eligen en este orden. */
+export const DIR_PRIORITY: Dir[] = CARDINAL_DIRS;
+
+/**
+ * 8 rumbos en sentido horario desde “down” (yaw 0, +Z).
+ * Pasos de 45°.
+ */
+export const DIR_CLOCK_8: Dir[] = [
+  "down",
+  "downright",
+  "right",
+  "upright",
+  "up",
+  "upleft",
+  "left",
+  "downleft",
+];
+
+export function isDiagonal(dir: Dir): boolean {
+  const v = DIR_VEC[dir];
+  return v.c !== 0 && v.r !== 0;
+}
+
+/** Clockwise from north — 4-way (2D swipe). */
 export const DIR_CLOCK: Dir[] = ["up", "right", "down", "left"];
 
 /**
- * Screen / stick intent relative to where the character faces.
- * "up" on screen = keep going forward (facing).
+ * Screen / stick intent relative to where the character faces (4-way).
  */
 export function relativeToFacing(screen: Dir, facing: Dir): Dir {
   const face = DIR_CLOCK.indexOf(facing);

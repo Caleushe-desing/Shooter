@@ -156,6 +156,14 @@ export function neighbor(c: number, r: number, dir: Dir): { c: number; r: number
       return { c: wrapCol(c - 1), r };
     case "right":
       return { c: wrapCol(c + 1), r };
+    case "upleft":
+      return { c: wrapCol(c - 1), r: r - 1 };
+    case "upright":
+      return { c: wrapCol(c + 1), r: r - 1 };
+    case "downleft":
+      return { c: wrapCol(c - 1), r: r + 1 };
+    case "downright":
+      return { c: wrapCol(c + 1), r: r + 1 };
   }
 }
 
@@ -166,4 +174,18 @@ export function exits(c: number, r: number, ghost: boolean): Dir[] {
     if (isWalkable(n.c, n.r, ghost)) dirs.push(dir);
   }
   return dirs;
+}
+
+/** ¿Se puede avanzar en esta dirección (incluye diagonales a 45°)? */
+export function canStep(c: number, r: number, dir: Dir, ghost: boolean): boolean {
+  const n = neighbor(c, r, dir);
+  if (!isWalkable(n.c, n.r, ghost)) return false;
+  const wrappedDc = (n.c - c + COLS * 2) % COLS;
+  const stepC = wrappedDc === 0 ? 0 : wrappedDc <= COLS / 2 ? wrappedDc : wrappedDc - COLS;
+  const stepR = n.r - r;
+  if (stepC !== 0 && stepR !== 0) {
+    if (!isWalkable(wrapCol(c + stepC), r, ghost)) return false;
+    if (!isWalkable(c, r + stepR, ghost)) return false;
+  }
+  return true;
 }

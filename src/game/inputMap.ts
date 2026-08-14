@@ -1,5 +1,5 @@
 import type { Dir } from "./types";
-import { relativeToFacing } from "./types";
+import { DIR_CLOCK_8, relativeToFacing } from "./types";
 
 /** Yaw de cámara / “giro del mapa” en 3D (radianes). */
 let spinYaw = 0;
@@ -25,7 +25,6 @@ export function isSpinDragging(): boolean {
   return dragging;
 }
 
-/** @deprecated alias — misma fuente que el giro del mapa */
 export function setCamYaw(yaw: number): void {
   spinYaw = yaw;
 }
@@ -41,17 +40,28 @@ function shortest(from: number, to: number): number {
   return d;
 }
 
+/** Yaw de cada rumbo — pasos de 45°. */
+export const DIR_YAW: Record<Dir, number> = {
+  down: 0,
+  downright: Math.PI / 4,
+  right: Math.PI / 2,
+  upright: (3 * Math.PI) / 4,
+  up: Math.PI,
+  upleft: (-3 * Math.PI) / 4,
+  left: -Math.PI / 2,
+  downleft: -Math.PI / 4,
+};
+
+export function snapYaw45(yaw: number): number {
+  const step = Math.PI / 4;
+  return Math.round(yaw / step) * step;
+}
+
 export function yawToFacing(yaw: number): Dir {
-  const targets: { d: Dir; y: number }[] = [
-    { d: "down", y: 0 },
-    { d: "right", y: Math.PI / 2 },
-    { d: "up", y: Math.PI },
-    { d: "left", y: -Math.PI / 2 },
-  ];
   let best: Dir = "down";
   let bestDist = Infinity;
-  for (const { d, y } of targets) {
-    let dist = Math.abs(shortest(yaw, y));
+  for (const d of DIR_CLOCK_8) {
+    let dist = Math.abs(shortest(yaw, DIR_YAW[d]));
     if (d === "up") dist = Math.min(dist, Math.abs(shortest(yaw, -Math.PI)));
     if (dist < bestDist) {
       bestDist = dist;
@@ -61,15 +71,16 @@ export function yawToFacing(yaw: number): Dir {
   return best;
 }
 
-export const DIR_YAW: Record<Dir, number> = {
-  up: Math.PI,
-  down: 0,
-  left: -Math.PI / 2,
-  right: Math.PI / 2,
-};
-
 export function screenToWorld3d(screen: Dir): Dir {
-  return relativeToFacing(screen, yawToFacing(spinYaw));
+  // 4-way screen intents relative to nearest cardinal of current spin
+  const facing4 = yawToFacing(spinYaw);
+  const card =
+    facing4 === "upleft" || facing4 === "upright"
+      ? "up"
+      : facing4 === "downleft" || facing4 === "downright"
+        ? "down"
+        : facing4;
+  return relativeToFacing(screen, card);
 }
 
 export function screenToWorld(screen: Dir, viewMode: "3d" | "2d"): Dir {
