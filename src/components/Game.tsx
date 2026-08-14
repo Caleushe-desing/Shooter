@@ -13,7 +13,13 @@ import {
 } from "../audio/sfx";
 import { dirFromKeys } from "../game/engine";
 import { engine } from "../game/instance";
-import { screenToWorld } from "../game/inputMap";
+import {
+  DIR_YAW,
+  getSpinYaw,
+  screenToWorld,
+  setSpinYaw,
+  yawToFacing,
+} from "../game/inputMap";
 import { MAX_DPR } from "../perf";
 import { useHud } from "../store/gameStore";
 import { GhostActors, Pellets, PlayerActor } from "./scene/Actors";
@@ -21,7 +27,7 @@ import { CameraRig } from "./scene/CameraRig";
 import { Lights } from "./scene/Lights";
 import { Maze } from "./scene/Maze";
 import { HUD } from "./ui/HUD";
-import { MobileStick } from "./ui/MobileStick";
+import { MapSpinControls } from "./ui/MapSpinControls";
 import { Overlay } from "./ui/Overlay";
 import { TouchControls } from "./ui/TouchControls";
 
@@ -35,10 +41,31 @@ export function Game() {
       }
       keys.add(key);
       unlockAudio();
-      const screen = dirFromKeys(keys);
-      if (screen) {
-        const view = useHud.getState().viewMode;
-        engine.setInput(screenToWorld(screen, view));
+
+      const view = useHud.getState().viewMode;
+      if (view === "3d") {
+        // A/D o flechas: girar el mapa. El avance es siempre “al fondo”.
+        if (key === "a" || key === "arrowleft" || key === "h") {
+          setSpinYaw(DIR_YAW[engine.player.dir] + Math.PI / 2);
+          const facing = yawToFacing(getSpinYaw());
+          setSpinYaw(DIR_YAW[facing]);
+          engine.setInput(facing);
+        } else if (key === "d" || key === "arrowright" || key === "l") {
+          setSpinYaw(DIR_YAW[engine.player.dir] - Math.PI / 2);
+          const facing = yawToFacing(getSpinYaw());
+          setSpinYaw(DIR_YAW[facing]);
+          engine.setInput(facing);
+        } else if (key === "s" || key === "arrowdown" || key === "j") {
+          setSpinYaw(DIR_YAW[engine.player.dir] + Math.PI);
+          const facing = yawToFacing(getSpinYaw());
+          setSpinYaw(DIR_YAW[facing]);
+          engine.setInput(facing);
+        } else if (key === "w" || key === "arrowup" || key === "k") {
+          engine.setInput(yawToFacing(getSpinYaw()));
+        }
+      } else {
+        const screen = dirFromKeys(keys);
+        if (screen) engine.setInput(screenToWorld(screen, view));
       }
 
       if (key === "m") {
@@ -82,8 +109,8 @@ export function Game() {
         <CameraRig engine={engine} />
         <SimLoop />
       </Canvas>
+      <MapSpinControls />
       <TouchControls onDir={(dir) => engine.setInput(dir)} />
-      <MobileStick onDir={(dir) => engine.setInput(dir)} />
       <HUD />
       <Overlay onStart={startOrRestart} />
     </div>
@@ -95,6 +122,7 @@ function startOrRestart(): void {
   if (engine.status === "menu" || engine.status === "gameover") {
     engine.startGame();
     playStart();
+    setSpinYaw(DIR_YAW[engine.player.dir]);
     syncHud(true);
   } else if (engine.status === "paused") {
     engine.status = "playing";
@@ -104,9 +132,14 @@ function startOrRestart(): void {
 
 function SimLoop() {
   useFrame((_, dt) => {
-    const mobileDir = useHud.getState().mobileDir;
-    if (mobileDir) engine.setInput(mobileDir);
-    // Cap sim step so a hitch doesn't teleport actors.
+    const view = useHud.getState().viewMode;
+    if (view === "3d" && (engine.status === "playing" || engine.status === "ready")) {
+      // Siempre avanzar hacia donde mira el mapa / la cámara.
+      engine.setInput(yawToFacing(getSpinYaw()));
+    } else {
+      const mobileDir = useHud.getState().mobileDir;
+      if (mobileDir) engine.setInput(mobileDir);
+    }
     const events = engine.update(Math.min(dt, 1 / 30));
     for (const ev of events) {
       if (ev.kind === "pellet") playWaka();

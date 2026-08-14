@@ -1,15 +1,37 @@
 import type { Dir } from "./types";
-import { DIR_CLOCK, relativeToFacing } from "./types";
+import { relativeToFacing } from "./types";
 
-/** Yaw suave de la cámara 3D (radianes). Actualizado por CameraRig. */
-let camYaw = 0;
+/** Yaw de cámara / “giro del mapa” en 3D (radianes). */
+let spinYaw = 0;
+let dragging = false;
 
+export function setSpinYaw(yaw: number): void {
+  spinYaw = yaw;
+}
+
+export function getSpinYaw(): number {
+  return spinYaw;
+}
+
+export function adjustSpinYaw(delta: number): void {
+  spinYaw += delta;
+}
+
+export function setSpinDragging(value: boolean): void {
+  dragging = value;
+}
+
+export function isSpinDragging(): boolean {
+  return dragging;
+}
+
+/** @deprecated alias — misma fuente que el giro del mapa */
 export function setCamYaw(yaw: number): void {
-  camYaw = yaw;
+  spinYaw = yaw;
 }
 
 export function getCamYaw(): number {
-  return camYaw;
+  return spinYaw;
 }
 
 function shortest(from: number, to: number): number {
@@ -19,7 +41,6 @@ function shortest(from: number, to: number): number {
   return d;
 }
 
-/** Cuantiza yaw de cámara a la dirección cardinal hacia la que mira. */
 export function yawToFacing(yaw: number): Dir {
   const targets: { d: Dir; y: number }[] = [
     { d: "down", y: 0 },
@@ -40,17 +61,17 @@ export function yawToFacing(yaw: number): Dir {
   return best;
 }
 
-/**
- * Intento en pantalla → dirección del mapa según la cámara 3D.
- * Arriba en pantalla = hacia adelante (lo que ves al fondo).
- */
+export const DIR_YAW: Record<Dir, number> = {
+  up: Math.PI,
+  down: 0,
+  left: -Math.PI / 2,
+  right: Math.PI / 2,
+};
+
 export function screenToWorld3d(screen: Dir): Dir {
-  return relativeToFacing(screen, yawToFacing(camYaw));
+  return relativeToFacing(screen, yawToFacing(spinYaw));
 }
 
 export function screenToWorld(screen: Dir, viewMode: "3d" | "2d"): Dir {
   return viewMode === "3d" ? screenToWorld3d(screen) : screen;
 }
-
-// silence unused if tree-shaken oddly
-void DIR_CLOCK;

@@ -3,8 +3,12 @@ import { useRef } from "react";
 import { PerspectiveCamera, Vector3 } from "three";
 import { TILE } from "../../constants";
 import type { CacamanEngine } from "../../game/engine";
-import { setCamYaw } from "../../game/inputMap";
-import type { Dir } from "../../game/types";
+import {
+  DIR_YAW,
+  getSpinYaw,
+  isSpinDragging,
+  setSpinYaw,
+} from "../../game/inputMap";
 import { gridToWorld } from "../../maze/grid";
 import { useHud } from "../../store/gameStore";
 import { resolveBehindCamera } from "./occlusion";
@@ -16,14 +20,6 @@ const playerPos = new Vector3();
 const baseCam = new Vector3();
 const forward = new Vector3();
 
-/** Misma tabla que el actor: cámara siempre exactamente detrás. */
-const YAW: Record<Dir, number> = {
-  up: Math.PI,
-  down: 0,
-  left: -Math.PI / 2,
-  right: Math.PI / 2,
-};
-
 function shortestAngle(from: number, to: number): number {
   let d = to - from;
   while (d > Math.PI) d -= Math.PI * 2;
@@ -31,14 +27,10 @@ function shortestAngle(from: number, to: number): number {
   return d;
 }
 
-/**
- * Chase estable desde la espalda:
- * centrado, personaje completo, giros lentos (sin locura).
- */
+/** Chase desde la espalda; el yaw lo marca el giro del mapa. */
 const CHASE = {
   back: 4.15,
   height: 2.85,
-  /** Mirar un poco adelante del pecho para dejar al quiltro entero abajo. */
   lookAhead: 0.95,
   lookY: 0.7,
 };
@@ -60,7 +52,7 @@ export function CameraRig({ engine }: { engine: CacamanEngine }) {
   const viewMode = useHud((s) => s.viewMode);
   const snapped = useRef(false);
   const lastMode = useRef(viewMode);
-  const yawSmooth = useRef(YAW[engine.player.dir]);
+  const yawSmooth = useRef(DIR_YAW[engine.player.dir]);
 
   useFrame((_, dt) => {
     const p = engine.player;
@@ -70,7 +62,9 @@ export function CameraRig({ engine }: { engine: CacamanEngine }) {
     if (modeChanged) {
       lastMode.current = viewMode;
       snapped.current = false;
-      yawSmooth.current = YAW[p.dir];
+      const y = DIR_YAW[p.dir];
+      yawSmooth.current = y;
+      setSpinYaw(y);
     }
 
     if (camera instanceof PerspectiveCamera) {
@@ -94,12 +88,16 @@ export function CameraRig({ engine }: { engine: CacamanEngine }) {
       look.set(x, 0, z);
       camera.up.set(0, 0, -1);
     } else {
-      const targetYaw = YAW[p.dir];
-      // Un poco más ágil para que los mandos coincidan con lo que se ve.
-      const turn = 1 - Math.exp(-dt * 5.5);
-      yawSmooth.current += shortestAngle(yawSmooth.current, targetYaw) * turn;
+      // Mapa: yaw libre al arrastrar; si no, sigue el facing del quiltro.
+      const targetYaw = isSpinDragging() ? getSpinYaw() : DIR_YAW[p.dir];
+      if (isSpinDragging()) {
+        yawSmooth.current = getSpinYaw();
+      } else {
+        const turn = 1 - Math.exp(-dt * 7);
+        yawSmooth.current += shortestAngle(yawSmooth.current, targetYaw) * turn;
+        setSpinYaw(yawSmooth.current);
+      }
       const yaw = yawSmooth.current;
-      setCamYaw(yaw);
 
       forward.set(Math.sin(yaw), 0, Math.cos(yaw));
 
@@ -114,7 +112,6 @@ export function CameraRig({ engine }: { engine: CacamanEngine }) {
       const walls = scene.getObjectByName("maze-walls");
       resolveBehindCamera(playerPos, baseCam, walls, desired);
 
-      // Look near the character so the full body stays on screen.
       look.copy(playerPos).addScaledVector(forward, CHASE.lookAhead);
       look.y = CHASE.lookY;
       camera.up.set(0, 1, 0);
@@ -126,11 +123,10 @@ export function CameraRig({ engine }: { engine: CacamanEngine }) {
       lookSmooth.copy(look);
       camera.lookAt(lookSmooth);
       snapped.current = true;
-      if (viewMode === "3d") setCamYaw(yawSmooth.current);
       return;
     }
 
-    const follow = viewMode === "2d" ? 14 : 4.2;
+    const follow = viewMode === "2d" ? 14 : isSpinDragging() ? 18 : 5.5;
     const k = 1 - Math.exp(-dt * follow);
     camera.position.lerp(desired, k);
     lookSmooth.lerp(look, Math.min(1, k * 1.15));

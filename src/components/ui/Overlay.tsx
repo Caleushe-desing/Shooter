@@ -31,7 +31,8 @@ export function Overlay({ onStart }: OverlayProps) {
               <li>
                 ▶ {SOAP_NAMES.blinky} / {SOAP_NAMES.pinky} / {SOAP_NAMES.inky} / {SOAP_NAMES.clyde}
               </li>
-              <li>▶ 3D: STICK + ALERTAS DE CERCA</li>
+              <li>▶ 3D: ARRASTRÁ PARA GIRAR EL MAPA</li>
+              <li>▶ EL QUILTRO SIEMPRE VA AL FONDO</li>
               <li>▶ 2D: DESLIZÁ EN PANTALLA</li>
             </ul>
             <div className="mt-5 flex justify-center gap-2">
@@ -68,7 +69,7 @@ export function Overlay({ onStart }: OverlayProps) {
           {gameover ? "CONTINUE?" : "INSERT COIN"}
         </button>
         <p className="mt-5 text-[10px] font-black text-[#00ff66] tracking-widest">
-          STICK/WASD · V VIEW · P PAUSE
+          DRAG MAP · A/D · V VIEW · P PAUSE
         </p>
       </div>
     </div>
