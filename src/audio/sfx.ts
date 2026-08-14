@@ -106,3 +106,9 @@ export function playReady(): void {
   beep(660, 0.09, "square", 0.05);
   beep(880, 0.12, "square", 0.05, 0.1);
 }
+
+/** Pip de proximidad: más agudo/fuerte si el enemigo está más cerca (intensity 0..1). */
+export function playProximity(intensity: number): void {
+  const t = Math.max(0, Math.min(1, intensity));
+  beep(220 + t * 420, 0.05, "square", 0.025 + t * 0.045);
+}

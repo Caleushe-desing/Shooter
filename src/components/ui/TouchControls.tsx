@@ -16,8 +16,8 @@ function screenDirFromDelta(dx: number, dy: number): Dir | null {
 }
 
 /**
- * Un desliz = una orden de giro (estilo Pac-Man).
- * En 3D: relativo a lo que muestra la cámara (arriba = adelante).
+ * Swipe a pantalla completa — solo vista 2D.
+ * En 3D se usa el stick.
  */
 export function TouchControls({ onDir }: TouchControlsProps) {
   const status = useHud((s) => s.status);
@@ -49,7 +49,7 @@ export function TouchControls({ onDir }: TouchControlsProps) {
     setMobileDir(null);
   }, [setMobileDir]);
 
-  if (status === "menu" || status === "gameover") return null;
+  if (viewMode === "3d" || status === "menu" || status === "gameover") return null;
 
   return (
     <div

@@ -21,6 +21,7 @@ import { CameraRig } from "./scene/CameraRig";
 import { Lights } from "./scene/Lights";
 import { Maze } from "./scene/Maze";
 import { HUD } from "./ui/HUD";
+import { MobileStick } from "./ui/MobileStick";
 import { Overlay } from "./ui/Overlay";
 import { TouchControls } from "./ui/TouchControls";
 
@@ -82,6 +83,7 @@ export function Game() {
         <SimLoop />
       </Canvas>
       <TouchControls onDir={(dir) => engine.setInput(dir)} />
+      <MobileStick onDir={(dir) => engine.setInput(dir)} />
       <HUD />
       <Overlay onStart={startOrRestart} />
     </div>

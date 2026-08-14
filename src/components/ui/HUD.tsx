@@ -2,7 +2,7 @@ import { isMuted, setMuted } from "../../audio/sfx";
 import { THEME } from "../../constants";
 import { engine } from "../../game/instance";
 import { useHud } from "../../store/gameStore";
-import { MiniMap } from "./MiniMap";
+import { ThreatSense } from "./ThreatSense";
 
 export function HUD() {
   const status = useHud((s) => s.status);
@@ -20,7 +20,9 @@ export function HUD() {
 
   return (
     <div className="pointer-events-none absolute inset-0 z-10 p-3 md:p-5 flex flex-col justify-between">
-      <div className="flex items-start justify-between gap-3">
+      <ThreatSense />
+
+      <div className="flex items-start justify-between gap-3 relative z-[11]">
         <div>
           <div className="title-font text-2xl md:text-3xl text-[#ff00aa] drop-shadow-[0_0_8px_#ff00aa]">
             {THEME.title}
@@ -31,11 +33,6 @@ export function HUD() {
               <span className="ml-2 text-[#ffff00]">{floater.text}</span>
             )}
           </div>
-          {viewMode === "3d" && (
-            <div className="mt-2">
-              <MiniMap />
-            </div>
-          )}
         </div>
         <div className="text-right flex flex-col items-end gap-2">
           <div className="font-black text-[#ffff00]">LVL {level}</div>
@@ -66,7 +63,7 @@ export function HUD() {
       </div>
 
       {(status === "ready" || status === "dying" || status === "levelclear") && (
-        <div className="absolute inset-0 grid place-items-center pointer-events-none">
+        <div className="absolute inset-0 grid place-items-center pointer-events-none z-[12]">
           <div className="title-font text-4xl md:text-6xl text-[#ffff00] drop-shadow-[0_0_12px_#ff00aa] text-center px-4">
             {status === "ready" && THEME.ready}
             {status === "dying" && THEME.death}
@@ -75,7 +72,7 @@ export function HUD() {
         </div>
       )}
 
-      <div className="flex items-end justify-between">
+      <div className="flex items-end justify-between relative z-[11]">
         <div className="flex gap-2 items-end">
           {Array.from({ length: Math.max(0, lives) }).map((_, i) => (
             <span
@@ -86,18 +83,18 @@ export function HUD() {
           ))}
         </div>
         <div className="hidden md:flex gap-3 text-[10px] font-black text-[#00ffff]/70 tracking-widest">
-          <span>WASD=PANTALLA</span>
-          <span>SWIPE</span>
+          <span>WASD</span>
+          {viewMode === "3d" ? <span>STICK</span> : <span>SWIPE</span>}
           <span>V 2D/3D</span>
           <span>P PAUSE</span>
         </div>
         <div className="md:hidden text-[9px] font-black text-[#00ffff]/60 tracking-widest">
-          DESLIZÁ · ↑ ADELANTE
+          {viewMode === "3d" ? "STICK · ¡FLECHAS = CERCA!" : "DESLIZÁ"}
         </div>
       </div>
 
       {status === "paused" && (
-        <div className="absolute inset-0 grid place-items-center bg-black/80">
+        <div className="absolute inset-0 grid place-items-center bg-black/80 z-[12]">
           <div className="title-font text-4xl text-[#ff00aa]">PAUSE</div>
         </div>
       )}
