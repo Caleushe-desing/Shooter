@@ -1,13 +1,13 @@
 @import "tailwindcss";
 
 :root {
-  --bath-bg: #1a1220;
-  --bath-ink: #fff6fb;
-  --bath-accent: #ff6b9d;
-  --bath-accent-dim: #ff9ec0;
-  --bath-hot: #ffe566;
-  --bath-panel: #2a1830;
-  --bath-mint: #b6f5d9;
+  --bath-bg: #070b12;
+  --bath-ink: #f4f7ff;
+  --bath-accent: #b8ff3c;
+  --bath-accent-dim: #8fd914;
+  --bath-hot: #ff4d6d;
+  --bath-panel: #121826;
+  --bath-cyan: #00e5ff;
 }
 
 html,

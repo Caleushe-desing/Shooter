@@ -23,12 +23,12 @@ export function Lights() {
   return (
     <>
       <color attach="background" args={[PALETTE.bg]} />
-      {viewMode === "3d" && <fog attach="fog" args={[PALETTE.fog, 28, 56]} />}
-      <hemisphereLight args={[PALETTE.hemiSky, PALETTE.hemiGround, 1.25]} />
-      <ambientLight intensity={0.58} />
-      <directionalLight position={[8, 16, 6]} intensity={1.3} color="#fff0f6" />
-      <pointLight position={[0, 5, 0]} intensity={0.45} distance={24} color="#ff6b9d" />
-      <pointLight position={[-6, 3, 4]} intensity={0.25} distance={18} color="#ffe566" />
+      {viewMode === "3d" && <fog attach="fog" args={[PALETTE.fog, 30, 58]} />}
+      <hemisphereLight args={[PALETTE.hemiSky, PALETTE.hemiGround, 1.2]} />
+      <ambientLight intensity={0.62} />
+      <directionalLight position={[8, 16, 6]} intensity={1.35} color="#ffffff" />
+      <pointLight position={[0, 5, 0]} intensity={0.4} distance={24} color="#b8ff3c" />
+      <pointLight position={[-5, 3, 5]} intensity={0.3} distance={18} color="#00e5ff" />
     </>
   );
 }

@@ -1,36 +1,36 @@
 /**
- * Retro WC pop — porcelana, menta y coral.
- * Vivo y de baño, sin cian apagado ni púrpura.
+ * Colores actuales y vivos — baño limpio + acentos 2020s.
+ * Lima eléctrica, azul vivo, coral; sin rosa retro ni cian apagado.
  */
 export const PALETTE = {
-  bg: "#1a1220",
-  fog: "#1a1220",
-  ink: "#fff6fb",
-  accent: "#ff6b9d",
-  accentDim: "#ff9ec0",
-  accentHot: "#ffe566",
-  panel: "#2a1830",
-  panelBorder: "#ff6b9d",
-  // Checker floor: white porcelain + soft pink
-  floorA: "#fff8fb",
-  floorB: "#ffd0e0",
-  floorGrout: "#c98aa0",
-  skirt: "#8b4d66",
-  // Mint subway tiles on walls
-  wallA: "#e8fff6",
-  wallB: "#b6f5d9",
-  wallC: "#ffffff",
-  wallBase: "#6fd6b0",
-  wallTint: "#f2fffa",
-  door: "#ffe566",
-  doorGlow: "#ffb703",
+  bg: "#070b12",
+  fog: "#070b12",
+  ink: "#f4f7ff",
+  accent: "#b8ff3c",
+  accentDim: "#8fd914",
+  accentHot: "#ff4d6d",
+  panel: "#121826",
+  panelBorder: "#b8ff3c",
+  // Piso: blanco brillante + gris frío
+  floorA: "#ffffff",
+  floorB: "#d9e2f2",
+  floorGrout: "#4a5d7a",
+  skirt: "#2a3548",
+  // Paredes: porcelana blanca + azul actual
+  wallA: "#ffffff",
+  wallB: "#e8f1ff",
+  wallC: "#cfe0ff",
+  wallBase: "#5b8cff",
+  wallTint: "#f5f8ff",
+  door: "#00e5ff",
+  doorGlow: "#00b7d4",
   paper: "#ffffff",
-  paperCore: "#ffb3cc",
-  poop: "#7a4018",
-  poopPower: "#e8913a",
-  poopGlow: "#8a4a12",
-  hemiSky: "#ffe8f2",
-  hemiGround: "#3a2040",
+  paperCore: "#b8ff3c",
+  poop: "#8b4518",
+  poopPower: "#ff8c2a",
+  poopGlow: "#c45a00",
+  hemiSky: "#eaf2ff",
+  hemiGround: "#1a2233",
 } as const;
 
 export const TILE = 1.15;
@@ -61,12 +61,12 @@ export const SCATTER_CHASE: { mode: "scatter" | "chase"; seconds: number }[] = [
   { mode: "chase", seconds: 9999 },
 ];
 
-/** Jabones de baño bien saturados. */
+/** Jabones saturados estilo marca actual. */
 export const SOAP_COLORS = {
-  blinky: "#ff3355",
-  pinky: "#ff5ec8",
-  inky: "#3dffe0",
-  clyde: "#ff9f1c",
+  blinky: "#ff3b5c",
+  pinky: "#ff2ebd",
+  inky: "#00e5ff",
+  clyde: "#ff9f0a",
 } as const;
 
 export const SOAP_NAMES = {

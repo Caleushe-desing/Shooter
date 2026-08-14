@@ -15,22 +15,22 @@ export function Overlay({ onStart }: OverlayProps) {
   const pick = (mode: ViewMode) => useHud.getState().setViewMode(mode);
 
   return (
-    <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#1a1220]/78 p-4">
-      <div className="max-w-lg w-full text-center rounded-3xl border-2 border-[#ff6b9d]/50 bg-[#2a1830]/95 px-6 py-8 shadow-[0_0_48px_rgba(255,107,157,0.2)]">
-        <div className="mx-auto mb-3 h-12 w-16 rounded-md bg-white border-4 border-[#ff6b9d] relative">
-          <span className="absolute inset-y-1 left-1/2 -ml-2 w-4 rounded-sm bg-[#ffb3cc]" />
+    <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#070b12]/80 p-4">
+      <div className="max-w-lg w-full text-center rounded-3xl border-2 border-[#b8ff3c]/55 bg-[#121826]/95 px-6 py-8 shadow-[0_0_48px_rgba(184,255,60,0.18)]">
+        <div className="mx-auto mb-3 h-12 w-16 rounded-md bg-white border-4 border-[#b8ff3c] relative">
+          <span className="absolute inset-y-1 left-1/2 -ml-2 w-4 rounded-sm bg-[#b8ff3c]" />
         </div>
-        <h1 className="title-font text-4xl md:text-5xl text-[#ff6b9d] drop-shadow-[0_4px_0_#120814]">
+        <h1 className="title-font text-4xl md:text-5xl text-[#b8ff3c] drop-shadow-[0_4px_0_#03050a]">
           CACAMAN
         </h1>
-        <p className="mt-3 font-extrabold text-[#fff6fb]/90">
+        <p className="mt-3 font-extrabold text-[#f4f7ff]/90">
           {gameover
             ? "Se acabó el papel"
             : "Pac-Man en el baño: tú eres un rollo de papel higiénico"}
         </p>
         {!gameover && (
           <>
-            <ul className="mt-5 text-left text-sm font-bold text-[#fff6fb]/75 space-y-2 mx-auto max-w-sm">
+            <ul className="mt-5 text-left text-sm font-bold text-[#f4f7ff]/75 space-y-2 mx-auto max-w-sm">
               <li>Recoge toda la caca del laberinto</li>
               <li>Los jabones te persiguen (Lejía, Espuma, Gel y Jabón)</li>
               <li>Las cacas grandes asustan a los jabones: ¡atácalos!</li>
@@ -39,10 +39,10 @@ export function Overlay({ onStart }: OverlayProps) {
               <button
                 type="button"
                 onClick={() => pick("3d")}
-                className={`rounded-xl px-4 py-2 text-sm font-black border ${
+                className={`rounded-full px-4 py-2 text-sm font-black border ${
                   viewMode === "3d"
-                    ? "bg-[#ff6b9d] text-[#1a1220] border-[#ffe566]"
-                    : "bg-black/30 text-[#fff6fb] border-[#ff6b9d]/30"
+                    ? "bg-[#b8ff3c] text-[#070b12] border-[#00e5ff]"
+                    : "bg-black/35 text-[#f4f7ff] border-[#b8ff3c]/30"
                 }`}
               >
                 Vista 3D
@@ -50,10 +50,10 @@ export function Overlay({ onStart }: OverlayProps) {
               <button
                 type="button"
                 onClick={() => pick("2d")}
-                className={`rounded-xl px-4 py-2 text-sm font-black border ${
+                className={`rounded-full px-4 py-2 text-sm font-black border ${
                   viewMode === "2d"
-                    ? "bg-[#ff6b9d] text-[#1a1220] border-[#ffe566]"
-                    : "bg-black/30 text-[#fff6fb] border-[#ff6b9d]/30"
+                    ? "bg-[#b8ff3c] text-[#070b12] border-[#00e5ff]"
+                    : "bg-black/35 text-[#f4f7ff] border-[#b8ff3c]/30"
                 }`}
               >
                 Vista 2D
@@ -61,14 +61,14 @@ export function Overlay({ onStart }: OverlayProps) {
             </div>
           </>
         )}
-        {gameover && <p className="mt-4 title-font text-[#ffe566] text-2xl">Puntos {score}</p>}
+        {gameover && <p className="mt-4 title-font text-[#ff4d6d] text-2xl">Puntos {score}</p>}
         <button
           onClick={onStart}
-          className="mt-6 title-font rounded-2xl bg-[#ffe566] text-[#1a1220] px-8 py-3 text-xl hover:bg-[#fff0a0] active:scale-95 transition border-2 border-[#ff6b9d]"
+          className="mt-6 title-font rounded-full bg-[#b8ff3c] text-[#070b12] px-8 py-3 text-xl hover:bg-[#d4ff70] active:scale-95 transition border-2 border-[#00e5ff]"
         >
           {gameover ? "Otra partida" : "Jugar"}
         </button>
-        <p className="mt-5 text-xs font-bold text-[#fff6fb]/45">
+        <p className="mt-5 text-xs font-bold text-[#f4f7ff]/45">
           WASD o flechas · móvil: stick · V cambia 2D/3D
         </p>
       </div>

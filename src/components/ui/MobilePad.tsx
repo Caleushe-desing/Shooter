@@ -75,7 +75,7 @@ export function MobilePad({ onDir }: MobilePadProps) {
       <div
         ref={baseRef}
         className={`relative rounded-full border transition-colors ${
-          active ? "border-[#ff6b9d]/75 bg-[#2a1830]/75" : "border-[#ff6b9d]/35 bg-[#1a1220]/55"
+          active ? "border-[#b8ff3c]/80 bg-[#121826]/80" : "border-[#b8ff3c]/35 bg-[#070b12]/55"
         }`}
         style={{ width: SIZE, height: SIZE }}
         onPointerDown={(e) => {
@@ -108,16 +108,16 @@ export function MobilePad({ onDir }: MobilePadProps) {
           <span
             key={dir}
             className={`pointer-events-none absolute text-[10px] font-black ${pos} ${
-              held === dir ? "text-[#ffe566]" : "text-[#fff6fb]/35"
+              held === dir ? "text-[#b8ff3c]" : "text-[#f4f7ff]/35"
             }`}
           >
             {dir === "up" ? "▲" : dir === "down" ? "▼" : dir === "left" ? "◀" : "▶"}
           </span>
         ))}
-        <div className="pointer-events-none absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#ff6b9d]/35" />
+        <div className="pointer-events-none absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#00e5ff]/35" />
         <div
           className={`pointer-events-none absolute rounded-full shadow-lg transition-[left,top] duration-75 ${
-            active && held ? "bg-[#ffe566]" : "bg-[#fff6fb]/90"
+            active && held ? "bg-[#b8ff3c]" : "bg-[#f4f7ff]/90"
           }`}
           style={{
             width: KNOB,
