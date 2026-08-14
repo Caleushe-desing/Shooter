@@ -1,31 +1,36 @@
-/** Digital bathroom palette — ceramic / neon arcade, still “baño”. */
+/**
+ * Retro WC pop — porcelana, menta y coral.
+ * Vivo y de baño, sin cian apagado ni púrpura.
+ */
 export const PALETTE = {
-  bg: "#0b1520",
-  fog: "#0b1520",
-  ink: "#e8fbff",
-  accent: "#5dffd2",
-  accentDim: "#2ec4a0",
+  bg: "#1a1220",
+  fog: "#1a1220",
+  ink: "#fff6fb",
+  accent: "#ff6b9d",
+  accentDim: "#ff9ec0",
   accentHot: "#ffe566",
-  panel: "#102033",
-  panelBorder: "#3dffe0",
-  floorA: "#d7f7f2",
-  floorB: "#b8ebe6",
-  floorGrout: "#5a8f9a",
-  skirt: "#3d6a78",
-  wallA: "#f2fffe",
-  wallB: "#d4f4f8",
-  wallC: "#e8fbff",
-  wallBase: "#9fd4de",
-  wallTint: "#e8f9ff",
-  door: "#49e0ff",
-  doorGlow: "#00b8e0",
-  paper: "#f5fffd",
-  paperCore: "#7ad1c6",
-  poop: "#6e3d18",
-  poopPower: "#c47a2a",
-  poopGlow: "#5a3010",
-  hemiSky: "#d9fff8",
-  hemiGround: "#1a3040",
+  panel: "#2a1830",
+  panelBorder: "#ff6b9d",
+  // Checker floor: white porcelain + soft pink
+  floorA: "#fff8fb",
+  floorB: "#ffd0e0",
+  floorGrout: "#c98aa0",
+  skirt: "#8b4d66",
+  // Mint subway tiles on walls
+  wallA: "#e8fff6",
+  wallB: "#b6f5d9",
+  wallC: "#ffffff",
+  wallBase: "#6fd6b0",
+  wallTint: "#f2fffa",
+  door: "#ffe566",
+  doorGlow: "#ffb703",
+  paper: "#ffffff",
+  paperCore: "#ffb3cc",
+  poop: "#7a4018",
+  poopPower: "#e8913a",
+  poopGlow: "#8a4a12",
+  hemiSky: "#ffe8f2",
+  hemiGround: "#3a2040",
 } as const;
 
 export const TILE = 1.15;
@@ -56,12 +61,12 @@ export const SCATTER_CHASE: { mode: "scatter" | "chase"; seconds: number }[] = [
   { mode: "chase", seconds: 9999 },
 ];
 
-/** Neon soap bars — bathroom cleaners, arcade-bright. */
+/** Jabones de baño bien saturados. */
 export const SOAP_COLORS = {
-  blinky: "#ff3b5c",
-  pinky: "#ff6ad5",
-  inky: "#2de2e6",
-  clyde: "#ffb347",
+  blinky: "#ff3355",
+  pinky: "#ff5ec8",
+  inky: "#3dffe0",
+  clyde: "#ff9f1c",
 } as const;
 
 export const SOAP_NAMES = {

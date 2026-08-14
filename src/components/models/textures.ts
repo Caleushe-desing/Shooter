@@ -16,7 +16,7 @@ export function usePaperTexture(): CanvasTexture {
     const g = canvas.getContext("2d")!;
     g.fillStyle = PALETTE.paper;
     g.fillRect(0, 0, 64, 64);
-    g.strokeStyle = "rgba(90, 200, 190, 0.55)";
+    g.strokeStyle = "rgba(255, 150, 190, 0.45)";
     g.lineWidth = 1;
     for (let y = 4; y < 64; y += 8) {
       g.beginPath();
@@ -24,8 +24,7 @@ export function usePaperTexture(): CanvasTexture {
       g.lineTo(64, y);
       g.stroke();
     }
-    // Pixel tick marks — digital roll vibe.
-    g.fillStyle = "rgba(45, 180, 170, 0.35)";
+    g.fillStyle = "rgba(255, 107, 157, 0.25)";
     for (let x = 0; x < 64; x += 8) g.fillRect(x, 0, 1, 64);
     const tex = new CanvasTexture(canvas);
     tex.wrapS = RepeatWrapping;
@@ -38,26 +37,27 @@ export function usePaperTexture(): CanvasTexture {
   }, []);
 }
 
-/** Ceramic bathroom tile with a crisp digital grout. */
+/** Baldosa WC: porcelana + rosa. */
 export function useTileTexture(a: string, b: string, grout: string): CanvasTexture {
   return useMemo(() => {
+    const size = 128;
     const canvas = document.createElement("canvas");
-    canvas.width = 128;
-    canvas.height = 128;
+    canvas.width = size;
+    canvas.height = size;
     const g = canvas.getContext("2d")!;
     g.fillStyle = grout;
-    g.fillRect(0, 0, 128, 128);
+    g.fillRect(0, 0, size, size);
+    // Checker within the cell for punch.
     g.fillStyle = a;
-    g.fillRect(4, 4, 120, 120);
-    // Inner bevel + pixel corner dots.
-    g.strokeStyle = b;
-    g.lineWidth = 3;
-    g.strokeRect(8, 8, 112, 112);
-    g.fillStyle = "rgba(93, 255, 210, 0.35)";
-    g.fillRect(10, 10, 6, 6);
-    g.fillRect(112, 10, 6, 6);
-    g.fillRect(10, 112, 6, 6);
-    g.fillRect(112, 112, 6, 6);
+    g.fillRect(3, 3, 60, 60);
+    g.fillRect(65, 65, 60, 60);
+    g.fillStyle = b;
+    g.fillRect(65, 3, 60, 60);
+    g.fillRect(3, 65, 60, 60);
+    g.strokeStyle = "rgba(255, 255, 255, 0.35)";
+    g.lineWidth = 2;
+    g.strokeRect(4, 4, 58, 58);
+    g.strokeRect(66, 66, 58, 58);
     const tex = new CanvasTexture(canvas);
     tex.wrapS = RepeatWrapping;
     tex.wrapT = RepeatWrapping;
@@ -70,6 +70,7 @@ export function useTileTexture(a: string, b: string, grout: string): CanvasTextu
   }, [a, b, grout]);
 }
 
+/** Azulejos de metro menta / blanco. */
 export function useWallTexture(): CanvasTexture {
   return useMemo(() => {
     const canvas = document.createElement("canvas");
@@ -84,7 +85,7 @@ export function useWallTexture(): CanvasTexture {
         g.fillStyle = colors[(x + y) % colors.length];
         const ox = y % 2 === 0 ? 0 : 8;
         g.fillRect(x * 16 + ox + 1, y * 16 + 1, 14, 14);
-        g.fillStyle = "rgba(61, 255, 224, 0.2)";
+        g.fillStyle = "rgba(255, 107, 157, 0.2)";
         g.fillRect(x * 16 + ox + 2, y * 16 + 2, 3, 3);
       }
     }

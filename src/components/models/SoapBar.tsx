@@ -13,7 +13,7 @@ export function SoapBar({ color, mode }: SoapBarProps) {
   const eaten = mode === "eaten";
   const scared = mode === "frightened";
   const house = mode === "house";
-  const bodyColor = scared ? "#7af0ff" : color;
+  const bodyColor = scared ? "#3dffe0" : color;
 
   useFrame(({ clock }) => {
     const g = group.current;
