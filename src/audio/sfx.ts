@@ -46,57 +46,18 @@ function beep(freq: number, duration: number, type: OscillatorType, gain = 0.08,
   osc.stop(t + duration + 0.02);
 }
 
-/** Procedural fart: filtered noise + falling low buzz. */
-function playFart(): void {
+/** Bocina de micro + chillido: el completo te prende. */
+function playCompletoPower(): void {
   const ac = audio();
   if (!ac || muted) return;
   const t0 = ac.currentTime;
-
-  const seconds = 0.55;
-  const buffer = ac.createBuffer(1, Math.floor(ac.sampleRate * seconds), ac.sampleRate);
-  const data = buffer.getChannelData(0);
-  let last = 0;
-  for (let i = 0; i < data.length; i++) {
-    // Brown-ish noise (smoother / “wetter” than white).
-    const white = Math.random() * 2 - 1;
-    last = (last + 0.02 * white) / 1.02;
-    data[i] = last * 3.5;
-  }
-
-  const src = ac.createBufferSource();
-  src.buffer = buffer;
-
-  const filter = ac.createBiquadFilter();
-  filter.type = "bandpass";
-  filter.Q.value = 2.2;
-  filter.frequency.setValueAtTime(420, t0);
-  filter.frequency.exponentialRampToValueAtTime(90, t0 + 0.45);
-
-  const g = ac.createGain();
-  g.gain.setValueAtTime(0.0001, t0);
-  g.gain.exponentialRampToValueAtTime(0.55, t0 + 0.04);
-  g.gain.exponentialRampToValueAtTime(0.22, t0 + 0.22);
-  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.52);
-
-  src.connect(filter);
-  filter.connect(g);
-  g.connect(ac.destination);
-  src.start(t0);
-  src.stop(t0 + seconds);
-
-  // Low “brrrp” layer.
-  const osc = ac.createOscillator();
-  const og = ac.createGain();
-  osc.type = "sawtooth";
-  osc.frequency.setValueAtTime(110, t0);
-  osc.frequency.exponentialRampToValueAtTime(48, t0 + 0.4);
-  og.gain.setValueAtTime(0.0001, t0);
-  og.gain.exponentialRampToValueAtTime(0.12, t0 + 0.03);
-  og.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.42);
-  osc.connect(og);
-  og.connect(ac.destination);
-  osc.start(t0);
-  osc.stop(t0 + 0.45);
+  // bocina grave
+  beep(180, 0.18, "sawtooth", 0.09, 0);
+  beep(140, 0.22, "sawtooth", 0.07, 0.05);
+  // chillido callejero
+  beep(880, 0.08, "square", 0.05, 0.2);
+  beep(1175, 0.1, "square", 0.05, 0.28);
+  void t0;
 }
 
 export function playWaka(): void {
@@ -106,7 +67,7 @@ export function playWaka(): void {
 
 export function playPower(): void {
   sirenUntil = performance.now() + 6400;
-  playFart();
+  playCompletoPower();
 }
 
 export function playEatGhost(): void {

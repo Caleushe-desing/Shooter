@@ -24,17 +24,18 @@ export function MiniMap() {
       cache.width = canvas.width;
       cache.height = canvas.height;
       const c = cache.getContext("2d")!;
-      c.fillStyle = "rgba(7, 11, 18, 0.88)";
+      c.fillStyle = "rgba(9, 6, 20, 0.9)";
       c.fillRect(0, 0, cache.width, cache.height);
       for (let r = 0; r < ROWS; r++) {
         for (let col = 0; col < COLS; col++) {
           const x = col * SCALE;
           const y = r * SCALE;
           if (isWall(col, r)) {
-            c.fillStyle = "#cfe0ff";
+            const palette = ["#ff2d95", "#00d4c8", "#ffe600", "#7c5cff"];
+            c.fillStyle = palette[(col + r) % palette.length];
             c.fillRect(x, y, SCALE, SCALE);
           } else if (isDoor(col, r)) {
-            c.fillStyle = "#00e5ff";
+            c.fillStyle = "#7c5cff";
             c.fillRect(x, y, SCALE, SCALE);
           }
         }
@@ -44,7 +45,7 @@ export function MiniMap() {
 
     let raf = 0;
     let last = 0;
-    const interval = 1000 / 12; // 12 fps is enough for the mini-map
+    const interval = 1000 / 12;
 
     const draw = (now: number) => {
       raf = requestAnimationFrame(draw);
@@ -53,20 +54,20 @@ export function MiniMap() {
       ctx.drawImage(wallCache.current!, 0, 0);
       for (const k of engine.pellets) {
         const [c, r] = k.split(",").map(Number);
-        ctx.fillStyle = "#8b4518";
+        ctx.fillStyle = "#ffe600";
         ctx.fillRect(c * SCALE + 2, r * SCALE + 2, 2, 2);
       }
       for (const k of engine.powerPellets) {
         const [c, r] = k.split(",").map(Number);
-        ctx.fillStyle = "#ff8c2a";
+        ctx.fillStyle = "#7cfc00";
         ctx.fillRect(c * SCALE + 1, r * SCALE + 1, 3, 3);
       }
       const p = engine.player;
-      ctx.fillStyle = "#ffffff";
+      ctx.fillStyle = "#f4c27a";
       ctx.fillRect(p.col * SCALE + 1, p.row * SCALE + 1, SCALE - 2, SCALE - 2);
       for (const g of engine.ghosts) {
         ctx.fillStyle =
-          g.mode === "frightened" ? "#00e5ff" : g.mode === "eaten" ? "#ffffff" : SOAP_COLORS[g.id];
+          g.mode === "frightened" ? "#7c5cff" : g.mode === "eaten" ? "#ffffff" : SOAP_COLORS[g.id];
         ctx.fillRect(g.col * SCALE + 1, g.row * SCALE + 1, SCALE - 2, SCALE - 2);
       }
     };
@@ -81,7 +82,7 @@ export function MiniMap() {
       ref={canvasRef}
       width={COLS * SCALE}
       height={ROWS * SCALE}
-      className="rounded-2xl border border-[#b8ff3c]/40 shadow-[0_0_14px_rgba(184,255,60,0.2)] w-28 md:w-36 h-auto"
+      className="rounded-none border-2 border-[#ff2d95] shadow-[0_0_16px_rgba(255,45,149,0.35)] w-28 md:w-36 h-auto"
     />
   );
 }

@@ -1,36 +1,36 @@
 /**
- * Colores actuales y vivos — baño limpio + acentos 2020s.
- * Lima eléctrica, azul vivo, coral; sin rosa retro ni cian apagado.
+ * Temática Chile actual: la cagá de Santiago de noche.
+ * Colores Valparaíso / neón urbano — rompe el “baño limpio”.
  */
 export const PALETTE = {
-  bg: "#070b12",
-  fog: "#070b12",
-  ink: "#f4f7ff",
-  accent: "#b8ff3c",
-  accentDim: "#8fd914",
-  accentHot: "#ff4d6d",
-  panel: "#121826",
-  panelBorder: "#b8ff3c",
-  // Piso: blanco brillante + gris frío
-  floorA: "#ffffff",
-  floorB: "#d9e2f2",
-  floorGrout: "#4a5d7a",
-  skirt: "#2a3548",
-  // Paredes: porcelana blanca + azul actual
-  wallA: "#ffffff",
-  wallB: "#e8f1ff",
-  wallC: "#cfe0ff",
-  wallBase: "#5b8cff",
-  wallTint: "#f5f8ff",
-  door: "#00e5ff",
-  doorGlow: "#00b7d4",
-  paper: "#ffffff",
-  paperCore: "#b8ff3c",
-  poop: "#8b4518",
-  poopPower: "#ff8c2a",
-  poopGlow: "#c45a00",
-  hemiSky: "#eaf2ff",
-  hemiGround: "#1a2233",
+  bg: "#090614",
+  fog: "#090614",
+  ink: "#fff7fb",
+  accent: "#ff2d95",
+  accentDim: "#ff6bb5",
+  accentHot: "#ffe600",
+  panel: "#160b24",
+  panelBorder: "#ff2d95",
+  // Asfalto + cruce peatonal
+  floorA: "#2a2f3a",
+  floorB: "#1c212b",
+  floorGrout: "#ffe600",
+  skirt: "#12151c",
+  // Muros: bloques muralistas (Valpo)
+  wallA: "#ff2d95",
+  wallB: "#00d4c8",
+  wallC: "#ffe600",
+  wallBase: "#3d2a7a",
+  wallTint: "#ffffff",
+  door: "#7c5cff",
+  doorGlow: "#b49bff",
+  paper: "#f4c27a", // quiltro pelaje
+  paperCore: "#2b1a10",
+  poop: "#ffe600", // moneda
+  poopPower: "#7cfc00", // completo palta
+  poopGlow: "#ff2d95",
+  hemiSky: "#ffd6ec",
+  hemiGround: "#1a0a28",
 } as const;
 
 export const TILE = 1.15;
@@ -61,17 +61,29 @@ export const SCATTER_CHASE: { mode: "scatter" | "chase"; seconds: number }[] = [
   { mode: "chase", seconds: 9999 },
 ];
 
-/** Jabones saturados estilo marca actual. */
+/** Enemigos de la calle chilena actual. */
 export const SOAP_COLORS = {
-  blinky: "#ff3b5c",
-  pinky: "#ff2ebd",
-  inky: "#00e5ff",
-  clyde: "#ff9f0a",
+  blinky: "#e30613", // Micro Red
+  pinky: "#e8e8e8", // Gaviota
+  inky: "#00c853", // Delivery
+  clyde: "#ffd600", // Inspector / cono
 } as const;
 
 export const SOAP_NAMES = {
-  blinky: "Lejía",
-  pinky: "Espuma",
-  inky: "Gel",
-  clyde: "Jabón",
+  blinky: "Micro",
+  pinky: "Gaviota",
+  inky: "Delivery",
+  clyde: "Inspector",
+} as const;
+
+export const THEME = {
+  title: "CACAMAN",
+  tagline: "Un quiltro en la cagá de Santiago",
+  collectLabel: "Lucas",
+  powerLabel: "¡COMPLETO!",
+  ready: "¡CACHAI!",
+  death: "¡TE PILLARON!",
+  clear: "¡BARRIO LIMPIO!",
+  gameover: "Quedaste en la calle",
+  frightened: "¡VAN PA'TRÁS!",
 } as const;

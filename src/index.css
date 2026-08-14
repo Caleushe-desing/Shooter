@@ -1,13 +1,12 @@
 @import "tailwindcss";
 
 :root {
-  --bath-bg: #070b12;
-  --bath-ink: #f4f7ff;
-  --bath-accent: #b8ff3c;
-  --bath-accent-dim: #8fd914;
-  --bath-hot: #ff4d6d;
-  --bath-panel: #121826;
-  --bath-cyan: #00e5ff;
+  --stgo-bg: #090614;
+  --stgo-ink: #fff7fb;
+  --stgo-magenta: #ff2d95;
+  --stgo-yellow: #ffe600;
+  --stgo-teal: #00d4c8;
+  --stgo-panel: #160b24;
 }
 
 html,
@@ -17,17 +16,17 @@ body,
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: var(--bath-bg);
+  background: var(--stgo-bg);
   font-family: Nunito, system-ui, sans-serif;
   user-select: none;
   touch-action: none;
 }
 
 body {
-  color: var(--bath-ink);
+  color: var(--stgo-ink);
 }
 
 .title-font {
   font-family: Bungee, Impact, sans-serif;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.03em;
 }

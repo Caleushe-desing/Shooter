@@ -1,13 +1,13 @@
 import { useFrame, useThree } from "@react-three/fiber";
 import { useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { InstancedMesh, Object3D, Vector3, type Group, type Mesh } from "three";
+import { InstancedMesh, Object3D, Vector3, type Group } from "three";
 import { SOAP_COLORS, PALETTE } from "../../constants";
 import type { CacamanEngine } from "../../game/engine";
 import type { GhostId, GhostMode } from "../../game/types";
 import { gridToWorld } from "../../maze/grid";
 import { useHud } from "../../store/gameStore";
-import { SoapBar } from "../models/SoapBar";
-import { ToiletPaper } from "../models/ToiletPaper";
+import { Quiltro } from "../models/Quiltro";
+import { StreetEnemy } from "../models/StreetEnemy";
 import { isBlockedByWalls, setMeshesDepthTest } from "./occlusion";
 
 const YAW: Record<string, number> = {
@@ -75,7 +75,7 @@ export function PlayerActor({ engine }: { engine: CacamanEngine }) {
 
   return (
     <group ref={ref}>
-      <ToiletPaper dying={dying} moving={moving && !dying} />
+      <Quiltro dying={dying} moving={moving && !dying} />
     </group>
   );
 }
@@ -114,7 +114,7 @@ function GhostMesh({ engine, id }: { engine: CacamanEngine; id: GhostId }) {
 
   return (
     <group ref={ref}>
-      <SoapBar color={SOAP_COLORS[id]} mode={mode} />
+      <StreetEnemy id={id} color={SOAP_COLORS[id]} mode={mode} />
     </group>
   );
 }
@@ -134,7 +134,8 @@ export function Pellets({ engine }: { engine: CacamanEngine }) {
     for (const k of keys) {
       const [c, r] = k.split(",").map(Number);
       const w = gridToWorld(c, r);
-      _dummy.position.set(w.x, 0.12, w.z);
+      _dummy.position.set(w.x, 0.14, w.z);
+      _dummy.rotation.set(Math.PI / 2, 0, 0);
       _dummy.scale.setScalar(1);
       _dummy.updateMatrix();
       m.setMatrixAt(i++, _dummy.matrix);
@@ -150,36 +151,44 @@ export function Pellets({ engine }: { engine: CacamanEngine }) {
         args={[undefined, undefined, Math.max(keys.length, 1)]}
         frustumCulled={false}
       >
-        <sphereGeometry args={[0.11, 6, 5]} />
-        <meshLambertMaterial color={PALETTE.poop} />
+        <cylinderGeometry args={[0.12, 0.12, 0.04, 10]} />
+        <meshLambertMaterial color={PALETTE.poop} emissive="#b89a00" emissiveIntensity={0.25} />
       </instancedMesh>
       {power.map((k) => {
         const [c, r] = k.split(",").map(Number);
         const w = gridToWorld(c, r);
-        return <PowerPellet key={k} x={w.x} z={w.z} />;
+        return <Completo key={k} x={w.x} z={w.z} />;
       })}
     </group>
   );
 }
 
-function PowerPellet({ x, z }: { x: number; z: number }) {
-  const ref = useRef<Mesh>(null);
+function Completo({ x, z }: { x: number; z: number }) {
+  const ref = useRef<Group>(null);
   useFrame(({ clock }) => {
-    const m = ref.current;
-    if (!m) return;
+    const g = ref.current;
+    if (!g) return;
     const t = clock.elapsedTime;
-    const pulse = 1 + Math.sin(t * 4) * 0.1;
-    m.scale.setScalar(pulse);
-    m.rotation.y = t * 1.2;
+    g.scale.setScalar(1 + Math.sin(t * 4) * 0.08);
+    g.rotation.y = t * 1.4;
   });
   return (
-    <mesh ref={ref} position={[x, 0.22, z]}>
-      <sphereGeometry args={[0.22, 8, 6]} />
-      <meshLambertMaterial
-        color={PALETTE.poopPower}
-        emissive={PALETTE.poopGlow}
-        emissiveIntensity={0.55}
-      />
-    </mesh>
+    <group ref={ref} position={[x, 0.22, z]}>
+      {/* pan */}
+      <mesh>
+        <boxGeometry args={[0.42, 0.14, 0.18]} />
+        <meshLambertMaterial color="#e8b86d" />
+      </mesh>
+      {/* vienesa */}
+      <mesh position={[0, 0.06, 0]} rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[0.05, 0.05, 0.36, 8]} />
+        <meshLambertMaterial color="#d4553a" />
+      </mesh>
+      {/* palta */}
+      <mesh position={[0, 0.12, 0]}>
+        <boxGeometry args={[0.34, 0.04, 0.14]} />
+        <meshLambertMaterial color={PALETTE.poopPower} emissive={PALETTE.poopGlow} emissiveIntensity={0.4} />
+      </mesh>
+    </group>
   );
 }
