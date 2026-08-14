@@ -3,6 +3,7 @@ import { useRef } from "react";
 import { PerspectiveCamera, Vector3 } from "three";
 import { TILE } from "../../constants";
 import type { CacamanEngine } from "../../game/engine";
+import { setCamYaw } from "../../game/inputMap";
 import type { Dir } from "../../game/types";
 import { gridToWorld } from "../../maze/grid";
 import { useHud } from "../../store/gameStore";
@@ -94,10 +95,11 @@ export function CameraRig({ engine }: { engine: CacamanEngine }) {
       camera.up.set(0, 0, -1);
     } else {
       const targetYaw = YAW[p.dir];
-      // Giro muy suave: la cámara “sigue” la espalda sin latigazos.
-      const turn = 1 - Math.exp(-dt * 3.2);
+      // Un poco más ágil para que los mandos coincidan con lo que se ve.
+      const turn = 1 - Math.exp(-dt * 5.5);
       yawSmooth.current += shortestAngle(yawSmooth.current, targetYaw) * turn;
       const yaw = yawSmooth.current;
+      setCamYaw(yaw);
 
       forward.set(Math.sin(yaw), 0, Math.cos(yaw));
 
@@ -124,6 +126,7 @@ export function CameraRig({ engine }: { engine: CacamanEngine }) {
       lookSmooth.copy(look);
       camera.lookAt(lookSmooth);
       snapped.current = true;
+      if (viewMode === "3d") setCamYaw(yawSmooth.current);
       return;
     }
 

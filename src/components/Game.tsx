@@ -13,7 +13,7 @@ import {
 } from "../audio/sfx";
 import { dirFromKeys } from "../game/engine";
 import { engine } from "../game/instance";
-import { relativeToFacing } from "../game/types";
+import { screenToWorld } from "../game/inputMap";
 import { MAX_DPR } from "../perf";
 import { useHud } from "../store/gameStore";
 import { GhostActors, Pellets, PlayerActor } from "./scene/Actors";
@@ -37,9 +37,7 @@ export function Game() {
       const screen = dirFromKeys(keys);
       if (screen) {
         const view = useHud.getState().viewMode;
-        const dir =
-          view === "3d" ? relativeToFacing(screen, engine.player.dir) : screen;
-        engine.setInput(dir);
+        engine.setInput(screenToWorld(screen, view));
       }
 
       if (key === "m") {
