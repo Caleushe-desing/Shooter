@@ -3,21 +3,43 @@ import { useRef } from "react";
 import { PerspectiveCamera, Vector3 } from "three";
 import { TILE } from "../../constants";
 import type { CacamanEngine } from "../../game/engine";
+import type { Dir } from "../../game/types";
+import { DIR_VEC } from "../../game/types";
 import { gridToWorld } from "../../maze/grid";
 import { useHud } from "../../store/gameStore";
-import { resolveChaseCamera } from "./occlusion";
+import { resolveShoulderCamera } from "./occlusion";
 
 const desired = new Vector3();
 const look = new Vector3();
 const lookSmooth = new Vector3();
 const playerPos = new Vector3();
 const baseCam = new Vector3();
+const forward = new Vector3();
+const right = new Vector3();
 
-/**
- * Close 3rd-person follow — fixed world angle (no orbit on turns).
- * Steeper by default so maze walls hide the cast less often.
- */
-const CAM_OFFSET_3D = { x: 0, y: 7.6, z: 4.2 };
+/** Ángulo yaw en XZ: 0 = +Z (abajo en el mapa). */
+function yawFromDir(dir: Dir): number {
+  const v = DIR_VEC[dir];
+  return Math.atan2(v.c, v.r);
+}
+
+function shortestAngle(from: number, to: number): number {
+  let d = to - from;
+  while (d > Math.PI) d -= Math.PI * 2;
+  while (d < -Math.PI) d += Math.PI * 2;
+  return d;
+}
+
+/** Vista 3D: encima del hombro derecho, mirando hacia adelante. */
+const SHOULDER = {
+  back: 2.05,
+  side: 0.72,
+  height: 1.28,
+  lookAhead: 3.6,
+  lookY: 0.42,
+  /** Empuja el look un poco a la izquierda para enmarcar al personaje. */
+  lookBias: -0.18,
+};
 
 /** How many tiles visible on the short screen axis in 2D. */
 const TILES_VISIBLE_2D = 9.5;
@@ -37,6 +59,7 @@ export function CameraRig({ engine }: { engine: CacamanEngine }) {
   const viewMode = useHud((s) => s.viewMode);
   const snapped = useRef(false);
   const lastMode = useRef(viewMode);
+  const yawSmooth = useRef(yawFromDir(engine.player.dir));
 
   useFrame((_, dt) => {
     const p = engine.player;
@@ -49,7 +72,8 @@ export function CameraRig({ engine }: { engine: CacamanEngine }) {
     }
 
     if (camera instanceof PerspectiveCamera) {
-      const wantFov = viewMode === "2d" ? (aspect < 1 ? 48 : 46) : aspect < 1 ? 55 : 50;
+      const wantFov =
+        viewMode === "2d" ? (aspect < 1 ? 48 : 46) : aspect < 1 ? 62 : 58;
       if (Math.abs(camera.fov - wantFov) > 0.15) {
         camera.fov = wantFov;
         camera.updateProjectionMatrix();
@@ -68,14 +92,35 @@ export function CameraRig({ engine }: { engine: CacamanEngine }) {
       look.set(x, 0, z);
       camera.up.set(0, 0, -1);
     } else {
+      const targetYaw = yawFromDir(p.dir);
+      const turn = 1 - Math.exp(-dt * 9);
+      yawSmooth.current += shortestAngle(yawSmooth.current, targetYaw) * turn;
+      const yaw = yawSmooth.current;
+
+      // forward en XZ; right = up × forward (hombro derecho del personaje)
+      forward.set(Math.sin(yaw), 0, Math.cos(yaw));
+      right.set(Math.cos(yaw), 0, -Math.sin(yaw));
+
       const portrait = aspect < 1;
-      const oy = portrait ? CAM_OFFSET_3D.y * 1.1 : CAM_OFFSET_3D.y;
-      const oz = portrait ? CAM_OFFSET_3D.z * 0.85 : CAM_OFFSET_3D.z;
+      const back = portrait ? SHOULDER.back * 0.92 : SHOULDER.back;
+      const side = portrait ? SHOULDER.side * 0.9 : SHOULDER.side;
+      const height = portrait ? SHOULDER.height * 1.08 : SHOULDER.height;
+
       playerPos.set(x, 0, z);
-      baseCam.set(x + CAM_OFFSET_3D.x, oy, z + oz);
+      baseCam
+        .copy(playerPos)
+        .addScaledVector(forward, -back)
+        .addScaledVector(right, side);
+      baseCam.y += height;
+
       const walls = scene.getObjectByName("maze-walls");
-      resolveChaseCamera(playerPos, baseCam, walls, desired);
-      look.set(x, 0.55, z);
+      resolveShoulderCamera(playerPos, baseCam, walls, desired);
+
+      look
+        .copy(playerPos)
+        .addScaledVector(forward, SHOULDER.lookAhead)
+        .addScaledVector(right, SHOULDER.lookBias);
+      look.y = SHOULDER.lookY;
       camera.up.set(0, 1, 0);
     }
 
@@ -88,7 +133,7 @@ export function CameraRig({ engine }: { engine: CacamanEngine }) {
       return;
     }
 
-    const k = 1 - Math.exp(-dt * (viewMode === "2d" ? 14 : 11));
+    const k = 1 - Math.exp(-dt * (viewMode === "2d" ? 14 : 13));
     camera.position.lerp(desired, k);
     lookSmooth.lerp(look, k);
     camera.lookAt(lookSmooth);

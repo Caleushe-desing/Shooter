@@ -24,10 +24,10 @@ export function isBlockedByWalls(
 }
 
 /**
- * If walls block the default chase cam, lift and pull in until the
- * line of sight to the player is clear (keeps a fixed world yaw).
+ * If walls block the shoulder cam, pull in along the offset and lift
+ * until the line of sight to the player is clear.
  */
-export function resolveChaseCamera(
+export function resolveShoulderCamera(
   player: Vector3,
   baseCam: Vector3,
   walls: Object3D | null | undefined,
@@ -37,21 +37,24 @@ export function resolveChaseCamera(
   _origin.set(player.x, 0.55, player.z);
   if (!isBlockedByWalls(_origin, out, walls)) return out;
 
-  let oy = baseCam.y - player.y;
-  let oz = baseCam.z - player.z;
   const ox = baseCam.x - player.x;
+  const oy = baseCam.y - player.y;
+  const oz = baseCam.z - player.z;
 
-  for (let i = 0; i < 10; i++) {
-    oy += 0.55;
-    oz *= 0.82;
-    out.set(player.x + ox, player.y + oy, player.z + oz);
+  for (let i = 0; i < 12; i++) {
+    const pull = 1 - (i + 1) * 0.07;
+    const lift = oy + (i + 1) * 0.38;
+    out.set(player.x + ox * pull, player.y + lift, player.z + oz * pull);
     if (!isBlockedByWalls(_origin, out, walls)) return out;
   }
 
-  // Last resort: almost overhead.
-  out.set(player.x, player.y + Math.max(oy, 11), player.z + Math.sign(oz || 1) * 1.2);
+  // Last resort: almost overhead, still slightly offset.
+  out.set(player.x + ox * 0.15, player.y + Math.max(oy + 5, 9), player.z + oz * 0.15);
   return out;
 }
+
+/** @deprecated Use resolveShoulderCamera */
+export const resolveChaseCamera = resolveShoulderCamera;
 
 export function setMeshesDepthTest(root: Object3D, depthTest: boolean): void {
   root.traverse((obj) => {

@@ -14,8 +14,9 @@ export function Lights() {
       camera.far = 120;
       camera.near = 0.5;
     } else {
-      camera.far = 70;
-      camera.near = 0.2;
+      // Shoulder cam is close; keep near low to avoid clipping the quiltro.
+      camera.far = 80;
+      camera.near = 0.08;
     }
     camera.updateProjectionMatrix();
   }, [viewMode, scene, camera]);
