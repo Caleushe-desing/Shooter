@@ -1,0 +1,21 @@
+{
+  "name": "aim-3p",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 0.0.0.0 --port 4174",
+    "test": "tsx src/math.test.ts"
+  },
+  "dependencies": {
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "@types/three": "^0.185.4",
+    "tsx": "^4.20.5",
+    "typescript": "~5.9.3",
+    "vite": "^8.2.0"
+  }
+}
