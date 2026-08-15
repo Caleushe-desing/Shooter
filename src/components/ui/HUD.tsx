@@ -80,12 +80,12 @@ export function HUD() {
           ))}
         </div>
         <div className="hidden md:flex gap-3 text-[10px] font-black text-[#00ffff]/70 tracking-widest">
-          {viewMode === "3d" ? <span>MAPA · 45°</span> : <span>SWIPE</span>}
+          {viewMode === "3d" ? <span>1 DESLIZ = 45°</span> : <span>SWIPE</span>}
           <span>V 2D/3D</span>
           <span>P PAUSE</span>
         </div>
         <div className="md:hidden text-[9px] font-black text-[#00ffff]/60 tracking-widest">
-          {viewMode === "3d" ? "GIRÁ EL MAPA · 45°" : "DESLIZÁ"}
+          {viewMode === "3d" ? "1 DESLIZ = 45°" : "DESLIZÁ"}
         </div>
       </div>
 

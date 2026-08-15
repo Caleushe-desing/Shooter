@@ -71,8 +71,27 @@ export function yawToFacing(yaw: number): Dir {
   return best;
 }
 
+/**
+ * Gira un paso de 45° sobre el reloj de 8 rumbos.
+ * steps > 0 = antihorario en yaw (desliz izquierda / A).
+ * steps < 0 = horario (desliz derecha / D).
+ */
+export function stepFacing45(from: Dir, steps: number): Dir {
+  const i = DIR_CLOCK_8.indexOf(from);
+  const base = i < 0 ? 0 : i;
+  const next = ((base + steps) % 8 + 8) % 8;
+  return DIR_CLOCK_8[next];
+}
+
+/** Aplica un paso de 45° al spin yaw + facing de juego. */
+export function turnMap45(steps: number): Dir {
+  const current = yawToFacing(spinYaw);
+  const facing = stepFacing45(current, steps);
+  spinYaw = DIR_YAW[facing];
+  return facing;
+}
+
 export function screenToWorld3d(screen: Dir): Dir {
-  // 4-way screen intents relative to nearest cardinal of current spin
   const facing4 = yawToFacing(spinYaw);
   const card =
     facing4 === "upleft" || facing4 === "upright"

@@ -14,11 +14,12 @@ import {
 import { dirFromKeys } from "../game/engine";
 import { engine } from "../game/instance";
 import {
-  DIR_YAW,
   getSpinYaw,
   screenToWorld,
   setSpinYaw,
+  turnMap45,
   yawToFacing,
+  DIR_YAW,
 } from "../game/inputMap";
 import { MAX_DPR } from "../perf";
 import { useHud } from "../store/gameStore";
@@ -44,22 +45,13 @@ export function Game() {
 
       const view = useHud.getState().viewMode;
       if (view === "3d") {
-        // A/D: girar el mapa de a 45°. Avance siempre al fondo.
+        // A/D: un toque = 45°. S = 180°. Avance siempre al fondo.
         if (key === "a" || key === "arrowleft" || key === "h") {
-          setSpinYaw(DIR_YAW[engine.player.dir] + Math.PI / 4);
-          const facing = yawToFacing(getSpinYaw());
-          setSpinYaw(DIR_YAW[facing]);
-          engine.setInput(facing);
+          engine.setInput(turnMap45(1));
         } else if (key === "d" || key === "arrowright" || key === "l") {
-          setSpinYaw(DIR_YAW[engine.player.dir] - Math.PI / 4);
-          const facing = yawToFacing(getSpinYaw());
-          setSpinYaw(DIR_YAW[facing]);
-          engine.setInput(facing);
+          engine.setInput(turnMap45(-1));
         } else if (key === "s" || key === "arrowdown" || key === "j") {
-          setSpinYaw(DIR_YAW[engine.player.dir] + Math.PI);
-          const facing = yawToFacing(getSpinYaw());
-          setSpinYaw(DIR_YAW[facing]);
-          engine.setInput(facing);
+          engine.setInput(turnMap45(4));
         } else if (key === "w" || key === "arrowup" || key === "k") {
           engine.setInput(yawToFacing(getSpinYaw()));
         }
