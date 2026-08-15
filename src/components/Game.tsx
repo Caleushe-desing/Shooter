@@ -13,14 +13,6 @@ import {
 } from "../audio/sfx";
 import { dirFromKeys } from "../game/engine";
 import { engine } from "../game/instance";
-import {
-  getSpinYaw,
-  screenToWorld,
-  setSpinYaw,
-  turnMap90,
-  yawToFacing,
-  DIR_YAW,
-} from "../game/inputMap";
 import { MAX_DPR } from "../perf";
 import { useHud } from "../store/gameStore";
 import { GhostActors, Pellets, PlayerActor } from "./scene/Actors";
@@ -42,22 +34,9 @@ export function Game() {
       keys.add(key);
       unlockAudio();
 
-      const view = useHud.getState().viewMode;
-      if (view === "3d") {
-        // A/D: un toque = 90° (acumula). S = 180°. Avance siempre al fondo.
-        if (key === "a" || key === "arrowleft" || key === "h") {
-          engine.setInput(turnMap90(1));
-        } else if (key === "d" || key === "arrowright" || key === "l") {
-          engine.setInput(turnMap90(-1));
-        } else if (key === "s" || key === "arrowdown" || key === "j") {
-          engine.setInput(turnMap90(2));
-        } else if (key === "w" || key === "arrowup" || key === "k") {
-          engine.setInput(yawToFacing(getSpinYaw()));
-        }
-      } else {
-        const screen = dirFromKeys(keys);
-        if (screen) engine.setInput(screenToWorld(screen, view));
-      }
+      // Mismo en 2D y 3D: las teclas mueven al jugador (no la cámara).
+      const screen = dirFromKeys(keys);
+      if (screen) engine.setInput(screen);
 
       if (key === "m") {
         useHud.getState().toggleMuted();
@@ -112,7 +91,6 @@ function startOrRestart(): void {
   if (engine.status === "menu" || engine.status === "gameover") {
     engine.startGame();
     playStart();
-    setSpinYaw(DIR_YAW[engine.player.dir]);
     syncHud(true);
   } else if (engine.status === "paused") {
     engine.status = "playing";
@@ -122,14 +100,8 @@ function startOrRestart(): void {
 
 function SimLoop() {
   useFrame((_, dt) => {
-    const view = useHud.getState().viewMode;
-    if (view === "3d" && (engine.status === "playing" || engine.status === "ready")) {
-      // Siempre avanzar hacia donde mira el mapa / la cámara.
-      engine.setInput(yawToFacing(getSpinYaw()));
-    } else {
-      const mobileDir = useHud.getState().mobileDir;
-      if (mobileDir) engine.setInput(mobileDir);
-    }
+    const mobileDir = useHud.getState().mobileDir;
+    if (mobileDir) engine.setInput(mobileDir);
     const events = engine.update(Math.min(dt, 1 / 30));
     for (const ev of events) {
       if (ev.kind === "pellet") playWaka();

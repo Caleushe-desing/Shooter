@@ -3,36 +3,23 @@ import { useRef } from "react";
 import { PerspectiveCamera, Vector3 } from "three";
 import { TILE } from "../../constants";
 import type { CacamanEngine } from "../../game/engine";
-import {
-  DIR_YAW,
-  getSpinYaw,
-  isSpinDragging,
-  setSpinYaw,
-} from "../../game/inputMap";
 import { gridToWorld } from "../../maze/grid";
 import { useHud } from "../../store/gameStore";
-import { resolveBehindCamera } from "./occlusion";
 
 const desired = new Vector3();
 const look = new Vector3();
 const lookSmooth = new Vector3();
-const playerPos = new Vector3();
-const baseCam = new Vector3();
-const forward = new Vector3();
 
-function shortestAngle(from: number, to: number): number {
-  let d = to - from;
-  while (d > Math.PI) d -= Math.PI * 2;
-  while (d < -Math.PI) d += Math.PI * 2;
-  return d;
-}
-
-/** Chase desde la espalda; el yaw lo marca el giro del mapa. */
+/**
+ * Cámara 3D fija en orientación: solo sigue la posición del jugador.
+ * El rumbo lo cambia el quiltro, no el giro del mapa.
+ */
 const CHASE = {
-  back: 4.15,
-  height: 2.85,
-  lookAhead: 0.95,
-  lookY: 0.7,
+  /** Desde el “sur” del laberinto (+Z), mirando al norte (−Z). */
+  back: 5.4,
+  height: 6.8,
+  lookAhead: 1.1,
+  lookY: 0.45,
 };
 
 const TILES_VISIBLE_2D = 9.5;
@@ -48,11 +35,10 @@ function heightFor2d(aspect: number, fovDeg: number): number {
 }
 
 export function CameraRig({ engine }: { engine: CacamanEngine }) {
-  const { camera, size, scene } = useThree();
+  const { camera, size } = useThree();
   const viewMode = useHud((s) => s.viewMode);
   const snapped = useRef(false);
   const lastMode = useRef(viewMode);
-  const yawSmooth = useRef(DIR_YAW[engine.player.dir]);
 
   useFrame((_, dt) => {
     const p = engine.player;
@@ -62,14 +48,11 @@ export function CameraRig({ engine }: { engine: CacamanEngine }) {
     if (modeChanged) {
       lastMode.current = viewMode;
       snapped.current = false;
-      const y = DIR_YAW[p.dir];
-      yawSmooth.current = y;
-      setSpinYaw(y);
     }
 
     if (camera instanceof PerspectiveCamera) {
       const wantFov =
-        viewMode === "2d" ? (aspect < 1 ? 48 : 46) : aspect < 1 ? 55 : 50;
+        viewMode === "2d" ? (aspect < 1 ? 48 : 46) : aspect < 1 ? 52 : 48;
       if (Math.abs(camera.fov - wantFov) > 0.15) {
         camera.fov = wantFov;
         camera.updateProjectionMatrix();
@@ -88,32 +71,12 @@ export function CameraRig({ engine }: { engine: CacamanEngine }) {
       look.set(x, 0, z);
       camera.up.set(0, 0, -1);
     } else {
-      // El yaw del mapa lo marcan los deslices (90°); la cámara lo sigue.
-      // No sobreescribir spinYaw con player.dir — si no, el 2º desliz no acumula.
-      const targetYaw = getSpinYaw();
-      if (isSpinDragging()) {
-        yawSmooth.current = targetYaw;
-      } else {
-        const turn = 1 - Math.exp(-dt * 10);
-        yawSmooth.current += shortestAngle(yawSmooth.current, targetYaw) * turn;
-      }
-      const yaw = yawSmooth.current;
-
-      forward.set(Math.sin(yaw), 0, Math.cos(yaw));
-
       const portrait = aspect < 1;
-      const back = portrait ? CHASE.back * 1.08 : CHASE.back;
-      const height = portrait ? CHASE.height * 1.1 : CHASE.height;
-
-      playerPos.set(x, 0, z);
-      baseCam.copy(playerPos).addScaledVector(forward, -back);
-      baseCam.y = height;
-
-      const walls = scene.getObjectByName("maze-walls");
-      resolveBehindCamera(playerPos, baseCam, walls, desired);
-
-      look.copy(playerPos).addScaledVector(forward, CHASE.lookAhead);
-      look.y = CHASE.lookY;
+      const back = portrait ? CHASE.back * 1.12 : CHASE.back;
+      const height = portrait ? CHASE.height * 1.08 : CHASE.height;
+      // Orientación fija: la cámara no gira cuando el jugador cambia de rumbo.
+      desired.set(x, height, z + back);
+      look.set(x, CHASE.lookY, z - CHASE.lookAhead);
       camera.up.set(0, 1, 0);
     }
 
@@ -126,7 +89,7 @@ export function CameraRig({ engine }: { engine: CacamanEngine }) {
       return;
     }
 
-    const follow = viewMode === "2d" ? 14 : isSpinDragging() ? 18 : 5.5;
+    const follow = viewMode === "2d" ? 14 : 6.5;
     const k = 1 - Math.exp(-dt * follow);
     camera.position.lerp(desired, k);
     lookSmooth.lerp(look, Math.min(1, k * 1.15));

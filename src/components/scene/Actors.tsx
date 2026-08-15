@@ -3,7 +3,6 @@ import { useLayoutEffect, useMemo, useRef, useState, type RefObject } from "reac
 import { InstancedMesh, Object3D, Vector3, type Group } from "three";
 import { SOAP_COLORS, PALETTE } from "../../constants";
 import type { CacamanEngine } from "../../game/engine";
-import { getSpinYaw, isSpinDragging } from "../../game/inputMap";
 import type { GhostId, GhostMode } from "../../game/types";
 import { gridToWorld } from "../../maze/grid";
 import { useHud } from "../../store/gameStore";
@@ -73,9 +72,8 @@ export function PlayerActor({ engine }: { engine: CacamanEngine }) {
     const p = engine.player;
     const w = gridToWorld(p.col, p.row);
     g.position.set(w.x, 0, w.z);
-    const target =
-      viewMode === "3d" && isSpinDragging() ? getSpinYaw() : (YAW[p.dir] ?? 0);
-    const k = 1 - Math.exp(-dt * (isSpinDragging() ? 20 : 14));
+    const target = YAW[p.dir] ?? 0;
+    const k = 1 - Math.exp(-dt * 14);
     g.rotation.y += shortestAngle(g.rotation.y, target) * k;
   });
 

@@ -80,12 +80,12 @@ export function HUD() {
           ))}
         </div>
         <div className="hidden md:flex gap-3 text-[10px] font-black text-[#00ffff]/70 tracking-widest">
-          {viewMode === "3d" ? <span>A/D 90° · S 180°</span> : <span>WASD</span>}
+          <span>WASD / FLECHAS</span>
           <span>V 2D/3D</span>
           <span>P PAUSE</span>
         </div>
         <div className="md:hidden text-[9px] font-black text-[#00ffff]/60 tracking-widest">
-          {viewMode === "3d" ? "DESLIZ = A/D/S" : "DESLIZ = FLECHAS"}
+          DESLIZ = MOVER AL QUILTRO
         </div>
       </div>
 

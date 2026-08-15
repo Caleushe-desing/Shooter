@@ -13,18 +13,15 @@ Abre la URL de Vite (por defecto `http://127.0.0.1:5173`).
 
 ## Controles
 
-Mismo esquema en PC y celular: **sin mando ni flechas en pantalla**.
+Mismo esquema en PC y celular: **sin mando**. Se mueve el **jugador**, la cámara no gira.
 
 | Acción | PC (teclado) | Celular (desliz) |
 |--------|--------------|------------------|
-| Girar 90° (3D) | `A` / `D` | Izquierda / derecha |
-| Media vuelta (3D) | `S` | Abajo |
-| Seguir al fondo (3D) | `W` | Arriba / automático |
-| Mover (2D) | WASD / flechas | Desliz en esa dirección |
+| Mover al quiltro | WASD / flechas | Misma dirección en pantalla |
 | Vista 3D / 2D | `V` | Botón 3D/2D |
 | Pausar | Esc / `P` | — |
 
-En 3D, cada desliz lateral suma **otros 90°** (como pulsar A o D de nuevo).
+En 3D la cámara sigue al jugador desde un ángulo fijo (no rota al girar).
 
 ## Objetivo
 
