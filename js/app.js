@@ -76,7 +76,9 @@
     return (window.MEC_TEMPLATES || []).find((t) => t.id === id);
   }
   function eqPhoto(typeId) {
-    return typeId ? "img/equipos/" + typeId + ".jpg" : "";
+    if (!typeId) return "";
+    if (window.MEC_PHOTOS && window.MEC_PHOTOS[typeId]) return window.MEC_PHOTOS[typeId];
+    return "img/equipos/" + typeId + ".jpg";
   }
   function eqPhotoTag(typeId, cls, alt) {
     const src = eqPhoto(typeId);
@@ -128,6 +130,11 @@
     canvas.width = Math.floor(cssW * ratio);
     canvas.height = Math.floor(cssH * ratio);
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    function paintPaper() {
+      ctx.fillStyle = "#fffef8";
+      ctx.fillRect(0, 0, cssW, cssH);
+    }
+    paintPaper();
     ctx.strokeStyle = "#1a1a1a";
     ctx.lineWidth = 2.2;
     ctx.lineCap = "round";
@@ -167,7 +174,7 @@
       current = [];
       state.draft.strokes[key] = strokes;
       try {
-        state.draft.signatures[key] = canvas.toDataURL("image/jpeg", 0.5);
+        state.draft.signatures[key] = canvas.toDataURL("image/png");
       } catch (err) {}
     };
     canvas.addEventListener("pointerdown", start);
@@ -179,7 +186,7 @@
     pads[key] = {
       canvas: canvas,
       clear: () => {
-        ctx.clearRect(0, 0, cssW, cssH);
+        paintPaper();
         strokes.length = 0;
         if (state.draft) {
           state.draft.signatures[key] = "";
@@ -330,16 +337,19 @@
       for (let i = 1; i < st.length; i++) d += "L" + st[i][0] + " " + st[i][1];
     });
     return (
-      '<svg class="sig-img" viewBox="0 0 300 120" preserveAspectRatio="xMidYMid meet"><path d="' +
+      '<svg class="sig-img" viewBox="0 0 300 120" preserveAspectRatio="xMidYMid meet"><rect width="300" height="120" fill="#fffef8"/><path d="' +
       d +
       '" fill="none" stroke="#1a1a1a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
     );
   }
 
   function sigBlock(label, jpeg, strokes) {
-    const art = jpeg
-      ? '<img class="sig-img" alt="' + escapeHtml(label) + '" src="' + jpeg + '">'
-      : strokesSvg(strokes);
+    const hasStrokes = strokes && strokes.length;
+    const art = hasStrokes
+      ? strokesSvg(strokes)
+      : jpeg && jpeg.indexOf("data:image") === 0
+        ? '<img class="sig-img" alt="' + escapeHtml(label) + '" src="' + jpeg + '">'
+        : "";
     return (
       "<div><div class=\"note\">" +
       escapeHtml(label) +
@@ -695,8 +705,12 @@
       d.items[+el.getAttribute("data-note")].note = el.value;
     });
     try {
-      if (pads.inspector && pads.inspector.canvas) d.signatures.inspector = pads.inspector.canvas.toDataURL("image/jpeg", 0.55);
-      if (pads.supervisor && pads.supervisor.canvas) d.signatures.supervisor = pads.supervisor.canvas.toDataURL("image/jpeg", 0.55);
+      if (pads.inspector && pads.inspector.canvas && state.draft.strokes.inspector && state.draft.strokes.inspector.length) {
+        d.signatures.inspector = pads.inspector.canvas.toDataURL("image/png");
+      }
+      if (pads.supervisor && pads.supervisor.canvas && state.draft.strokes.supervisor && state.draft.strokes.supervisor.length) {
+        d.signatures.supervisor = pads.supervisor.canvas.toDataURL("image/png");
+      }
     } catch (e) {}
   }
 
