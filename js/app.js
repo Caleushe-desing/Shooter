@@ -75,6 +75,22 @@
   function templateById(id) {
     return (window.MEC_TEMPLATES || []).find((t) => t.id === id);
   }
+  function eqPhoto(typeId) {
+    return typeId ? "img/equipos/" + typeId + ".jpg" : "";
+  }
+  function eqPhotoTag(typeId, cls, alt) {
+    const src = eqPhoto(typeId);
+    if (!src) return "";
+    return (
+      '<img class="' +
+      (cls || "eq-photo") +
+      '" src="' +
+      src +
+      '" alt="' +
+      escapeHtml(alt || "") +
+      '" loading="lazy">'
+    );
+  }
 
   function newDraft(typeId) {
     const t = templateById(typeId);
@@ -542,9 +558,11 @@
           html +=
             '<button class="eq" data-go="#/nuevo/' +
             t.id +
-            '"><span class="tag">' +
+            '">' +
+            eqPhotoTag(t.id, "eq-thumb", t.name) +
+            '<span class="eq-body"><span class="tag">' +
             escapeHtml(t.group) +
-            "</span><span><b>" +
+            "</span><b>" +
             escapeHtml(t.name) +
             "</b><span>" +
             escapeHtml(t.hint) +
@@ -564,6 +582,9 @@
     let html =
       topBar(d.typeName, "#/tipos") +
       '<div class="wrap">' +
+      '<div class="eq-hero">' +
+      eqPhotoTag(d.type, "eq-hero-img", d.typeName) +
+      "</div>" +
       '<p class="note">' +
       escapeHtml(t ? t.hint : "") +
       " Folio <span class=\"folio\">" +
@@ -714,6 +735,7 @@
     return (
       (r.verdict === "rechazado" ? '<div class="banner-bad">EQUIPO FUERA DE SERVICIO — NO USAR</div>' : "") +
       '<div class="card report">' +
+      (r.type ? '<div class="eq-hero">' + eqPhotoTag(r.type, "eq-hero-img", r.typeName) + "</div>" : "") +
       "<div class=\"kv\">" +
       "<i>Empresa</i><b>" +
       escapeHtml(r.company) +
@@ -784,7 +806,9 @@
       html +=
         '<button class="list-row" data-go="#/local/' +
         encodeURIComponent(r.id) +
-        '"><span class="dot ' +
+        '">' +
+        eqPhotoTag(r.type, "eq-mini", r.typeName) +
+        '<span class="dot ' +
         escapeHtml(r.verdict || "") +
         '"></span><span style="flex:1"><b>' +
         escapeHtml(r.typeName) +
