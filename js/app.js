@@ -1,7 +1,8 @@
-/* CheckMec — inspecciones de taller, firma y ficha QR */
+/* Check list Técnico — inspecciones de taller, firma y ficha QR */
 (function () {
   "use strict";
 
+  const APP_NAME = "Check list Técnico";
   const STORE = "meccheck-reports-v1";
   const SETTINGS = "meccheck-settings-v1";
   const BLOB = "https://jsonblob.com/api/jsonBlob";
@@ -79,6 +80,18 @@
     if (!typeId) return "";
     if (window.MEC_PHOTOS && window.MEC_PHOTOS[typeId]) return window.MEC_PHOTOS[typeId];
     return (window.MEC_ASSET_BASE || "") + "img/equipos/" + typeId + ".jpg";
+  }
+  function brandLogo(cls) {
+    const src = (window.MEC_ASSET_BASE || "") + "icon.svg";
+    return (
+      '<img class="' +
+      (cls || "brand-logo") +
+      '" src="' +
+      src +
+      '" alt="' +
+      escapeHtml(APP_NAME) +
+      '" width="40" height="40" onerror="window.mecImgFb&&window.mecImgFb(this)">'
+    );
   }
   function eqPhotoTag(typeId, cls, alt) {
     const src = eqPhoto(typeId);
@@ -518,7 +531,7 @@
   function topBar(title, back) {
     return (
       '<header class="top">' +
-      (back ? '<button class="back" data-go="' + back + '" aria-label="Volver">←</button>' : '<div class="brand-mark">CM</div>') +
+      (back ? '<button class="back" data-go="' + back + '" aria-label="Volver">←</button>' : brandLogo()) +
       '<div><h1>' +
       escapeHtml(title) +
       "</h1></div></header>"
@@ -529,7 +542,11 @@
     const s = loadSettings();
     const n = loadReports().length;
     return (
-      '<header class="top"><div class="brand-mark">CM</div><div><h1>CheckMec</h1><div class="sub">' +
+      '<header class="top">' +
+      brandLogo() +
+      '<div><h1>' +
+      APP_NAME +
+      '</h1><div class="sub">' +
       escapeHtml(s.company) +
       "</div></div></header>" +
       '<div class="hero"><p>Checklists de escaleras, alza hombre, tecles y el resto del taller. Se firma en el celular y se comparte con un QR.</p></div>' +
@@ -541,6 +558,7 @@
       ")</button>" +
       '<button class="btn ghost" data-go="#/ajustes">Datos de la empresa</button>' +
       "</div>" +
+      '<p class="note">Las inspecciones quedan en la memoria de <b>este navegador</b>, en este celular. No hay cuenta en la nube: si borras los datos del sitio, usas otro teléfono u otro explorador, el historial no aparece. El QR sirve para mostrar esa ficha a otra persona.</p>' +
       '<p class="note">Esto es una bitácora de inspección pre-uso. No reemplaza certificaciones ni fiscalizaciones oficiales.</p>' +
       "</div>"
     );
@@ -562,7 +580,7 @@
       '">';
     if (!list.length) {
       html +=
-        '<p class="empty">No aparecen equipos. Recarga la página; si sigue igual, abre CheckMec desde GitHub Pages o un servidor local (no desde el archivo Raw).</p></div>';
+        '<p class="empty">No aparecen equipos. Recarga la página; si sigue igual, abre Check list Técnico desde GitHub Pages o un servidor local (no desde el archivo Raw).</p></div>';
       return html;
     }
     groups.forEach((g) => {
@@ -754,6 +772,11 @@
     return (
       (r.verdict === "rechazado" ? '<div class="banner-bad">EQUIPO FUERA DE SERVICIO — NO USAR</div>' : "") +
       '<div class="card report">' +
+      '<div class="report-brand">' +
+      brandLogo("brand-logo report-logo") +
+      "<span>" +
+      APP_NAME +
+      "</span></div>" +
       (r.type ? '<div class="eq-hero">' + eqPhotoTag(r.type, "eq-hero-img", r.typeName) + "</div>" : "") +
       "<div class=\"kv\">" +
       "<i>Empresa</i><b>" +
@@ -820,7 +843,7 @@
   function historyView() {
     const rows = loadReports();
     let html = topBar("Historial", "#/") + '<div class="wrap">';
-    if (!rows.length) html += '<p class="empty">Aún no hay inspecciones en este celular.</p>';
+    if (!rows.length) html += '<p class="empty">Aún no hay inspecciones en este navegador. Quedan guardadas solo en este celular.</p>';
     rows.forEach((r) => {
       html +=
         '<button class="list-row" data-go="#/local/' +
@@ -916,7 +939,7 @@
         const text = r.typeName + " " + r.id + " — " + (r.verdict || "");
         if (navigator.share) {
           try {
-            await navigator.share({ title: "CheckMec " + r.id, text: text, url: link });
+            await navigator.share({ title: APP_NAME + " " + r.id, text: text, url: link });
           } catch (e) {}
         } else {
           window.open("https://wa.me/?text=" + encodeURIComponent(text + " " + link));
@@ -1055,7 +1078,11 @@
     } catch (e) {
       if ($app) {
         $app.innerHTML =
-          '<div class="boot"><div class="brand-mark">CM</div><h1>CheckMec</h1><p id="boot-msg">No se pudo iniciar. Recarga. Evita enlaces Raw o jsDelivr: GitHub los muestra como texto y el celular queda en blanco.</p></div>';
+          '<div class="boot">' +
+          brandLogo("brand-logo boot-logo") +
+          "<h1>" +
+          APP_NAME +
+          '</h1><p id="boot-msg">No se pudo iniciar. Recarga. Evita enlaces Raw o jsDelivr: GitHub los muestra como texto y el celular queda en blanco.</p></div>';
       }
       console.error(e);
     }

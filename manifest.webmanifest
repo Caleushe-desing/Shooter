@@ -1,6 +1,6 @@
 {
-  "name": "CheckMec — Inspecciones de taller",
-  "short_name": "CheckMec",
+  "name": "Check list Técnico",
+  "short_name": "Check list",
   "description": "Checklists de herramientas y equipos mecánicos, con firma y ficha QR.",
   "start_url": "./",
   "display": "standalone",

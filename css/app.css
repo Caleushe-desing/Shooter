@@ -44,8 +44,14 @@ body {
   padding: 24px;
   text-align: center;
 }
-.boot .brand-mark { width: 48px; height: 48px; font-size: 16px; }
-.boot h1 { font-size: 22px; }
+.boot .brand-logo,
+.boot-logo {
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+}
+.boot h1 { font-size: 22px; line-height: 1.2; max-width: 16rem; }
 .boot p { color: var(--muted); max-width: 22rem; line-height: 1.45; }
 .boot-spin {
   width: 28px; height: 28px;
@@ -68,13 +74,27 @@ body {
   z-index: 20;
 }
 
-.top h1 { font-size: 18px; font-weight: 750; letter-spacing: 0.02em; flex: 1; }
+.top h1 { font-size: 17px; font-weight: 750; letter-spacing: 0.01em; line-height: 1.2; }
+.top > div { min-width: 0; flex: 1; }
 .top .sub { font-size: 12px; color: #c5cad1; font-weight: 500; }
-.brand-mark {
-  width: 36px; height: 36px; border-radius: 8px;
-  background: var(--yellow); color: var(--steel);
-  display: grid; place-items: center; font-weight: 800; font-size: 14px;
+.brand-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  flex: none;
+  background: #1a2027;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.12) inset;
+  object-fit: cover;
 }
+.report-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+.report-logo { width: 36px; height: 36px; border-radius: 9px; }
 
 .back, .icon-btn {
   appearance: none; border: 0; background: #3a424e; color: #fff;

@@ -1,4 +1,4 @@
-# CheckMec
+# Check list Técnico
 
 Aplicación móvil para **inspecciones pre-uso** de herramientas y equipos de una empresa mecánica. Se firma en el celular y se genera un **QR** para que cualquiera abra la ficha.
 
@@ -32,7 +32,7 @@ Abre `http://IP-DE-TU-PC:8080` en el celular (misma Wi‑Fi).
 4. La app publica la ficha y muestra un **QR**
 5. Quien lo escanea ve el informe (puntos, resultado y firmas) sin instalar nada
 
-El historial queda en ese celular. Es una bitácora de apoyo; no reemplaza certificaciones oficiales.
+El historial queda **en la memoria de ese navegador** (localStorage), en ese celular. No hay cuenta ni servidor propio: si borras los datos del sitio, usas otro teléfono u otro explorador, esas inspecciones no aparecen. El QR sirve para que otra persona vea esa ficha. Es una bitácora de apoyo; no reemplaza certificaciones oficiales.
 
 Incluye checklists de, entre otros:
 

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
-  <title>CheckMec — Inspecciones de taller</title>
+  <title>Check list Técnico — Inspecciones de taller</title>
   <meta name="theme-color" content="#2c333d">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
@@ -29,16 +29,11 @@
       padding: 24px;
       text-align: center;
     }
-    .boot .brand-mark {
-      width: 48px;
-      height: 48px;
-      border-radius: 10px;
-      background: #f5c400;
-      color: #2c333d;
-      display: grid;
-      place-items: center;
-      font-weight: 800;
-      font-size: 16px;
+    .boot .brand-logo {
+      width: 72px;
+      height: 72px;
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(28, 33, 40, 0.18);
     }
     .boot h1 { font-size: 22px; margin: 0; }
     .boot p { color: #5c6570; max-width: 22rem; line-height: 1.45; margin: 0; }
@@ -56,14 +51,14 @@
 <body>
   <div id="app">
     <div class="boot">
-      <div class="brand-mark">CM</div>
-      <h1>CheckMec</h1>
+      <img class="brand-logo boot-logo" src="icon.svg" width="72" height="72" alt="Check list Técnico">
+      <h1>Check list Técnico</h1>
       <div class="boot-spin" aria-hidden="true"></div>
       <p id="boot-msg">Cargando inspecciones…</p>
     </div>
   </div>
   <noscript>
-    <p style="padding:24px">Activa JavaScript para usar CheckMec.</p>
+    <p style="padding:24px">Activa JavaScript para usar Check list Técnico.</p>
   </noscript>
   <script>
     /* jsDelivr sirve JS/CSS/fotos bien; el HTML en raw/jsDelivr NO corre (text/plain). */
@@ -72,18 +67,17 @@
     window.mecImgFb = function (img) {
       var cdn = window.MEC_CDN || "";
       var src = img.getAttribute("src") || "";
-      var path = (src.match(/img\/equipos\/[^/?#]+/) || [])[0];
-      if (!cdn || !path) {
+      if (!cdn || img.dataset.fb === "1") {
         img.style.visibility = "hidden";
         return;
       }
-      var next = cdn + path;
-      if (img.dataset.fb === "1") {
+      var path = (src.match(/img\/equipos\/[^/?#]+/) || src.match(/icon\.svg/) || [])[0];
+      if (!path) {
         img.style.visibility = "hidden";
         return;
       }
       img.dataset.fb = "1";
-      img.src = next;
+      img.src = cdn + path;
     };
     (function () {
       var cdn = window.MEC_CDN;
