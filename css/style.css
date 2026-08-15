@@ -1,0 +1,260 @@
+:root {
+  --bg: #07070d;
+  --cabinet: #12121c;
+  --pad: #1c1c2a;
+  --pad-border: #4a4a68;
+  --pad-held: #3a5cff;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+  background:
+    radial-gradient(ellipse at 50% 0%, #1a1a2e 0%, var(--bg) 55%);
+  color: #fff;
+  font-family: "Courier New", ui-monospace, monospace;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+#wrap {
+  min-height: 100%;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 8px;
+  padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+}
+
+#screen {
+  position: relative;
+  line-height: 0;
+  border: 6px solid #2a2a3c;
+  border-radius: 10px;
+  background: #000;
+  box-shadow:
+    0 0 0 2px #4a4a62,
+    0 18px 50px rgba(0, 0, 0, 0.55),
+    inset 0 0 30px rgba(0, 0, 0, 0.4);
+}
+
+#game {
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  width: min(96vw, calc(96vh * 320 / 240));
+  height: auto;
+  background: #000;
+}
+
+#hint {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: #8b8ba3;
+  text-align: center;
+  max-width: 90vw;
+}
+
+#hint kbd {
+  display: inline-block;
+  padding: 1px 6px;
+  border: 1px solid #55556a;
+  border-radius: 4px;
+  background: #1c1c28;
+  color: #d0d0e0;
+}
+
+#touch {
+  display: none;
+}
+
+#touch button {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 3px solid var(--pad-border);
+  border-radius: 16px;
+  background: rgba(28, 28, 42, 0.82);
+  color: #f2f2ff;
+  font-family: inherit;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+#touch button:active,
+#touch button.held {
+  background: var(--pad-held);
+  border-color: #9db0ff;
+  transform: scale(0.97);
+}
+
+body.phone #hint {
+  display: none;
+}
+
+body.phone #wrap {
+  padding: 0;
+  gap: 0;
+  justify-content: flex-start;
+}
+
+body.phone #screen {
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  width: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  position: relative;
+}
+
+body.phone #game {
+  flex: 1 1 auto;
+  width: 100%;
+  height: 0;
+  min-height: 42dvh;
+  max-height: none;
+  margin: 0 auto;
+  object-fit: contain;
+}
+
+body.phone #touch {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  flex: 0 0 auto;
+  width: 100%;
+  min-height: 210px;
+  padding: 10px 12px max(16px, env(safe-area-inset-bottom));
+  background: linear-gradient(#0b0b14, #141428);
+  pointer-events: none;
+}
+
+body.phone .touch-top {
+  position: absolute;
+  top: max(6px, env(safe-area-inset-top));
+  right: max(8px, env(safe-area-inset-right));
+  z-index: 5;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+body.phone .touch-top button {
+  width: 48px;
+  height: 40px;
+  font-size: 14px;
+  border-radius: 12px;
+}
+
+body.phone .touch-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+  pointer-events: auto;
+}
+
+body.phone .dpad {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-areas:
+    "left right"
+    "down down";
+  gap: 8px;
+  width: min(46vw, 220px);
+}
+
+body.phone .dpad [data-btn="left"] { grid-area: left; }
+body.phone .dpad [data-btn="right"] { grid-area: right; }
+body.phone .dpad [data-btn="down"] { grid-area: down; }
+
+body.phone .dpad button,
+body.phone .actions .sm {
+  height: 64px;
+  font-size: 18px;
+}
+
+body.phone .actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-areas:
+    "run fire"
+    "jump jump";
+  gap: 8px;
+  width: min(48vw, 240px);
+}
+
+body.phone .actions [data-btn="run"] { grid-area: run; }
+body.phone .actions [data-btn="fire"] { grid-area: fire; }
+body.phone .actions [data-btn="jump"] { grid-area: jump; }
+
+body.phone .jump {
+  height: 84px;
+  font-size: 22px;
+  background: rgba(255, 122, 24, 0.9);
+  border-color: #ffd09a;
+}
+
+@media (orientation: landscape) and (max-height: 560px) {
+  body.phone #screen {
+    display: block;
+    position: relative;
+  }
+
+  body.phone #game {
+    width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+    object-fit: contain;
+    background: #000;
+  }
+
+  body.phone #touch {
+    position: absolute;
+    inset: 0;
+    background: transparent;
+    min-height: 0;
+    justify-content: space-between;
+    padding:
+      max(8px, env(safe-area-inset-top))
+      max(12px, env(safe-area-inset-right))
+      max(12px, env(safe-area-inset-bottom))
+      max(12px, env(safe-area-inset-left));
+  }
+
+  body.phone .touch-top {
+    position: static;
+  }
+
+  body.phone .touch-bottom {
+    margin-top: auto;
+  }
+
+  body.phone .dpad button,
+  body.phone .actions .sm {
+    height: 52px;
+    background: rgba(20, 20, 36, 0.55);
+  }
+
+  body.phone .jump {
+    height: 64px;
+    background: rgba(255, 122, 24, 0.72);
+  }
+}

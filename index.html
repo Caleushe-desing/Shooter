@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Súper Salto</title>
+  <meta name="description" content="Platformer original con mundos, niveles, power-ups y enemigos al estilo de los clásicos de 8 bits.">
+  <meta name="theme-color" content="#07070d">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Súper Salto">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="icon.svg">
+  <link rel="apple-touch-icon" href="icon.svg">
+</head>
+<body>
+  <div id="wrap">
+    <div id="screen">
+      <canvas id="game" width="960" height="720" aria-label="Súper Salto"></canvas>
+      <div id="touch">
+        <div class="touch-top">
+          <button type="button" data-btn="pause" aria-label="Pausa">II</button>
+          <button type="button" data-btn="mute" aria-label="Silencio">♪</button>
+        </div>
+        <div class="touch-bottom">
+          <div class="dpad">
+            <button type="button" data-btn="left" class="wide" aria-label="Izquierda">◀</button>
+            <button type="button" data-btn="right" class="wide" aria-label="Derecha">▶</button>
+            <button type="button" data-btn="down" aria-label="Abajo">▼</button>
+          </div>
+          <div class="actions">
+            <button type="button" data-btn="run" class="sm" aria-label="Correr">CORRER</button>
+            <button type="button" data-btn="fire" class="sm" aria-label="Fuego">FUEGO</button>
+            <button type="button" data-btn="jump" class="jump" aria-label="Saltar">SALTO</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p id="hint">
+      <kbd>←</kbd> <kbd>→</kbd> mover · <kbd>Z</kbd>/<kbd>↑</kbd> saltar ·
+      <kbd>X</kbd>/<kbd>Shift</kbd> correr · <kbd>C</kbd> disparar ·
+      <kbd>Enter</kbd> confirmar · <kbd>Esc</kbd> pausa
+    </p>
+  </div>
+  <script src="js/levels.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
