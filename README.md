@@ -4,7 +4,7 @@ Trainer **tipo Aim Lab** en **tercera persona**: ves al operador, apuntás con l
 
 ## Demo
 
-https://subtle-grass-additions-music.trycloudflare.com
+https://reply-declared-non-found.trycloudflare.com
 
 En celular: stick + arrastrá + DISPARO. (El túnel caduca; si no carga, pedí link nuevo.)
 
