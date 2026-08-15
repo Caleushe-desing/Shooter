@@ -3,17 +3,17 @@ import {
   DIR_YAW,
   setSpinDragging,
   setSpinYaw,
-  turnMap45,
+  turnMap90,
 } from "../../game/inputMap";
 import { engine } from "../../game/instance";
 import { useHud } from "../../store/gameStore";
 
-/** Un desliz = un solo paso de 45°. Otro desliz al mismo lado = +45° más. */
+/** Un desliz = un solo paso de 90°. Otro al mismo lado = +90° más. */
 const SWIPE_PX = 28;
 
 /**
- * En 3D: cada gesto horizontal gira el mapa exactamente 45°.
- * El quiltro siempre camina hacia el fondo de la pantalla.
+ * En 3D: cada gesto horizontal gira el mapa exactamente 90°.
+ * Izquierda → +90°, otra vez izquierda → otros +90°. Igual a la derecha.
  */
 export function MapSpinControls() {
   const status = useHud((s) => s.status);
@@ -28,15 +28,15 @@ export function MapSpinControls() {
     if (committed.current) return;
     if (Math.abs(dx) < SWIPE_PX) return;
     committed.current = true;
-    // Desliz a la derecha → mapa gira “a la derecha” (−45° en el reloj).
-    const facing = turnMap45(dx > 0 ? -1 : 1);
+    // Izquierda → −90° (giro a la izquierda); derecha → +90°.
+    const facing = turnMap90(dx > 0 ? 1 : -1);
     engine.setInput(facing);
   };
 
   return (
     <div
       className="absolute inset-0 z-[5] touch-none select-none"
-      aria-label="Deslizá: un gesto = 45°"
+      aria-label="Deslizá: un gesto = 90°"
       onPointerDown={(e) => {
         if (e.button !== 0) return;
         e.preventDefault();
@@ -58,7 +58,6 @@ export function MapSpinControls() {
       }}
       onPointerUp={(e) => {
         if (pointerId.current !== e.pointerId) return;
-        // Si soltó sin llegar al umbral, no gira.
         commitStep(e.clientX - originX.current);
         pointerId.current = null;
         committed.current = false;

@@ -17,7 +17,7 @@ import {
   getSpinYaw,
   screenToWorld,
   setSpinYaw,
-  turnMap45,
+  turnMap90,
   yawToFacing,
   DIR_YAW,
 } from "../game/inputMap";
@@ -45,13 +45,13 @@ export function Game() {
 
       const view = useHud.getState().viewMode;
       if (view === "3d") {
-        // A/D: un toque = 45°. S = 180°. Avance siempre al fondo.
+        // A/D: un toque = 90°. S = 180°. Avance siempre al fondo.
         if (key === "a" || key === "arrowleft" || key === "h") {
-          engine.setInput(turnMap45(1));
+          engine.setInput(turnMap90(-1));
         } else if (key === "d" || key === "arrowright" || key === "l") {
-          engine.setInput(turnMap45(-1));
+          engine.setInput(turnMap90(1));
         } else if (key === "s" || key === "arrowdown" || key === "j") {
-          engine.setInput(turnMap45(4));
+          engine.setInput(turnMap90(2));
         } else if (key === "w" || key === "arrowup" || key === "k") {
           engine.setInput(yawToFacing(getSpinYaw()));
         }

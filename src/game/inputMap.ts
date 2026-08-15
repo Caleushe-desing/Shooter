@@ -1,5 +1,5 @@
 import type { Dir } from "./types";
-import { DIR_CLOCK_8, relativeToFacing } from "./types";
+import { DIR_CLOCK, relativeToFacing } from "./types";
 
 /** Yaw de cámara / “giro del mapa” en 3D (radianes). */
 let spinYaw = 0;
@@ -40,7 +40,7 @@ function shortest(from: number, to: number): number {
   return d;
 }
 
-/** Yaw de cada rumbo — pasos de 45°. */
+/** Yaw de cada rumbo (cardinales + diagonales por compat). */
 export const DIR_YAW: Record<Dir, number> = {
   down: 0,
   downright: Math.PI / 4,
@@ -52,16 +52,19 @@ export const DIR_YAW: Record<Dir, number> = {
   downleft: -Math.PI / 4,
 };
 
-export function snapYaw45(yaw: number): number {
-  const step = Math.PI / 4;
-  return Math.round(yaw / step) * step;
-}
+/** Solo N/E/S/O — un desliz = 90°. */
+const CARDINAL_YAWS: { d: Dir; y: number }[] = [
+  { d: "down", y: 0 },
+  { d: "right", y: Math.PI / 2 },
+  { d: "up", y: Math.PI },
+  { d: "left", y: -Math.PI / 2 },
+];
 
 export function yawToFacing(yaw: number): Dir {
   let best: Dir = "down";
   let bestDist = Infinity;
-  for (const d of DIR_CLOCK_8) {
-    let dist = Math.abs(shortest(yaw, DIR_YAW[d]));
+  for (const { d, y } of CARDINAL_YAWS) {
+    let dist = Math.abs(shortest(yaw, y));
     if (d === "up") dist = Math.min(dist, Math.abs(shortest(yaw, -Math.PI)));
     if (dist < bestDist) {
       bestDist = dist;
@@ -71,35 +74,35 @@ export function yawToFacing(yaw: number): Dir {
   return best;
 }
 
-/**
- * Gira un paso de 45° sobre el reloj de 8 rumbos.
- * steps > 0 = antihorario en yaw (desliz izquierda / A).
- * steps < 0 = horario (desliz derecha / D).
- */
-export function stepFacing45(from: Dir, steps: number): Dir {
-  const i = DIR_CLOCK_8.indexOf(from);
-  const base = i < 0 ? 0 : i;
-  const next = ((base + steps) % 8 + 8) % 8;
-  return DIR_CLOCK_8[next];
+function toCardinal(dir: Dir): Dir {
+  if (dir === "upleft" || dir === "upright") return "up";
+  if (dir === "downleft" || dir === "downright") return "down";
+  if (dir === "up" || dir === "down" || dir === "left" || dir === "right") return dir;
+  return yawToFacing(DIR_YAW[dir]);
 }
 
-/** Aplica un paso de 45° al spin yaw + facing de juego. */
-export function turnMap45(steps: number): Dir {
-  const current = yawToFacing(spinYaw);
-  const facing = stepFacing45(current, steps);
+/**
+ * Gira un paso de 90° (cardinales).
+ * steps > 0 = desliz izquierda / A · steps < 0 = desliz derecha / D.
+ */
+export function stepFacing90(from: Dir, steps: number): Dir {
+  const card = toCardinal(from);
+  const i = DIR_CLOCK.indexOf(card);
+  const base = i < 0 ? 0 : i;
+  const next = ((base + steps) % 4 + 4) % 4;
+  return DIR_CLOCK[next];
+}
+
+/** Un desliz / una tecla = exactamente 90°. */
+export function turnMap90(steps: number): Dir {
+  const current = toCardinal(yawToFacing(spinYaw));
+  const facing = stepFacing90(current, steps);
   spinYaw = DIR_YAW[facing];
   return facing;
 }
 
 export function screenToWorld3d(screen: Dir): Dir {
-  const facing4 = yawToFacing(spinYaw);
-  const card =
-    facing4 === "upleft" || facing4 === "upright"
-      ? "up"
-      : facing4 === "downleft" || facing4 === "downright"
-        ? "down"
-        : facing4;
-  return relativeToFacing(screen, card);
+  return relativeToFacing(screen, yawToFacing(spinYaw));
 }
 
 export function screenToWorld(screen: Dir, viewMode: "3d" | "2d"): Dir {

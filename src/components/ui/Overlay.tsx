@@ -31,7 +31,7 @@ export function Overlay({ onStart }: OverlayProps) {
               <li>
                 ▶ {SOAP_NAMES.blinky} / {SOAP_NAMES.pinky} / {SOAP_NAMES.inky} / {SOAP_NAMES.clyde}
               </li>
-              <li>▶ 3D: UN DESLIZ = 45° · OTRO = +45°</li>
+              <li>▶ 3D: UN DESLIZ = 90° · OTRO = +90°</li>
               <li>▶ EL QUILTRO SIEMPRE VA AL FONDO</li>
               <li>▶ 2D: DESLIZÁ EN PANTALLA</li>
             </ul>
