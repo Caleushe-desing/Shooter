@@ -24,6 +24,7 @@
       hillDark: "#1f6a1f",
       bush: "#00c800",
       deco: "hills",
+      hard: "#8a4a18",
     },
     cave: {
       skyTop: "#000000",
@@ -35,6 +36,7 @@
       hillDark: "#111",
       bush: "#333",
       deco: "none",
+      hard: "#5a3a20",
     },
     desert: {
       skyTop: "#f0c060",
@@ -46,6 +48,7 @@
       hillDark: "#c09030",
       bush: "#c07020",
       deco: "dunes",
+      hard: "#c08030",
     },
     pyramid: {
       skyTop: "#1a1008",
@@ -57,6 +60,7 @@
       hillDark: "#2a1a08",
       bush: "#6a4a10",
       deco: "none",
+      hard: "#a07028",
     },
     sky: {
       skyTop: "#9ee4ff",
@@ -68,6 +72,7 @@
       hillDark: "#d0f0ff",
       bush: "#c0ffd0",
       deco: "clouds",
+      hard: "#c8c8c8",
     },
     castle: {
       skyTop: "#1a1520",
@@ -79,6 +84,7 @@
       hillDark: "#1a1a1a",
       bush: "#3a3a3a",
       deco: "none",
+      hard: "#8a8a8a",
     },
     night: {
       skyTop: "#0c1024",
@@ -90,6 +96,7 @@
       hillDark: "#0a2a0a",
       bush: "#1a6a1a",
       deco: "stars",
+      hard: "#3a4a28",
     },
     ghost: {
       skyTop: "#12101c",
@@ -101,6 +108,7 @@
       hillDark: "#1a0a2a",
       bush: "#3a2a4a",
       deco: "none",
+      hard: "#4a3a5a",
     },
     lava: {
       skyTop: "#1a0808",
@@ -112,6 +120,7 @@
       hillDark: "#2a0808",
       bush: "#4a1010",
       deco: "embers",
+      hard: "#5a3030",
     },
   };
 
@@ -161,6 +170,9 @@
     "?": [14, 17, 1, 2, 4, 0, 4],
     "*": [0, 4, 21, 14, 21, 4, 0],
     "'": [6, 6, 2, 0, 0, 0, 0],
+    ">": [8, 4, 2, 1, 2, 4, 8],
+    "<": [2, 4, 8, 16, 8, 4, 2],
+    "^": [4, 14, 31, 4, 4, 0, 0],
   };
 
   /* ---------- helpers ---------- */
@@ -393,7 +405,10 @@
 
   /* ---------- drawing ---------- */
   function drawText(ctx, str, x, y, scale, color, align) {
-    str = String(str).toUpperCase();
+    str = String(str)
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toUpperCase();
     const w = str.length * 6 * scale;
     let px = x;
     if (align === "center") px = x - (w >> 1);
@@ -1775,10 +1790,11 @@
       return;
     }
     if (t === "#") {
-      fillRect(ctx, sx, y, 16, 16, "#8a8a8a");
-      fillRect(ctx, sx + 1, y + 1, 14, 14, "#b0b0b0");
-      fillRect(ctx, sx + 3, y + 3, 2, 2, "#707070");
-      fillRect(ctx, sx + 11, y + 10, 2, 2, "#707070");
+      const hard = theme.hard || "#8a8a8a";
+      fillRect(ctx, sx, y, 16, 16, hard);
+      fillRect(ctx, sx + 1, y + 1, 14, 14, hard);
+      fillRect(ctx, sx + 3, y + 3, 2, 2, "#00000033");
+      fillRect(ctx, sx + 11, y + 10, 2, 2, "#00000033");
       return;
     }
     if (t === "=") {
@@ -1892,11 +1908,11 @@
 
     const items = ["NUEVA PARTIDA", "CONTINUAR", "MAPA DEL MUNDO"];
     items.forEach((it, i) => {
-      const y = 92 + i * 16;
+      const y = 80 + i * 14;
       const sel = game.menu === i;
       drawText(ctx, (sel ? "> " : "  ") + it, 88, y, 1, sel ? "#fff" : "#c0c0d0");
     });
-    drawText(ctx, "MEJOR " + pad(game.best, 6), NW / 2, 150, 1, "#ffe100", "center");
+    drawText(ctx, "MEJOR " + pad(game.best, 6), NW / 2, 128, 1, "#ffe100", "center");
     drawText(ctx, "ENTER PARA ELEGIR   M SILENCIO", NW / 2, 220, 1, "#d0d0e0", "center");
   }
 
@@ -2159,6 +2175,17 @@
     canvas.width = NW * SCALE;
     canvas.height = NH * SCALE;
     ctx.imageSmoothingEnabled = false;
+    const params = new URLSearchParams(location.search);
+    const play = params.get("play");
+    if (play && window.SUPER_SALTO_DATA.findLevel(play)) {
+      applySave(defaultSave());
+      startLevel(play);
+    } else if (params.get("map")) {
+      applySave(defaultSave());
+      game.unlocked = allLevelIds();
+      game.completed = ["1-1", "1-2"];
+      game.state = "map";
+    }
     requestAnimationFrame(frame);
   }
 
