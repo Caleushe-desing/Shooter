@@ -13,11 +13,18 @@ Abre la URL de Vite (por defecto `http://127.0.0.1:5173`).
 
 ## Controles
 
-| Acción | Teclado | Móvil |
-|--------|---------|--------|
-| Mover | WASD / flechas | Stick digital 4 direcciones |
+Mismo esquema en PC y celular: **sin mando ni flechas en pantalla**.
+
+| Acción | PC (teclado) | Celular (desliz) |
+|--------|--------------|------------------|
+| Girar 90° (3D) | `A` / `D` | Izquierda / derecha |
+| Media vuelta (3D) | `S` | Abajo |
+| Seguir al fondo (3D) | `W` | Arriba / automático |
+| Mover (2D) | WASD / flechas | Desliz en esa dirección |
 | Vista 3D / 2D | `V` | Botón 3D/2D |
-| Pausar | Esc / P | — |
+| Pausar | Esc / `P` | — |
+
+En 3D, cada desliz lateral suma **otros 90°** (como pulsar A o D de nuevo).
 
 ## Objetivo
 

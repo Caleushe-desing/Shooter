@@ -31,9 +31,10 @@ export function Overlay({ onStart }: OverlayProps) {
               <li>
                 ▶ {SOAP_NAMES.blinky} / {SOAP_NAMES.pinky} / {SOAP_NAMES.inky} / {SOAP_NAMES.clyde}
               </li>
-              <li>▶ 3D: UN DESLIZ = 90° · OTRO = +90°</li>
+              <li>▶ CELULAR = MISMO QUE PC (DESLIZ = TECLAS)</li>
+              <li>▶ 3D: IZQ/DER = 90° · ABAJO = 180° · SIN MANDO</li>
               <li>▶ EL QUILTRO SIEMPRE VA AL FONDO</li>
-              <li>▶ 2D: DESLIZÁ EN PANTALLA</li>
+              <li>▶ 2D: DESLIZ = FLECHAS DEL TECLADO</li>
             </ul>
             <div className="mt-5 flex justify-center gap-2">
               <button
@@ -69,7 +70,7 @@ export function Overlay({ onStart }: OverlayProps) {
           {gameover ? "CONTINUE?" : "INSERT COIN"}
         </button>
         <p className="mt-5 text-[10px] font-black text-[#00ff66] tracking-widest">
-          DRAG MAP · A/D · V VIEW · P PAUSE
+          DRAG = A/D/S · V VIEW · P PAUSE · SIN MANDO
         </p>
       </div>
     </div>

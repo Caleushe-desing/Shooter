@@ -74,7 +74,7 @@ export function isDiagonal(dir: Dir): boolean {
 export const DIR_CLOCK: Dir[] = ["up", "right", "down", "left"];
 
 /**
- * Screen / stick intent relative to where the character faces (4-way).
+ * Screen / keyboard intent relative to where the character faces (4-way).
  */
 export function relativeToFacing(screen: Dir, facing: Dir): Dir {
   const face = DIR_CLOCK.indexOf(facing);

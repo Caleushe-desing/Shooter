@@ -28,9 +28,8 @@ import { CameraRig } from "./scene/CameraRig";
 import { Lights } from "./scene/Lights";
 import { Maze } from "./scene/Maze";
 import { HUD } from "./ui/HUD";
-import { MapSpinControls } from "./ui/MapSpinControls";
 import { Overlay } from "./ui/Overlay";
-import { TouchControls } from "./ui/TouchControls";
+import { PcTouchControls } from "./ui/PcTouchControls";
 
 export function Game() {
   useEffect(() => {
@@ -101,8 +100,7 @@ export function Game() {
         <CameraRig engine={engine} />
         <SimLoop />
       </Canvas>
-      <MapSpinControls />
-      <TouchControls onDir={(dir) => engine.setInput(dir)} />
+      <PcTouchControls />
       <HUD />
       <Overlay onStart={startOrRestart} />
     </div>
