@@ -1,0 +1,10 @@
+{
+  "name": "CheckMec — Inspecciones de taller",
+  "short_name": "CheckMec",
+  "description": "Checklists de herramientas y equipos mecánicos, con firma y ficha QR.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#eef0f3",
+  "theme_color": "#2c333d",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}
