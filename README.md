@@ -23,7 +23,11 @@ Luego visita `http://localhost:8080`.
 | Esc o P | Pausa |
 | M | Silenciar audio |
 
-En móvil aparecen botones táctiles.
+En el **celular** el juego abre a pantalla completa con botones táctiles: cruza para mover, **SALTO**, **CORRER** y **FUEGO**. Toca el menú para elegir. En horizontal los botones se superponen al juego.
+
+Para forzar el modo teléfono en cualquier navegador usa `?mobile=1`.
+
+Puedes añadir Súper Salto a la pantalla de inicio (PWA).
 
 ## Mundos
 

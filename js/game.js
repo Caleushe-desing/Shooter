@@ -333,10 +333,7 @@
     const name = map[k];
     if (!name) return;
     if (name === "mute" && down) {
-      audio.muted = !audio.muted;
-      if (audio.muted) audio.stopMusic();
-      else if (game.state === "play") audio.playMusic(musicForTheme(game.stage.level.theme));
-      else if (game.state === "map" || game.state === "title") audio.playMusic("map");
+      toggleMute();
       return;
     }
     if (e.preventDefault) e.preventDefault();
@@ -354,9 +351,85 @@
   window.addEventListener("keyup", (e) => bindKey(e, false));
   window.addEventListener("pointerdown", () => audio.unlock());
 
+  function isPhoneUI() {
+    const q = new URLSearchParams(location.search);
+    if (q.get("mobile") === "0") return false;
+    if (q.get("mobile") === "1") return true;
+    return (
+      window.matchMedia("(pointer: coarse)").matches ||
+      window.matchMedia("(hover: none)").matches ||
+      navigator.maxTouchPoints > 0
+    );
+  }
+
+  function toggleMute() {
+    audio.muted = !audio.muted;
+    if (audio.muted) audio.stopMusic();
+    else if (game.state === "play" && game.stage) audio.playMusic(musicForTheme(game.stage.level.theme));
+    else if (game.state === "map" || game.state === "title") audio.playMusic("map");
+  }
+
+  function canvasPoint(e) {
+    const r = canvas.getBoundingClientRect();
+    return {
+      x: ((e.clientX - r.left) / r.width) * NW,
+      y: ((e.clientY - r.top) / r.height) * NH,
+    };
+  }
+
+  function handleMenuTap(e) {
+    const p = canvasPoint(e);
+    if (game.state === "title") {
+      for (let i = 0; i < 3; i++) {
+        const y = 80 + i * 14;
+        if (p.x > 70 && p.x < 260 && p.y >= y - 2 && p.y <= y + 12) {
+          game.menu = i;
+          keys.startTap = true;
+          return true;
+        }
+      }
+      keys.startTap = true;
+      return true;
+    }
+    if (game.state === "map") {
+      const worlds = window.SUPER_SALTO_DATA.worlds;
+      worlds.forEach((w, wi) => {
+        w.levels.forEach((lv, li) => {
+          const x = 40 + li * 68;
+          const y = 36 + wi * 48 + 14;
+          if (p.x >= x && p.x <= x + 22 && p.y >= y && p.y <= y + 16) {
+            const idx = wi * 4 + li;
+            if (game.unlocked.indexOf(lv.id) >= 0) game.mapIndex = idx;
+            keys.startTap = true;
+          }
+        });
+      });
+      if (!keys.startTap) keys.startTap = true;
+      return true;
+    }
+    if (game.state === "pause") {
+      for (let i = 0; i < 3; i++) {
+        const y = 110 + i * 16;
+        if (p.x > 90 && p.x < 230 && p.y >= y - 2 && p.y <= y + 12) {
+          game.pauseMenu = i;
+          keys.startTap = true;
+          return true;
+        }
+      }
+      keys.startTap = true;
+      return true;
+    }
+    if (game.state === "clear" || game.state === "over" || game.state === "win") {
+      keys.startTap = true;
+      return true;
+    }
+    return false;
+  }
+
   function bindTouch() {
     const root = document.getElementById("touch");
     if (!root) return;
+    const held = new Map();
     const set = (btn, down) => {
       if (btn === "left") keys.left = down;
       if (btn === "right") keys.right = down;
@@ -371,24 +444,39 @@
         if (down && !keys.fire) keys.fireTap = true;
         keys.fire = down;
       }
+      if (btn === "pause") {
+        if (down && !keys.pause) keys.pauseTap = true;
+        keys.pause = down;
+      }
+      if (btn === "mute" && down) toggleMute();
     };
     root.querySelectorAll("button").forEach((el) => {
       const btn = el.getAttribute("data-btn");
       const on = (e) => {
         e.preventDefault();
+        e.stopPropagation();
         audio.unlock();
+        try {
+          el.setPointerCapture(e.pointerId);
+        } catch (err) {}
+        held.set(e.pointerId, el);
         el.classList.add("held");
         set(btn, true);
       };
       const off = (e) => {
         e.preventDefault();
+        if (held.get(e.pointerId) !== el && e.type !== "pointercancel") return;
+        held.delete(e.pointerId);
         el.classList.remove("held");
         set(btn, false);
       };
       el.addEventListener("pointerdown", on);
       el.addEventListener("pointerup", off);
-      el.addEventListener("pointerleave", off);
       el.addEventListener("pointercancel", off);
+    });
+    canvas.addEventListener("pointerdown", (e) => {
+      audio.unlock();
+      handleMenuTap(e);
     });
   }
 
@@ -1489,6 +1577,7 @@
     overlay: 0,
     pauseMenu: 0,
     winT: 0,
+    touchUI: false,
   };
 
   function addScore(n) {
@@ -1913,7 +2002,7 @@
       drawText(ctx, (sel ? "> " : "  ") + it, 88, y, 1, sel ? "#fff" : "#c0c0d0");
     });
     drawText(ctx, "MEJOR " + pad(game.best, 6), NW / 2, 128, 1, "#ffe100", "center");
-    drawText(ctx, "ENTER PARA ELEGIR   M SILENCIO", NW / 2, 220, 1, "#d0d0e0", "center");
+    drawText(ctx, game.touchUI ? "TOCA UNA OPCION" : "ENTER PARA ELEGIR   M SILENCIO", NW / 2, 220, 1, "#d0d0e0", "center");
   }
 
   function drawMap(ctx) {
@@ -1940,7 +2029,7 @@
     const cur = allLevelIds()[game.mapIndex];
     const level = window.SUPER_SALTO_DATA.findLevel(cur);
     drawText(ctx, level ? level.name.toUpperCase() : "", NW / 2, 220, 1, "#ffe8a0", "center");
-    drawText(ctx, "ENTER JUGAR   ESC MENU", NW / 2, 230, 1, "#aaa", "center");
+    drawText(ctx, game.touchUI ? "TOCA UN NIVEL" : "ENTER JUGAR   ESC MENU", NW / 2, 230, 1, "#aaa", "center");
   }
 
   function drawPause(ctx) {
@@ -1966,7 +2055,7 @@
     ctx.fillRect(0, 0, NW, NH);
     drawText(ctx, "JUEGO TERMINADO", NW / 2, 100, 1, "#ff5555", "center");
     drawText(ctx, "PUNTOS " + pad(game.score, 6), NW / 2, 124, 1, "#fff", "center");
-    drawText(ctx, "ENTER PARA VOLVER", NW / 2, 160, 1, "#aaa", "center");
+    drawText(ctx, game.touchUI ? "TOCA PARA VOLVER" : "ENTER PARA VOLVER", NW / 2, 160, 1, "#aaa", "center");
   }
 
   function drawWin(ctx, tick) {
@@ -1976,7 +2065,7 @@
     drawText(ctx, "CALEO SALVO LOS CUATRO MUNDOS", NW / 2, 90, 1, "#fff", "center");
     drawText(ctx, "PUNTOS " + pad(game.score, 6), NW / 2, 120, 1, "#ffd000", "center");
     drawText(ctx, "GRACIAS POR JUGAR", NW / 2, 160, 1, "#c0ffd0", "center");
-    drawText(ctx, "ENTER - TITULO", NW / 2, 210, 1, "#aaa", "center");
+    drawText(ctx, game.touchUI ? "TOCA PARA EL TITULO" : "ENTER - TITULO", NW / 2, 210, 1, "#aaa", "center");
   }
 
   /* ---------- ui updates ---------- */
@@ -2171,6 +2260,15 @@
     game.unlocked = s.unlocked || ["1-1"];
     game.completed = s.completed || [];
     game.lives = 5;
+    game.touchUI = isPhoneUI();
+    document.body.classList.toggle("phone", game.touchUI);
+    document.addEventListener(
+      "touchmove",
+      (e) => {
+        e.preventDefault();
+      },
+      { passive: false }
+    );
     bindTouch();
     canvas.width = NW * SCALE;
     canvas.height = NH * SCALE;

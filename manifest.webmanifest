@@ -1,0 +1,19 @@
+{
+  "name": "Súper Salto",
+  "short_name": "Súper Salto",
+  "description": "Platformer original de 8 bits con mundos y niveles.",
+  "start_url": "./?mobile=1",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#07070d",
+  "theme_color": "#07070d",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
