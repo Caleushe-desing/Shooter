@@ -4,7 +4,9 @@ Trainer **tipo Aim Lab** en **tercera persona**: ves al operador, apuntás con l
 
 ## Demo
 
-Pedí el link al agente (túnel Cloudflare). En celular: stick + arrastrá + DISPARO.
+https://subtle-grass-additions-music.trycloudflare.com
+
+En celular: stick + arrastrá + DISPARO. (El túnel caduca; si no carga, pedí link nuevo.)
 
 ## Jugar
 
