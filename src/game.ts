@@ -63,7 +63,7 @@ export class Game {
     key.shadow.mapSize.set(1024, 1024);
     this.scene.add(key);
     const fill = new THREE.PointLight(0x3dffb0, 18, 24);
-    fill.position.set(0, 4.6, -6);
+    fill.position.set(0, 4.6, -3);
     this.scene.add(fill);
     const rim = new THREE.PointLight(0x5ad0ff, 12, 20);
     rim.position.set(-4, 3, 4);
@@ -71,7 +71,7 @@ export class Game {
 
     buildArena(this.scene);
     this.op = makeOperator();
-    this.op.root.position.set(0, 0, 6.2);
+    this.op.root.position.set(0, 0, 3.5);
     this.scene.add(this.op.root);
     this.resize();
     this.placeCamera(1);
@@ -115,12 +115,14 @@ export class Game {
     this.shots = 0;
     this.hits = 0;
     this.combo = 0;
-    this.op.root.position.set(0, 0, 6.2);
+    this.op.root.position.set(0, 0, 3.5);
     this.yaw = 0;
     this.pitch = 0.06;
     this.clearTargets();
     if (mode === "grid") {
-      this.spawnGrid(3);
+      this.usedCells.add(7);
+      this.addTarget(this.cellPos(7), 7);
+      this.spawnGrid(2);
     } else if (mode === "flick") {
       this.spawnFlick();
     } else {
@@ -171,7 +173,7 @@ export class Game {
     p.x += (fx * -nz + rx * nx) * PLAYER_SPEED * dt;
     p.z += (fz * -nz + rz * nx) * PLAYER_SPEED * dt;
     p.x = clamp(p.x, -8.5, 8.5);
-    p.z = clamp(p.z, -5.2, 9.2);
+    p.z = clamp(p.z, -1.2, 6.4);
     this.op.root.rotation.y = this.yaw;
 
     const walk = Math.hypot(nx, nz);
@@ -195,7 +197,7 @@ export class Game {
       p.z + cy * back - sy * side,
     );
     this.camera.position.lerp(ideal, alpha);
-    const lookDist = 14;
+    const lookDist = 10;
     const look = new THREE.Vector3(
       p.x - sy * lookDist,
       p.y + 1.55 + Math.sin(this.pitch) * lookDist,
@@ -218,12 +220,20 @@ export class Game {
 
     let best: Target | null = null;
     let bestT = 1e9;
+    let bestScreen = 1e9;
+    const ndc = new THREE.Vector3();
     for (const t of this.targets) {
       if (!t.alive) continue;
-      const hit = raySphere(origin, dir, t.mesh.position, RADIUS + 0.18);
+      const hit = raySphere(origin, dir, t.mesh.position, RADIUS + 0.22);
       if (hit !== null && hit < bestT) {
         bestT = hit;
         best = t;
+      }
+      ndc.copy(t.mesh.position).project(this.camera);
+      const screen = Math.hypot(ndc.x, ndc.y);
+      if (ndc.z > -1 && ndc.z < 1 && screen < 0.16 && screen < bestScreen) {
+        bestScreen = screen;
+        if (!best) best = t;
       }
     }
     if (best) {
@@ -259,17 +269,17 @@ export class Game {
       t.mesh.position.z += t.vz * dt;
       if (t.mesh.position.x < -5 || t.mesh.position.x > 5) t.vx *= -1;
       if (t.mesh.position.y < 1.1 || t.mesh.position.y > 3.6) t.vy *= -1;
-      if (t.mesh.position.z < -8.4 || t.mesh.position.z > -3.2) t.vz *= -1;
+      if (t.mesh.position.z < -4.6 || t.mesh.position.z > -1.6) t.vz *= -1;
       t.mesh.position.x = clamp(t.mesh.position.x, -5, 5);
       t.mesh.position.y = clamp(t.mesh.position.y, 1.1, 3.6);
-      t.mesh.position.z = clamp(t.mesh.position.z, -8.4, -3.2);
+      t.mesh.position.z = clamp(t.mesh.position.z, -4.6, -1.6);
     }
   }
 
   private cellPos(i: number): THREE.Vector3 {
     const col = i % 5;
     const row = (i / 5) | 0;
-    return new THREE.Vector3(-2.4 + col * 1.2, 1.25 + row * 1.05, -8.85);
+    return new THREE.Vector3(-2.2 + col * 1.1, 1.35 + row * 0.95, -4.85);
   }
 
   private spawnGrid(n: number): void {
@@ -296,7 +306,7 @@ export class Game {
   }
 
   private spawnTrack(): void {
-    const t = this.addTarget(new THREE.Vector3(0, 2.2, -6.5));
+    const t = this.addTarget(new THREE.Vector3(0, 2.2, -3.2));
     t.vx = 2.1;
     t.vy = 1.3;
     t.vz = 1.1;

@@ -44,21 +44,21 @@ export function buildArena(scene: THREE.Scene): void {
     metalness: 0.15,
   });
   const back = new THREE.Mesh(new THREE.BoxGeometry(16, 6.2, 0.35), wallMat);
-  back.position.set(0, 3.1, -9.4);
+  back.position.set(0, 3.1, -5.45);
   scene.add(back);
 
   const frame = new THREE.Mesh(
     new THREE.BoxGeometry(12.4, 4.4, 0.12),
     new THREE.MeshStandardMaterial({ color: 0x5ad0ff, emissive: 0x123848, roughness: 0.3 }),
   );
-  frame.position.set(0, 2.35, -9.18);
+  frame.position.set(0, 2.35, -5.22);
   scene.add(frame);
 
   const pad = new THREE.Mesh(
     new THREE.BoxGeometry(12, 4.1, 0.08),
     new THREE.MeshStandardMaterial({ color: 0x0a101c, roughness: 0.5 }),
   );
-  pad.position.set(0, 2.35, -9.12);
+  pad.position.set(0, 2.35, -5.16);
   scene.add(pad);
 
   for (const x of [-13.6, 13.6]) {
@@ -71,11 +71,11 @@ export function buildArena(scene: THREE.Scene): void {
     new THREE.BoxGeometry(10, 0.08, 0.08),
     new THREE.MeshStandardMaterial({ color: 0x3dffb0, emissive: 0x3dffb0, emissiveIntensity: 1.4 }),
   );
-  neon.position.set(0, 5.1, -9);
+  neon.position.set(0, 5.1, -5.1);
   scene.add(neon);
 
   const sign = makeSign();
-  sign.position.set(0, 5.45, -8.9);
+  sign.position.set(0, 5.45, -5.0);
   scene.add(sign);
 }
 
