@@ -2,6 +2,12 @@
 
 Shooter arcade **estilo Galaga**: formación, picados, rayo tractor y nave dual. Look **80s neón**, listo para PC y celular.
 
+## Demo
+
+https://boulder-sarah-melbourne-alan.trycloudflare.com
+
+(El túnel caduca; si no carga, pedí link nuevo.)
+
 ## Jugar
 
 ```bash
