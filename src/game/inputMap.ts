@@ -82,8 +82,9 @@ function toCardinal(dir: Dir): Dir {
 }
 
 /**
- * Gira un paso de 90° (cardinales).
- * steps > 0 = desliz izquierda / A · steps < 0 = desliz derecha / D.
+ * Gira N pasos de 90° (solo cardinales).
+ * steps > 0 = izquierda (A / desliz izq) · steps < 0 = derecha (D / desliz der).
+ * Ej: 1 + 1 = 180° al mismo lado.
  */
 export function stepFacing90(from: Dir, steps: number): Dir {
   const card = toCardinal(from);
@@ -93,7 +94,7 @@ export function stepFacing90(from: Dir, steps: number): Dir {
   return DIR_CLOCK[next];
 }
 
-/** Un desliz / una tecla = exactamente 90°. */
+/** Un desliz / una tecla = exactamente 90°; el siguiente suma otros 90°. */
 export function turnMap90(steps: number): Dir {
   const current = toCardinal(yawToFacing(spinYaw));
   const facing = stepFacing90(current, steps);

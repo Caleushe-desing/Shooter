@@ -1,9 +1,11 @@
 import { useRef } from "react";
 import {
   DIR_YAW,
+  getSpinYaw,
   setSpinDragging,
   setSpinYaw,
   turnMap90,
+  yawToFacing,
 } from "../../game/inputMap";
 import { engine } from "../../game/instance";
 import { useHud } from "../../store/gameStore";
@@ -13,7 +15,8 @@ const SWIPE_PX = 28;
 
 /**
  * En 3D: cada gesto horizontal gira el mapa exactamente 90°.
- * Izquierda → +90°, otra vez izquierda → otros +90°. Igual a la derecha.
+ * Izquierda → 90° a la izquierda; otro desliz izquierda → otros 90°.
+ * Derecha igual en el otro sentido.
  */
 export function MapSpinControls() {
   const status = useHud((s) => s.status);
@@ -28,15 +31,15 @@ export function MapSpinControls() {
     if (committed.current) return;
     if (Math.abs(dx) < SWIPE_PX) return;
     committed.current = true;
-    // Izquierda → −90° (giro a la izquierda); derecha → +90°.
-    const facing = turnMap90(dx > 0 ? 1 : -1);
+    // dx < 0 = izquierda → +1 paso (90° a la izq); dx > 0 = derecha → −1.
+    const facing = turnMap90(dx < 0 ? 1 : -1);
     engine.setInput(facing);
   };
 
   return (
     <div
       className="absolute inset-0 z-[5] touch-none select-none"
-      aria-label="Deslizá: un gesto = 90°"
+      aria-label="Deslizá: un gesto = 90°, otro = +90°"
       onPointerDown={(e) => {
         if (e.button !== 0) return;
         e.preventDefault();
@@ -44,7 +47,8 @@ export function MapSpinControls() {
         originX.current = e.clientX;
         committed.current = false;
         setSpinDragging(true);
-        setSpinYaw(DIR_YAW[engine.player.dir]);
+        // Anclar al yaw actual del mapa (no al player.dir) para acumular 90°+90°.
+        setSpinYaw(DIR_YAW[yawToFacing(getSpinYaw())]);
         try {
           e.currentTarget.setPointerCapture(e.pointerId);
         } catch {

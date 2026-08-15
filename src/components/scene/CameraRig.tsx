@@ -88,14 +88,14 @@ export function CameraRig({ engine }: { engine: CacamanEngine }) {
       look.set(x, 0, z);
       camera.up.set(0, 0, -1);
     } else {
-      // Mapa: yaw libre al arrastrar; si no, sigue el facing del quiltro.
-      const targetYaw = isSpinDragging() ? getSpinYaw() : DIR_YAW[p.dir];
+      // El yaw del mapa lo marcan los deslices (90°); la cámara lo sigue.
+      // No sobreescribir spinYaw con player.dir — si no, el 2º desliz no acumula.
+      const targetYaw = getSpinYaw();
       if (isSpinDragging()) {
-        yawSmooth.current = getSpinYaw();
+        yawSmooth.current = targetYaw;
       } else {
-        const turn = 1 - Math.exp(-dt * 7);
+        const turn = 1 - Math.exp(-dt * 10);
         yawSmooth.current += shortestAngle(yawSmooth.current, targetYaw) * turn;
-        setSpinYaw(yawSmooth.current);
       }
       const yaw = yawSmooth.current;
 
