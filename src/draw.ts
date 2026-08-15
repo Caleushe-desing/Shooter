@@ -40,10 +40,12 @@ export function drawPlayer(
   y: number,
   dual: boolean,
   flash = false,
+  scale = 1,
 ): void {
   const drawOne = (ox: number) => {
     ctx.save();
     ctx.translate(x + ox, y);
+    ctx.scale(scale, scale);
     const color = flash ? "#ffffff" : "#00ffff";
     glow(ctx, color, 14);
     ctx.strokeStyle = color;

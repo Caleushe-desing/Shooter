@@ -143,7 +143,7 @@ export class Game {
     this.enterT = 0;
     this.diveCd = 1.4;
     this.playerX = W / 2;
-    this.invuln = 1.4;
+    this.invuln = 2.1;
     this.fireCd = 0;
     this.dying = 0;
     this.mode = "ready";
@@ -266,7 +266,7 @@ export class Game {
         }
         this.dual = false;
         this.playerX = W / 2;
-        this.invuln = 2;
+        this.invuln = 2.6;
         this.mode = "play";
       }
       this.stepWorld(dt, { ...input, left: false, right: false, fire: false, touchX: null });
@@ -395,8 +395,8 @@ export class Game {
         this.bullets.push({
           x: e.x,
           y: e.y + 8,
-          vx: (dx / len) * 110,
-          vy: (dy / len) * 110,
+          vx: (dx / len) * 36,
+          vy: 150,
           enemy: true,
         });
         playEnemyShot();
@@ -526,8 +526,8 @@ export class Game {
 
     for (const b of this.bullets) {
       if (!b.enemy) continue;
-      const pr = this.dual ? 12 : 7;
-      if (hit(b, 3, { x: this.playerX, y: this.playerY }, pr)) {
+      const pr = this.dual ? 10 : 5.5;
+      if (hit(b, 2.4, { x: this.playerX, y: this.playerY }, pr)) {
         b.y = H + 99;
         this.killPlayer(false);
         return;
@@ -535,7 +535,8 @@ export class Game {
     }
     for (const e of this.enemies) {
       if (e.state === "dead" || e.state === "wait" || e.state === "form") continue;
-      if (hit(e, 8, { x: this.playerX, y: this.playerY }, this.dual ? 12 : 7)) {
+      if (e.state !== "dive" && e.state !== "beam") continue;
+      if (hit(e, 7, { x: this.playerX, y: this.playerY }, this.dual ? 10 : 5.5)) {
         this.killPlayer(false);
         return;
       }
@@ -582,7 +583,7 @@ export class Game {
     }
     if (this.mode === "over") {
       pixelText(ctx, "GAME OVER", W / 2, H * 0.42, 16, "#ff2ea6");
-      pixelText(ctx, "TOCA / ENTER", W / 2, H * 0.52, 10, "#ffffff");
+      pixelText(ctx, "TOCA O ENTER", W / 2, H * 0.52, 10, "#ffffff");
     }
     ctx.restore();
   }
@@ -594,7 +595,7 @@ export class Game {
     pixelText(ctx, padScore(this.hi), W / 2, 30, 8, "#ffffff");
     pixelText(ctx, `E${this.stage}`, W - 40, 16, 8, "#00ffff");
     for (let i = 0; i < this.lives; i++) {
-      drawPlayer(ctx, W - 18 - i * 16, 36, false);
+      drawPlayer(ctx, W - 16 - i * 14, 42, false, false, 0.55);
     }
   }
 
