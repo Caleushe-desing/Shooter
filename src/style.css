@@ -1,0 +1,68 @@
+:root {
+  --bg: #000008;
+  --ink: #f4f7ff;
+  --cyan: #00ffff;
+  --pink: #ff2ea6;
+  --yellow: #ffe14a;
+  --lime: #5cff7a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Press Start 2P", monospace;
+  user-select: none;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#crt {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(ellipse at 50% 20%, #0a1030 0%, #000008 70%);
+}
+
+#game {
+  display: block;
+  width: min(100vw, calc(100vh * 360 / 540));
+  height: min(100vh, calc(100vw * 540 / 360));
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  background: #000010;
+}
+
+.scanlines,
+.vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.scanlines {
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.035) 0px,
+    rgba(255, 255, 255, 0.035) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  mix-blend-mode: overlay;
+  opacity: 0.55;
+}
+
+.vignette {
+  box-shadow: inset 0 0 120px 24px rgba(0, 0, 0, 0.55);
+}
