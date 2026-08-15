@@ -96,22 +96,35 @@ window.addEventListener("keyup", (e) => {
   syncMove();
 });
 
+let dragLook = false;
+let dragX = 0;
+let dragY = 0;
+
 document.addEventListener("mousemove", (e) => {
-  if (document.pointerLockElement !== canvas) return;
-  game.addLook(e.movementX, e.movementY);
+  if (document.pointerLockElement === canvas) {
+    game.addLook(e.movementX, e.movementY);
+    return;
+  }
+  if (!dragLook || !game.playing) return;
+  game.addLook(e.clientX - dragX, e.clientY - dragY);
+  dragX = e.clientX;
+  dragY = e.clientY;
 });
 
 canvas.addEventListener("mousedown", (e) => {
-  if (coarse) return;
+  if (e.button !== 0 || !game.playing) return;
   unlockAudio();
-  if (document.pointerLockElement !== canvas) {
+  if (!coarse && document.pointerLockElement !== canvas) {
     void canvas.requestPointerLock();
-    return;
+    dragLook = true;
+    dragX = e.clientX;
+    dragY = e.clientY;
   }
-  if (e.button === 0) game.setFiring(true);
+  game.setFiring(true);
 });
 window.addEventListener("mouseup", () => {
-  if (!coarse) game.setFiring(false);
+  dragLook = false;
+  game.setFiring(false);
 });
 
 let lookId: number | null = null;

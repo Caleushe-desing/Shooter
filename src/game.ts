@@ -29,7 +29,7 @@ export class Game {
   private readonly sparks: { m: THREE.Mesh; life: number; v: THREE.Vector3 }[] = [];
 
   private yaw = 0;
-  private pitch = -0.08;
+  private pitch = 0.06;
   private moveX = 0;
   private moveZ = 0;
   private firing = false;
@@ -117,7 +117,7 @@ export class Game {
     this.combo = 0;
     this.op.root.position.set(0, 0, 6.2);
     this.yaw = 0;
-    this.pitch = -0.08;
+    this.pitch = 0.06;
     this.clearTargets();
     if (mode === "grid") {
       this.spawnGrid(3);
@@ -195,10 +195,11 @@ export class Game {
       p.z + cy * back - sy * side,
     );
     this.camera.position.lerp(ideal, alpha);
+    const lookDist = 14;
     const look = new THREE.Vector3(
-      p.x - sy * 7,
-      p.y + 1.45 + this.pitch * 6.5,
-      p.z - cy * 7,
+      p.x - sy * lookDist,
+      p.y + 1.55 + Math.sin(this.pitch) * lookDist,
+      p.z - cy * lookDist,
     );
     this.camera.lookAt(look);
   }
