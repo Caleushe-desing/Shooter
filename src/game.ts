@@ -15,9 +15,9 @@ type Target = {
 };
 
 const ROUND = 60;
-const RADIUS = 0.28;
+const RADIUS = 0.38;
 const PLAYER_SPEED = 4.4;
-const SENS = 0.0024;
+export const SENS = 0.00135;
 
 export class Game {
   readonly renderer: THREE.WebGLRenderer;
@@ -150,9 +150,9 @@ export class Game {
     this.stepTargets(dt);
     this.fireCd = Math.max(0, this.fireCd - dt);
     this.recoil = Math.max(0, this.recoil - dt * 8);
+    this.placeCamera(1);
     if (this.playing && this.firing && this.fireCd <= 0) this.shoot();
     this.stepFx(dt);
-    this.placeCamera(1 - Math.exp(-14 * dt));
     this.renderer.render(this.scene, this.camera);
     this.onHud?.();
   }
@@ -210,16 +210,17 @@ export class Game {
     this.shots += 1;
     playShot();
 
-    const origin = this.camera.position.clone();
+    const origin = new THREE.Vector3();
     const dir = new THREE.Vector3();
+    this.camera.getWorldPosition(origin);
     this.camera.getWorldDirection(dir);
-    this.spawnTracer(origin, origin.clone().addScaledVector(dir, 18));
+    this.spawnTracer(origin, origin.clone().addScaledVector(dir, 22));
 
     let best: Target | null = null;
     let bestT = 1e9;
     for (const t of this.targets) {
       if (!t.alive) continue;
-      const hit = raySphere(origin, dir, t.mesh.position, RADIUS + 0.04);
+      const hit = raySphere(origin, dir, t.mesh.position, RADIUS + 0.18);
       if (hit !== null && hit < bestT) {
         bestT = hit;
         best = t;
