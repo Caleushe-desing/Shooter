@@ -6,6 +6,15 @@
   const STORE = "meccheck-reports-v1";
   const SETTINGS = "meccheck-settings-v1";
   const BLOB = "https://jsonblob.com/api/jsonBlob";
+  const CDN = "https://cdn.jsdelivr.net/gh/Caleushe-desing/Shooter@cursor/checklist-mecanica-9fc5/";
+
+  if (typeof window.MEC_ASSET_BASE !== "string") {
+    const h = location.hostname || "";
+    const local = h === "localhost" || h === "127.0.0.1";
+    const pages = /\.github\.io$/i.test(h) && !/html-?preview/i.test(h);
+    window.MEC_ASSET_BASE = local || pages ? "" : CDN;
+  }
+  if (!window.MEC_CDN) window.MEC_CDN = CDN;
 
   const $app = document.getElementById("app");
   const state = {
