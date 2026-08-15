@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Súper Salto</title>
+  <meta name="description" content="Platformer original con mundos, niveles, power-ups y enemigos al estilo de los clásicos de 8 bits.">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%23ff7a18'/><rect x='3' y='7' width='10' height='8' fill='%2314b8a6'/></svg>">
+</head>
+<body>
+  <div id="wrap">
+    <div id="screen">
+      <canvas id="game" width="960" height="720" aria-label="Súper Salto"></canvas>
+    </div>
+    <p id="hint">
+      <kbd>←</kbd> <kbd>→</kbd> mover · <kbd>Z</kbd>/<kbd>↑</kbd> saltar ·
+      <kbd>X</kbd>/<kbd>Shift</kbd> correr · <kbd>C</kbd> disparar ·
+      <kbd>Enter</kbd> confirmar · <kbd>Esc</kbd> pausa
+    </p>
+    <div id="touch">
+      <div class="col">
+        <button type="button" data-btn="left">◀</button>
+        <button type="button" data-btn="right">▶</button>
+        <button type="button" data-btn="down">▼</button>
+      </div>
+      <div class="col">
+        <button type="button" data-btn="run">X</button>
+        <button type="button" data-btn="fire">C</button>
+        <button type="button" data-btn="jump">Z</button>
+      </div>
+    </div>
+  </div>
+  <script src="js/levels.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
