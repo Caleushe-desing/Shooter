@@ -11,13 +11,142 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg">
   <link rel="apple-touch-icon" href="icon.svg">
-  <link rel="stylesheet" href="css/app.css">
+  <style>
+    html, body {
+      min-height: 100%;
+      margin: 0;
+      background: #e8eaee;
+      color: #1c2128;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    }
+    .boot {
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 24px;
+      text-align: center;
+    }
+    .boot .brand-mark {
+      width: 48px;
+      height: 48px;
+      border-radius: 10px;
+      background: #f5c400;
+      color: #2c333d;
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      font-size: 16px;
+    }
+    .boot h1 { font-size: 22px; margin: 0; }
+    .boot p { color: #5c6570; max-width: 22rem; line-height: 1.45; margin: 0; }
+    .boot-spin {
+      width: 28px;
+      height: 28px;
+      border: 3px solid #d5d8de;
+      border-top-color: #f5c400;
+      border-radius: 50%;
+      animation: mec-spin 0.8s linear infinite;
+    }
+    @keyframes mec-spin { to { transform: rotate(360deg); } }
+  </style>
 </head>
 <body>
-  <div id="app"></div>
-  <script src="js/qrcode.min.js"></script>
-  <script src="js/photos.js"></script>
-  <script src="js/data.js"></script>
-  <script src="js/app.js"></script>
+  <div id="app">
+    <div class="boot">
+      <div class="brand-mark">CM</div>
+      <h1>CheckMec</h1>
+      <div class="boot-spin" aria-hidden="true"></div>
+      <p id="boot-msg">Cargando inspecciones…</p>
+    </div>
+  </div>
+  <noscript>
+    <p style="padding:24px">Activa JavaScript para usar CheckMec.</p>
+  </noscript>
+  <script>
+    /* jsDelivr sirve JS/CSS/fotos bien; el HTML en raw/jsDelivr NO corre (text/plain). */
+    window.MEC_CDN = "https://cdn.jsdelivr.net/gh/Caleushe-desing/Shooter@cursor/checklist-mecanica-9fc5/";
+    window.MEC_ASSET_BASE = "";
+    window.mecImgFb = function (img) {
+      var cdn = window.MEC_CDN || "";
+      var src = img.getAttribute("src") || "";
+      var path = (src.match(/img\/equipos\/[^/?#]+/) || [])[0];
+      if (!cdn || !path) {
+        img.style.visibility = "hidden";
+        return;
+      }
+      var next = cdn + path;
+      if (img.dataset.fb === "1") {
+        img.style.visibility = "hidden";
+        return;
+      }
+      img.dataset.fb = "1";
+      img.src = next;
+    };
+    (function () {
+      var cdn = window.MEC_CDN;
+      var msg = document.getElementById("boot-msg");
+      function fail(text) {
+        var spin = document.querySelector(".boot-spin");
+        if (spin) spin.style.display = "none";
+        if (msg) {
+          msg.textContent =
+            text ||
+            "No cargó. No abras el archivo Raw de GitHub ni jsDelivr (salen como texto). En el repo: Settings → Pages → Deploy from a branch → esta rama, carpeta /. Luego entra a https://caleushe-desing.github.io/Shooter/";
+        }
+      }
+      function loadCss(href, fallback) {
+        var l = document.createElement("link");
+        l.rel = "stylesheet";
+        l.href = href;
+        if (fallback) {
+          l.onerror = function () {
+            var l2 = document.createElement("link");
+            l2.rel = "stylesheet";
+            l2.href = fallback;
+            document.head.appendChild(l2);
+          };
+        }
+        document.head.appendChild(l);
+      }
+      function loadScript(src) {
+        return new Promise(function (resolve, reject) {
+          var s = document.createElement("script");
+          s.src = src;
+          s.async = false;
+          s.onload = resolve;
+          s.onerror = reject;
+          document.body.appendChild(s);
+        });
+      }
+      loadCss("css/app.css", cdn + "css/app.css");
+      var files = ["js/qrcode.min.js", "js/data.js", "js/app.js"];
+      (async function () {
+        var useCdn = false;
+        for (var i = 0; i < files.length; i++) {
+          var file = files[i];
+          try {
+            await loadScript((useCdn ? cdn : "") + file);
+          } catch (e) {
+            useCdn = true;
+            window.MEC_ASSET_BASE = cdn;
+            try {
+              await loadScript(cdn + file);
+            } catch (e2) {
+              fail("No se pudo cargar " + file + ".");
+              return;
+            }
+          }
+        }
+      })().catch(function () {
+        fail();
+      });
+      setTimeout(function () {
+        if (document.querySelector(".boot") && msg && /Cargando/.test(msg.textContent)) fail();
+      }, 10000);
+    })();
+  </script>
 </body>
 </html>

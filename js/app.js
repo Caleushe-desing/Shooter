@@ -78,7 +78,7 @@
   function eqPhoto(typeId) {
     if (!typeId) return "";
     if (window.MEC_PHOTOS && window.MEC_PHOTOS[typeId]) return window.MEC_PHOTOS[typeId];
-    return "img/equipos/" + typeId + ".jpg";
+    return (window.MEC_ASSET_BASE || "") + "img/equipos/" + typeId + ".jpg";
   }
   function eqPhotoTag(typeId, cls, alt) {
     const src = eqPhoto(typeId);
@@ -90,7 +90,7 @@
       src +
       '" alt="' +
       escapeHtml(alt || "") +
-      '" loading="lazy">'
+      '" loading="lazy" onerror="window.mecImgFb&&window.mecImgFb(this)">'
     );
   }
 
@@ -560,6 +560,11 @@
       '<div class="wrap"><input class="search" id="q" placeholder="Buscar: tecle, escalera, soldadora…" value="' +
       escapeHtml(state.filter) +
       '">';
+    if (!list.length) {
+      html +=
+        '<p class="empty">No aparecen equipos. Recarga la página; si sigue igual, abre CheckMec desde GitHub Pages o un servidor local (no desde el archivo Raw).</p></div>';
+      return html;
+    }
     groups.forEach((g) => {
       html += '<div class="group-title">' + escapeHtml(g) + '</div><div class="grid">';
       list
@@ -1044,6 +1049,17 @@
       };
   }
 
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", route);
-  else route();
+  function boot() {
+    try {
+      route();
+    } catch (e) {
+      if ($app) {
+        $app.innerHTML =
+          '<div class="boot"><div class="brand-mark">CM</div><h1>CheckMec</h1><p id="boot-msg">No se pudo iniciar. Recarga. Evita enlaces Raw o jsDelivr: GitHub los muestra como texto y el celular queda en blanco.</p></div>';
+      }
+      console.error(e);
+    }
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
 })();
