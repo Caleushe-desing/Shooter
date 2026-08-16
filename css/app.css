@@ -150,7 +150,21 @@ body {
 .eq-hero .photo-empty { height: 180px; }
 .eq-mini.photo-empty { width: 44px; height: 44px; font-size: 0; }
 .eq-mini.photo-empty::after { content: "·"; font-size: 22px; color: #9aa3ad; }
-.photo-actions { display: grid; gap: 8px; margin: 0 0 12px; }
+.photo-actions { display: grid; gap: 8px; margin: 10px 0 0; }
+.shot-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin: 10px 0;
+}
+.shot { position: relative; border-radius: 10px; overflow: hidden; background: #eceff3; }
+.shot img, .shot-img {
+  width: 100%; height: 140px; object-fit: cover; display: block; border-radius: 10px;
+}
+.shot-del {
+  position: absolute; top: 6px; right: 6px;
+  width: 32px; height: 32px; background: rgba(28,33,40,.72);
+}
 .item-head { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
 .item-text {
   flex: 1; margin: 0; padding: 8px 10px; font-weight: 650; font-size: 14px;

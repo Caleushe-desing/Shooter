@@ -78,7 +78,10 @@
       const slim = list.map((r, i) => {
         if (i < 12) return r;
         const c = JSON.parse(JSON.stringify(r));
-        if (c.equipment) c.equipment.photo = "";
+        if (c.equipment) {
+          c.equipment.photo = "";
+          c.equipment.photos = [];
+        }
         return c;
       });
       try {
@@ -99,12 +102,14 @@
   function templateById(id) {
     return (window.MEC_TEMPLATES || []).find((t) => t.id === id);
   }
-  function shotOf(r) {
-    return (r && r.equipment && r.equipment.photo) || "";
+  function eqPhoto(typeId) {
+    if (!typeId || typeId === "libre") return "";
+    if (window.MEC_PHOTOS && window.MEC_PHOTOS[typeId]) return window.MEC_PHOTOS[typeId];
+    return (window.MEC_ASSET_BASE || "") + "img/equipos/" + typeId + ".jpg";
   }
-  function shotTag(r, cls, alt) {
-    const src = shotOf(r);
-    if (!src) return '<div class="' + (cls || "eq-photo") + ' photo-empty">Sin foto</div>';
+  function eqPhotoTag(typeId, cls, alt) {
+    const src = eqPhoto(typeId);
+    if (!src) return "";
     return (
       '<img class="' +
       (cls || "eq-photo") +
@@ -112,8 +117,18 @@
       src +
       '" alt="' +
       escapeHtml(alt || "") +
-      '">'
+      '" loading="lazy" onerror="window.mecImgFb&&window.mecImgFb(this)">'
     );
+  }
+  function userPhotos(r) {
+    if (!r || !r.equipment) return [];
+    if (r.equipment.photos && r.equipment.photos.length) return r.equipment.photos;
+    if (r.equipment.photo) return [r.equipment.photo];
+    return [];
+  }
+  function ensurePhotos(d) {
+    if (!d.equipment) d.equipment = { code: "", location: "", photo: "", photos: [] };
+    if (!d.equipment.photos) d.equipment.photos = userPhotos(d);
   }
   function compressImage(file) {
     return new Promise((resolve, reject) => {
@@ -164,9 +179,9 @@
       rut: s.rut,
       branch: s.branch,
       type: t ? t.id : "libre",
-      typeName: "",
+      typeName: t ? t.name : "",
       group: t ? t.group : "General",
-      equipment: { code: "", location: "", photo: "" },
+      equipment: { code: "", location: "", photo: "", photos: [] },
       inspector: s.inspector,
       cargo: "Inspector",
       items: ((t && t.items) || []).map((text, i) => ({
@@ -298,7 +313,9 @@
       ty: r.type,
       tn: r.typeName,
       gp: r.group,
-      eq: r.equipment ? { code: r.equipment.code || "", location: r.equipment.location || "" } : {},
+      eq: r.equipment
+        ? { code: r.equipment.code || "", location: r.equipment.location || "", brand: r.equipment.brand || "", model: r.equipment.model || "" }
+        : {},
       ins: r.inspector,
       car: r.cargo,
       tx: (r.items || []).map((i) => i.text),
@@ -548,14 +565,16 @@
       return;
     }
     if (p[0] === "nuevo") {
-      if (!state.draft) state.draft = newDraft("libre");
+      const typeId = p[1] || "libre";
+      if (!state.draft || state.draft.type !== typeId) state.draft = newDraft(typeId);
       state.view = "form";
       render();
       afterForm();
       return;
     }
     if (p[0] === "tipos") {
-      go("#/nuevo");
+      state.view = "types";
+      render();
       return;
     }
     if (p[0] === "historial") {
@@ -601,9 +620,9 @@
       '</h1><div class="sub">' +
       escapeHtml(s.company) +
       "</div></div></header>" +
-      '<div class="hero"><p>Arma el check para lo que quieras, toma una foto, firma en el celular y comparte la ficha con un QR.</p></div>' +
+      '<div class="hero"><p>Elige qué vas a revisar, marca los checks y al final saca fotos del equipo. Se firma en el celular y se comparte con un QR.</p></div>' +
       '<div class="wrap">' +
-      '<button class="btn" data-go="#/nuevo">Nueva inspección</button>' +
+      '<button class="btn" data-go="#/tipos">Nueva inspección</button>' +
       '<div class="actions">' +
       '<button class="btn ghost" data-go="#/historial">Historial (' +
       n +
@@ -617,27 +636,59 @@
   }
 
   function typesView() {
-    return home();
+    const q = (state.filter || "").toLowerCase();
+    const list = (window.MEC_TEMPLATES || []).filter(
+      (t) => !q || (t.name + " " + t.group + " " + t.hint).toLowerCase().indexOf(q) >= 0
+    );
+    const groups = [];
+    list.forEach((t) => {
+      if (!groups.includes(t.group)) groups.push(t.group);
+    });
+    let html =
+      topBar("Qué se inspecciona", "#/") +
+      '<div class="wrap"><input class="search" id="q" placeholder="Buscar…" value="' +
+      escapeHtml(state.filter) +
+      '">';
+    if (!list.length) {
+      html += '<p class="empty">Sin coincidencias.</p></div>';
+      return html;
+    }
+    groups.forEach((g) => {
+      html += '<div class="group-title">' + escapeHtml(g) + '</div><div class="grid">';
+      list
+        .filter((t) => t.group === g)
+        .forEach((t) => {
+          html +=
+            '<button class="eq" data-go="#/nuevo/' +
+            t.id +
+            '">' +
+            (eqPhotoTag(t.id, "eq-thumb", t.name) || '<div class="eq-thumb photo-empty"></div>') +
+            '<span class="eq-body"><span class="tag">' +
+            escapeHtml(t.group) +
+            "</span><b>" +
+            escapeHtml(t.name) +
+            "</b><span>" +
+            escapeHtml(t.hint) +
+            "</span></span></button>";
+        });
+      html += "</div>";
+    });
+    html += "</div>";
+    return html;
   }
 
   function formView() {
     const d = state.draft;
     if (!d) return home();
-    if (!d.equipment) d.equipment = { code: "", location: "", photo: "" };
+    if (!d.equipment) d.equipment = { code: "", location: "", photo: "", photos: [] };
+    const catalog = eqPhotoTag(d.type, "eq-hero-img", d.typeName);
     let html =
-      topBar(d.typeName || "Nueva inspección", "#/") +
+      topBar(d.typeName || "Nueva inspección", "#/tipos") +
       '<div class="wrap">' +
-      '<div class="eq-hero">' +
-      shotTag(d, "eq-hero-img", d.typeName || "Foto") +
-      "</div>" +
-      '<div class="photo-actions">' +
-      '<label class="btn">Tomar foto<input id="f-photo-cam" type="file" accept="image/*" capture="environment" hidden></label>' +
-      '<label class="btn ghost">Elegir de galería<input id="f-photo-gal" type="file" accept="image/*" hidden></label>' +
-      (shotOf(d) ? '<button type="button" class="btn ghost" id="clr-photo">Quitar foto</button>' : "") +
-      "</div>" +
+      (catalog ? '<div class="eq-hero">' + catalog + "</div>" : "") +
       '<p class="note">Folio <span class="folio">' +
       escapeHtml(d.id) +
-      "</span>. Los puntos sirven para lo que quieras: puedes borrar o agregar.</p>" +
+      "</span>. Puedes ajustar los puntos. Al final saca fotos del equipo.</p>" +
       '<div class="card"><label>Qué se inspecciona</label><input id="f-name" placeholder="Ej. extintor, silla, sala, lo que sea" value="' +
       escapeHtml(d.typeName) +
       '">' +
@@ -690,6 +741,28 @@
       '<div class="card"><label>Agregar un punto</label><input id="new-item" placeholder="Escribe el check y agrégalo">' +
       '<button type="button" class="btn" id="add-item" style="margin-top:8px">Agregar al listado</button></div>';
 
+    const shots = userPhotos(d);
+    html +=
+      '<div class="card"><h3 style="margin:0 0 8px">Fotos del equipo</h3>' +
+      '<p class="note">Al terminar el check, saca fotos de cómo está el equipo.</p>' +
+      '<div class="shot-grid">';
+    shots.forEach((src, i) => {
+      html +=
+        '<div class="shot"><img src="' +
+        src +
+        '" alt="Foto ' +
+        (i + 1) +
+        '"><button type="button" class="icon-btn shot-del" data-del-shot="' +
+        i +
+        '" aria-label="Quitar foto">×</button></div>';
+    });
+    html +=
+      "</div>" +
+      '<div class="photo-actions">' +
+      '<label class="btn">Tomar foto<input id="f-photo-cam" type="file" accept="image/*" capture="environment" hidden></label>' +
+      '<label class="btn ghost">Elegir de galería<input id="f-photo-gal" type="file" accept="image/*" hidden></label>' +
+      "</div></div>";
+
     html +=
       '<div class="card"><label>Observaciones generales</label><textarea id="f-obs">' +
       escapeHtml(d.observations) +
@@ -727,8 +800,8 @@
       const el = document.getElementById(id);
       return el ? el.value : "";
     };
-    d.typeName = val("f-name");
-    if (!d.equipment) d.equipment = { code: "", location: "", photo: "" };
+    d.typeName = val("f-name") || d.typeName;
+    if (!d.equipment) d.equipment = { code: "", location: "", photo: "", photos: [] };
     d.equipment.code = val("f-code");
     d.equipment.location = val("f-loc");
     d.inspector = val("f-insp");
@@ -769,8 +842,14 @@
         if (!f) return;
         readForm();
         try {
-          if (!state.draft.equipment) state.draft.equipment = { code: "", location: "", photo: "" };
-          state.draft.equipment.photo = await compressImage(f);
+          ensurePhotos(state.draft);
+          const data = await compressImage(f);
+          if (state.draft.equipment.photos.length >= 8) {
+            alert("Puedes adjuntar hasta 8 fotos.");
+            return;
+          }
+          state.draft.equipment.photos.push(data);
+          state.draft.equipment.photo = data;
         } catch (e) {
           alert("No se pudo leer la foto.");
           return;
@@ -781,14 +860,17 @@
     };
     bindShot("f-photo-cam");
     bindShot("f-photo-gal");
-    const clrPhoto = document.getElementById("clr-photo");
-    if (clrPhoto)
-      clrPhoto.onclick = () => {
+    $app.querySelectorAll("[data-del-shot]").forEach((btn) => {
+      btn.addEventListener("click", () => {
         readForm();
-        if (state.draft.equipment) state.draft.equipment.photo = "";
+        ensurePhotos(state.draft);
+        const i = +btn.getAttribute("data-del-shot");
+        state.draft.equipment.photos.splice(i, 1);
+        state.draft.equipment.photo = state.draft.equipment.photos[0] || "";
         render();
         afterForm();
-      };
+      });
+    });
     const add = document.getElementById("add-item");
     if (add)
       add.onclick = () => {
@@ -843,9 +925,18 @@
       "<span>" +
       APP_NAME +
       "</span></div>" +
-      '<div class="eq-hero">' +
-      shotTag(r, "eq-hero-img", r.typeName) +
-      "</div>" +
+      (eqPhoto(r.type)
+        ? '<div class="eq-hero">' + eqPhotoTag(r.type, "eq-hero-img", r.typeName) + "</div>"
+        : "") +
+      (userPhotos(r).length
+        ? '<h2>Fotos del equipo</h2><div class="shot-grid report-shots">' +
+          userPhotos(r)
+            .map(function (src, i) {
+              return '<img class="shot-img" src="' + src + '" alt="Foto ' + (i + 1) + '">';
+            })
+            .join("") +
+          "</div>"
+        : "") +
       "<div class=\"kv\">" +
       "<i>Empresa</i><b>" +
       escapeHtml(r.company) +
@@ -906,7 +997,10 @@
         '<button class="list-row" data-go="#/local/' +
         encodeURIComponent(r.id) +
         '">' +
-        shotTag(r, "eq-mini", r.typeName) +
+        (eqPhotoTag(r.type, "eq-mini", r.typeName) ||
+          (userPhotos(r)[0]
+            ? '<img class="eq-mini" src="' + userPhotos(r)[0] + '" alt="">'
+            : '<div class="eq-mini photo-empty"></div>')) +
         '<span class="dot ' +
         escapeHtml(r.verdict || "") +
         '"></span><span style="flex:1"><b>' +
