@@ -54,15 +54,25 @@
   function loadSettings() {
     try {
       return Object.assign(
-        { company: "Mi empresa", rut: "", branch: "Principal", inspector: "" },
+        { company: "", rut: "", branch: "", inspector: "", logo: "" },
         JSON.parse(localStorage.getItem(SETTINGS) || "{}")
       );
     } catch (e) {
-      return { company: "Mi empresa", rut: "", branch: "Principal", inspector: "" };
+      return { company: "", rut: "", branch: "", inspector: "", logo: "" };
     }
   }
   function saveSettings(s) {
     localStorage.setItem(SETTINGS, JSON.stringify(s));
+  }
+  function blank(s) {
+    return !String(s || "").trim();
+  }
+  function settingsComplete(s) {
+    s = s || loadSettings();
+    return !blank(s.company) && !blank(s.rut) && !blank(s.branch) && !blank(s.inspector) && !blank(s.logo);
+  }
+  function reqLabel(text) {
+    return escapeHtml(text) + ' <span class="req">*</span>';
   }
   function loadReports() {
     try {
@@ -130,25 +140,28 @@
     if (!d.equipment) d.equipment = { code: "", location: "", photo: "", photos: [] };
     if (!d.equipment.photos) d.equipment.photos = userPhotos(d);
   }
-  function compressImage(file) {
+  function compressImage(file, max, quality) {
     return new Promise((resolve, reject) => {
       const url = URL.createObjectURL(file);
       const img = new Image();
       img.onload = () => {
-        const max = 960;
+        const limit = max || 960;
         let w = img.width;
         let h = img.height;
-        if (w > max || h > max) {
-          const s = max / Math.max(w, h);
+        if (w > limit || h > limit) {
+          const s = limit / Math.max(w, h);
           w = Math.round(w * s);
           h = Math.round(h * s);
         }
         const c = document.createElement("canvas");
         c.width = w;
         c.height = h;
-        c.getContext("2d").drawImage(img, 0, 0, w, h);
+        const ctx = c.getContext("2d");
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
         URL.revokeObjectURL(url);
-        resolve(c.toDataURL("image/jpeg", 0.72));
+        resolve(c.toDataURL("image/jpeg", quality || 0.72));
       };
       img.onerror = () => {
         URL.revokeObjectURL(url);
@@ -178,12 +191,13 @@
       company: s.company,
       rut: s.rut,
       branch: s.branch,
+      companyLogo: s.logo || "",
       type: t ? t.id : "libre",
       typeName: t ? t.name : "",
       group: t ? t.group : "General",
       equipment: { code: "", location: "", photo: "", photos: [] },
       inspector: s.inspector,
-      cargo: "Inspector",
+      cargo: "",
       items: ((t && t.items) || []).map((text, i) => ({
         id: (t ? t.id : "libre") + "-" + (i + 1),
         text: text,
@@ -353,6 +367,7 @@
       company: c.co,
       rut: c.rut,
       branch: c.br,
+      companyLogo: c.lg || "",
       type: c.ty,
       typeName: c.tn || (t && t.name) || c.ty,
       group: c.gp || (t && t.group) || "",
@@ -565,6 +580,11 @@
       return;
     }
     if (p[0] === "nuevo") {
+      if (!settingsComplete()) {
+        alert("Primero completa los datos de la empresa, incluido el logo.");
+        go("#/ajustes");
+        return;
+      }
       const typeId = p[1] || "libre";
       if (!state.draft || state.draft.type !== typeId) state.draft = newDraft(typeId);
       state.view = "form";
@@ -573,6 +593,11 @@
       return;
     }
     if (p[0] === "tipos") {
+      if (!settingsComplete()) {
+        alert("Primero completa los datos de la empresa, incluido el logo.");
+        go("#/ajustes");
+        return;
+      }
       state.view = "types";
       render();
       return;
@@ -583,6 +608,7 @@
       return;
     }
     if (p[0] === "ajustes") {
+      state.editSettings = Object.assign({}, loadSettings());
       state.view = "settings";
       render();
       return;
@@ -614,11 +640,13 @@
     const n = loadReports().length;
     return (
       '<header class="top">' +
-      brandLogo() +
+      (s.logo
+        ? '<img class="brand-logo company-mark" src="' + s.logo + '" alt="' + escapeHtml(s.company) + '">'
+        : brandLogo()) +
       '<div><h1>' +
       APP_NAME +
       '</h1><div class="sub">' +
-      escapeHtml(s.company) +
+      escapeHtml(s.company || "Completa los datos de la empresa") +
       "</div></div></header>" +
       '<div class="hero"><p>Elige qué vas a revisar, marca los checks y al final saca fotos del equipo. Se firma en el celular y se comparte con un QR.</p></div>' +
       '<div class="wrap">' +
@@ -627,8 +655,13 @@
       '<button class="btn ghost" data-go="#/historial">Historial (' +
       n +
       ")</button>" +
-      '<button class="btn ghost" data-go="#/ajustes">Datos de la empresa</button>' +
+      '<button class="btn ghost" data-go="#/ajustes">Datos de la empresa' +
+      (settingsComplete() ? "" : " (obligatorio)") +
+      "</button>" +
       "</div>" +
+      (settingsComplete()
+        ? ""
+        : '<p class="banner-bad">Completa nombre, RUT, sucursal, inspector y el logo de la empresa antes de inspeccionar.</p>') +
       '<p class="note">Las inspecciones quedan en la memoria de <b>este navegador</b>, en este celular. No hay cuenta en la nube: si borras los datos del sitio, usas otro teléfono u otro explorador, el historial no aparece. El QR sirve para mostrar esa ficha a otra persona.</p>' +
       '<p class="note">Bitácora de apoyo. No reemplaza certificaciones ni fiscalizaciones oficiales.</p>' +
       "</div>"
@@ -689,19 +722,29 @@
       '<p class="note">Folio <span class="folio">' +
       escapeHtml(d.id) +
       "</span>. Puedes ajustar los puntos. Al final saca fotos del equipo.</p>" +
-      '<div class="card"><label>Qué se inspecciona</label><input id="f-name" placeholder="Ej. extintor, silla, sala, lo que sea" value="' +
+      '<div class="card"><label>' +
+      reqLabel("Qué se inspecciona") +
+      '</label><input id="f-name" required placeholder="Nombre de lo que se revisa" value="' +
       escapeHtml(d.typeName) +
       '">' +
-      '<label>Código / referencia</label><input id="f-code" value="' +
+      "<label>" +
+      reqLabel("Código / referencia") +
+      '</label><input id="f-code" required value="' +
       escapeHtml(d.equipment.code || "") +
       '">' +
-      '<label>Ubicación</label><input id="f-loc" value="' +
+      "<label>" +
+      reqLabel("Ubicación") +
+      '</label><input id="f-loc" required value="' +
       escapeHtml(d.equipment.location || "") +
       '">' +
-      '<label>Quién revisa</label><input id="f-insp" value="' +
+      "<label>" +
+      reqLabel("Quién revisa") +
+      '</label><input id="f-insp" required value="' +
       escapeHtml(d.inspector) +
       '">' +
-      '<label>Cargo</label><input id="f-cargo" value="' +
+      "<label>" +
+      reqLabel("Cargo") +
+      '</label><input id="f-cargo" required value="' +
       escapeHtml(d.cargo) +
       '"></div>' +
       "<h3 style=\"margin:8px 0\">Puntos de control</h3>";
@@ -733,7 +776,13 @@
         (it.result === "na" ? "on-na" : "") +
         '">N/A</button></div>' +
         (it.result === "fail"
-          ? '<input data-note="' + i + '" placeholder="¿Qué se vio?" value="' + escapeHtml(it.note) + '" style="margin-top:8px">'
+          ? '<label>' +
+            reqLabel("Detalle de la falla") +
+            '</label><input data-note="' +
+            i +
+            '" required placeholder="¿Qué se vio?" value="' +
+            escapeHtml(it.note) +
+            '">'
           : "") +
         "</div>";
     });
@@ -743,8 +792,8 @@
 
     const shots = userPhotos(d);
     html +=
-      '<div class="card"><h3 style="margin:0 0 8px">Fotos del equipo</h3>' +
-      '<p class="note">Al terminar el check, saca fotos de cómo está el equipo.</p>' +
+      '<div class="card"><h3 style="margin:0 0 8px">Fotos del equipo <span class="req">*</span></h3>' +
+      '<p class="note">Obligatorio: al terminar el check, saca al menos una foto del equipo.</p>' +
       '<div class="shot-grid">';
     shots.forEach((src, i) => {
       html +=
@@ -764,10 +813,14 @@
       "</div></div>";
 
     html +=
-      '<div class="card"><label>Observaciones generales</label><textarea id="f-obs">' +
+      '<div class="card"><label>' +
+      reqLabel("Observaciones generales") +
+      '</label><textarea id="f-obs" required placeholder="Anota lo relevante">' +
       escapeHtml(d.observations) +
       "</textarea></div>" +
-      '<div class="card"><label>Resultado</label><div class="verdict">';
+      '<div class="card"><label>' +
+      reqLabel("Resultado") +
+      '</label><div class="verdict">';
     (window.MEC_VERDICTS || []).forEach((v) => {
       html +=
         '<button data-verdict="' +
@@ -782,11 +835,18 @@
     });
     html +=
       "</div></div>" +
-      '<div class="card"><label>Firma del inspector (dedo o lápiz)</label>' +
+      '<div class="card"><label>' +
+      reqLabel("Firma de quien revisa") +
+      '</label>' +
       '<div class="pad-wrap"><canvas id="pad-insp"></canvas><div class="pad-bar"><span>Firme dentro del recuadro</span><button class="icon-btn" id="clr-insp" type="button" style="width:auto;padding:4px 8px;font-size:12px">Borrar</button></div></div>' +
-      '<label>V°B° supervisor (opcional)</label><input id="f-sup" placeholder="Nombre" value="' +
+      "<label>" +
+      reqLabel("Nombre del supervisor") +
+      '</label><input id="f-sup" required placeholder="Nombre y apellido" value="' +
       escapeHtml(d.supervisorName) +
       '">' +
+      "<label>" +
+      reqLabel("Firma del supervisor") +
+      "</label>" +
       '<div class="pad-wrap" style="margin-top:8px"><canvas id="pad-sup"></canvas><div class="pad-bar"><span>Firma supervisor</span><button class="icon-btn" id="clr-sup" type="button" style="width:auto;padding:4px 8px;font-size:12px">Borrar</button></div></div></div>' +
       "</div>" +
       '<div class="dock"><button class="btn" id="save">Guardar, firmar y crear QR</button></div>';
@@ -888,6 +948,10 @@
     $app.querySelectorAll("[data-del-item]").forEach((btn) => {
       btn.addEventListener("click", () => {
         readForm();
+        if (state.draft.items.length <= 1) {
+          alert("Debe quedar al menos un punto de control.");
+          return;
+        }
         const i = +btn.getAttribute("data-del-item");
         state.draft.items.splice(i, 1);
         render();
@@ -920,9 +984,19 @@
     return (
       (r.verdict === "rechazado" ? '<div class="banner-bad">NO APTO — NO USAR</div>' : "") +
       '<div class="card report">' +
-      '<div class="report-brand">' +
+      '<div class="report-head">' +
+      (r.companyLogo
+        ? '<img class="company-logo" src="' + r.companyLogo + '" alt="' + escapeHtml(r.company || "Logo") + '">'
+        : "") +
+      '<div class="report-head-text"><b>' +
+      escapeHtml(r.company || "") +
+      "</b><div class=\"note\">" +
+      escapeHtml(r.rut || "") +
+      (r.branch ? " · " + escapeHtml(r.branch) : "") +
+      "</div></div>" +
       brandLogo("brand-logo report-logo") +
-      "<span>" +
+      "</div>" +
+      '<div class="report-brand"><span>' +
       APP_NAME +
       "</span></div>" +
       (eqPhoto(r.type)
@@ -1018,22 +1092,42 @@
   }
 
   function settingsView() {
-    const s = loadSettings();
+    if (!state.editSettings) state.editSettings = Object.assign({}, loadSettings());
+    const s = state.editSettings;
     return (
       topBar("Empresa", "#/") +
       '<div class="wrap"><div class="card">' +
-      "<label>Nombre o razón social</label><input id=\"s-co\" value=\"" +
+      "<p class=\"note\">Todos los datos son obligatorios, incluido el logo. Aparece en el documento final.</p>" +
+      "<label>" +
+      reqLabel("Nombre o razón social") +
+      '</label><input id="s-co" required value="' +
       escapeHtml(s.company) +
       '">' +
-      "<label>RUT</label><input id=\"s-rut\" value=\"" +
+      "<label>" +
+      reqLabel("RUT") +
+      '</label><input id="s-rut" required value="' +
       escapeHtml(s.rut) +
       '">' +
-      "<label>Sucursal / lugar</label><input id=\"s-br\" value=\"" +
+      "<label>" +
+      reqLabel("Sucursal / lugar") +
+      '</label><input id="s-br" required value="' +
       escapeHtml(s.branch) +
       '">' +
-      "<label>Inspector por defecto</label><input id=\"s-in\" value=\"" +
+      "<label>" +
+      reqLabel("Inspector por defecto") +
+      '</label><input id="s-in" required value="' +
       escapeHtml(s.inspector) +
       '">' +
+      "<label>" +
+      reqLabel("Logo de la empresa") +
+      "</label>" +
+      (s.logo
+        ? '<div class="logo-preview"><img src="' + s.logo + '" alt="Logo"></div>'
+        : '<p class="note">Aún no hay logo.</p>') +
+      '<div class="photo-actions">' +
+      '<label class="btn">Cargar logo<input id="s-logo" type="file" accept="image/*" hidden></label>' +
+      (s.logo ? '<button type="button" class="btn ghost" id="clr-logo">Quitar logo</button>' : "") +
+      "</div>" +
       '</div><button class="btn" id="save-set">Guardar</button></div>'
     );
   }
@@ -1176,14 +1270,53 @@
         afterForm();
       });
     });
+    function readSettingsForm() {
+      if (!state.editSettings) state.editSettings = Object.assign({}, loadSettings());
+      const g = (id) => {
+        const el = document.getElementById(id);
+        return el ? el.value : state.editSettings[id] || "";
+      };
+      state.editSettings.company = g("s-co");
+      state.editSettings.rut = g("s-rut");
+      state.editSettings.branch = g("s-br");
+      state.editSettings.inspector = g("s-in");
+    }
+    const logoIn = document.getElementById("s-logo");
+    if (logoIn)
+      logoIn.onchange = async () => {
+        const f = logoIn.files && logoIn.files[0];
+        if (!f) return;
+        readSettingsForm();
+        try {
+          state.editSettings.logo = await compressImage(f, 480, 0.84);
+        } catch (e) {
+          alert("No se pudo leer el logo.");
+          return;
+        }
+        render();
+      };
+    const clrLogo = document.getElementById("clr-logo");
+    if (clrLogo)
+      clrLogo.onclick = () => {
+        readSettingsForm();
+        state.editSettings.logo = "";
+        render();
+      };
     const saveSet = document.getElementById("save-set");
     if (saveSet)
       saveSet.onclick = () => {
+        readSettingsForm();
+        const s = state.editSettings;
+        if (blank(s.company) || blank(s.rut) || blank(s.branch) || blank(s.inspector) || blank(s.logo)) {
+          alert("Todos los datos de la empresa son obligatorios, incluido el logo.");
+          return;
+        }
         saveSettings({
-          company: document.getElementById("s-co").value,
-          rut: document.getElementById("s-rut").value,
-          branch: document.getElementById("s-br").value,
-          inspector: document.getElementById("s-in").value,
+          company: s.company.trim(),
+          rut: s.rut.trim(),
+          branch: s.branch.trim(),
+          inspector: s.inspector.trim(),
+          logo: s.logo,
         });
         go("#/");
       };
@@ -1192,21 +1325,32 @@
       save.onclick = async () => {
         readForm();
         const d = state.draft;
-        const pending = d.items.filter((it) => !it.result).length;
-        if (pending) {
-          if (!confirm("Quedan " + pending + " puntos sin marcar. ¿Guardar igual?")) return;
-        }
-        if (!d.typeName || !d.typeName.trim()) {
-          alert("Escribe qué se inspecciona.");
+        const missing = [];
+        if (blank(d.typeName)) missing.push("qué se inspecciona");
+        if (blank(d.equipment && d.equipment.code)) missing.push("código / referencia");
+        if (blank(d.equipment && d.equipment.location)) missing.push("ubicación");
+        if (blank(d.inspector)) missing.push("quién revisa");
+        if (blank(d.cargo)) missing.push("cargo");
+        if (!d.items.length) missing.push("al menos un punto de control");
+        const pending = d.items.filter((it) => !it.result);
+        if (pending.length) missing.push("marcar todos los puntos (quedan " + pending.length + ")");
+        const fails = d.items.filter((it) => it.result === "fail" && blank(it.note));
+        if (fails.length) missing.push("detalle de cada falla");
+        if (!userPhotos(d).length) missing.push("al menos una foto del equipo");
+        if (blank(d.observations)) missing.push("observaciones");
+        if (!d.verdict) missing.push("resultado");
+        if (!d.signatures.inspector) missing.push("firma de quien revisa");
+        if (blank(d.supervisorName)) missing.push("nombre del supervisor");
+        if (!d.signatures.supervisor) missing.push("firma del supervisor");
+        if (missing.length) {
+          alert("Falta completar: " + missing.join(", ") + ".");
           return;
         }
-        if (!d.verdict) {
-          alert("Elige un resultado: apto, con observaciones o no apto.");
-          return;
-        }
-        if (!d.signatures.inspector) {
-          if (!confirm("No hay firma del inspector. ¿Continuar igual?")) return;
-        }
+        const set = loadSettings();
+        d.company = set.company;
+        d.rut = set.rut;
+        d.branch = set.branch;
+        d.companyLogo = set.logo || d.companyLogo || "";
         d.createdAt = d.createdAt || nowISO();
         save.disabled = true;
         save.textContent = "Generando QR…";
