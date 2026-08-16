@@ -21,6 +21,6 @@ python3 -m http.server 8080
 3. Completa **todos** los campos, marca cada punto y, si hay falla, el detalle
 4. Al final: **al menos una foto** del equipo
 5. Resultado, observaciones y **ambas firmas**
-6. Comparte el **QR**
+6. Comparte el **QR** o **Exportar PDF carta** (8,5 × 11 pulgadas; en el cuadro elige Guardar como PDF y papel Carta)
 
 El historial queda en la memoria de **ese navegador**, en ese celular.

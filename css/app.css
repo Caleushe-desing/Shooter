@@ -328,8 +328,52 @@ textarea { min-height: 72px; resize: vertical; }
 
 .note { font-size: 12px; color: var(--muted); margin-top: 8px; }
 
+.letter-page {
+  max-width: 8.5in;
+  margin: 16px auto 32px;
+  background: #fff;
+  padding: 0.55in 0.6in;
+  box-shadow: var(--shadow);
+  color: #1c2128;
+}
+.letter-page .card.report { box-shadow: none; border: 1px solid var(--line); }
+.letter-foot {
+  margin-top: 18px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  font-size: 10px;
+  color: var(--muted);
+}
+
+@page {
+  size: letter portrait;
+  margin: 0.55in 0.6in;
+}
+
 @media print {
-  .top, .dock, .actions, .back, .icon-btn { display: none !important; }
-  body, #app { background: #fff; }
+  .top, .dock, .actions, .back, .icon-btn, .no-print, .shot-del, .search {
+    display: none !important;
+  }
+  html, body, #app {
+    background: #fff !important;
+    max-width: none;
+    min-height: 0;
+    padding: 0;
+    margin: 0;
+  }
   .wrap { padding: 0; }
+  .letter-page {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+  }
+  .card, .card.report {
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+  .item, .report-head, .kv, .pad-wrap { break-inside: avoid; }
+  .eq-hero-img { height: 2in; }
+  .shot-img { height: 1.55in; }
+  .banner-bad { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }

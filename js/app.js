@@ -613,6 +613,12 @@
       render();
       return;
     }
+    if (p[0] === "pdf") {
+      state.view = "print";
+      if (p[1]) state.report = getReport(decodeURIComponent(p[1])) || state.report;
+      render();
+      return;
+    }
     if (p[0] === "qr" && p[1]) {
       state.view = "qr";
       state.report = getReport(p[1]) || state.report;
@@ -1150,7 +1156,7 @@
       '<div class="actions">' +
       '<button class="btn" id="copy">Copiar enlace</button>' +
       '<button class="btn ghost" id="share">Compartir</button>' +
-      '<button class="btn ghost" id="print">Imprimir / PDF</button>' +
+      '<button class="btn" id="print">Exportar PDF carta</button>' +
       '<button class="btn ghost" data-go="#/local/' +
       encodeURIComponent(r.id) +
       '">Ver ficha completa</button>' +
@@ -1191,7 +1197,10 @@
         }
       };
     const printBtn = document.getElementById("print");
-    if (printBtn) printBtn.onclick = () => window.print();
+    if (printBtn)
+      printBtn.onclick = () => {
+        if (r) go("#/pdf/" + encodeURIComponent(r.id));
+      };
     const retry = document.getElementById("retry");
     if (retry)
       retry.onclick = async () => {
@@ -1210,6 +1219,47 @@
       };
   }
 
+  function printView() {
+    const r = state.report;
+    const back = r ? "#/local/" + encodeURIComponent(r.id) : "#/";
+    if (!r) {
+      return topBar("PDF carta", back) + '<div class="wrap"><p class="empty">No hay ficha para exportar.</p></div>';
+    }
+    return (
+      topBar("PDF carta", back) +
+      '<div class="wrap no-print">' +
+      '<p class="note">Tamaño <b>carta</b> (8,5 × 11 pulgadas). En el cuadro elige <b>Guardar como PDF</b> y papel <b>Carta / Letter</b>.</p>' +
+      '<div class="actions">' +
+      '<button class="btn" id="export-pdf">Exportar PDF carta</button>' +
+      '<button class="btn ghost" data-go="#/qr/' +
+      encodeURIComponent(r.id) +
+      '">Volver al QR</button>' +
+      "</div></div>" +
+      '<div class="letter-page" id="letter-doc">' +
+      reportHtml(r, "") +
+      '<div class="letter-foot">Documento generado por ' +
+      escapeHtml(APP_NAME) +
+      " · Folio " +
+      escapeHtml(r.id) +
+      " · Formato carta</div></div>"
+    );
+  }
+
+  function exportLetterPdf(r) {
+    if (!r) return;
+    const prev = document.title;
+    document.title = (r.company || APP_NAME) + " — " + r.id + " — carta";
+    document.body.classList.add("print-letter");
+    const done = function () {
+      document.title = prev;
+      document.body.classList.remove("print-letter");
+      window.removeEventListener("afterprint", done);
+    };
+    window.addEventListener("afterprint", done);
+    window.print();
+    setTimeout(done, 5000);
+  }
+
   function viewPane(title, r, err) {
     return (
       topBar(title, "#/") +
@@ -1217,7 +1267,11 @@
       (err ? '<div class="banner-bad">' + escapeHtml(err) + "</div>" : "") +
       (r
         ? reportHtml(r, r.blobId ? viewUrl(r.blobId) : "") +
-          '<div class="actions"><button class="btn" data-go="#/qr/' +
+          '<div class="actions">' +
+          '<button class="btn" data-go="#/pdf/' +
+          encodeURIComponent(r.id) +
+          '">Exportar PDF carta</button>' +
+          '<button class="btn ghost" data-go="#/qr/' +
           encodeURIComponent(r.id) +
           '">Ver QR</button></div>'
         : "") +
@@ -1231,6 +1285,7 @@
     else if (state.view === "history") $app.innerHTML = historyView();
     else if (state.view === "settings") $app.innerHTML = settingsView();
     else if (state.view === "qr") $app.innerHTML = qrView();
+    else if (state.view === "print") $app.innerHTML = printView();
     else if (state.view === "view") $app.innerHTML = viewPane("Inspección", state.report, state.report ? "" : "No está en este celular.");
     else if (state.view === "remote") $app.innerHTML = viewPane("Ficha pública", state.report, state.remoteError);
     else $app.innerHTML = home();
@@ -1241,6 +1296,8 @@
     $app.querySelectorAll("[data-go]").forEach((el) => {
       el.addEventListener("click", () => go(el.getAttribute("data-go")));
     });
+    const exportPdf = document.getElementById("export-pdf");
+    if (exportPdf) exportPdf.onclick = () => exportLetterPdf(state.report);
     const q = document.getElementById("q");
     if (q)
       q.addEventListener("input", () => {
