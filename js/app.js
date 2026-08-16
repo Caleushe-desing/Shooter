@@ -1,4 +1,4 @@
-/* Check list Técnico — inspecciones de taller, firma y ficha QR */
+/* Check list Técnico — inspecciones genéricas, foto, firma y ficha QR */
 (function () {
   "use strict";
 
@@ -54,11 +54,11 @@
   function loadSettings() {
     try {
       return Object.assign(
-        { company: "Empresa mecánica", rut: "", branch: "Taller principal", inspector: "" },
+        { company: "Mi empresa", rut: "", branch: "Principal", inspector: "" },
         JSON.parse(localStorage.getItem(SETTINGS) || "{}")
       );
     } catch (e) {
-      return { company: "Empresa mecánica", rut: "", branch: "Taller principal", inspector: "" };
+      return { company: "Mi empresa", rut: "", branch: "Principal", inspector: "" };
     }
   }
   function saveSettings(s) {
@@ -72,7 +72,21 @@
     }
   }
   function saveReports(list) {
-    localStorage.setItem(STORE, JSON.stringify(list));
+    try {
+      localStorage.setItem(STORE, JSON.stringify(list));
+    } catch (e) {
+      const slim = list.map((r, i) => {
+        if (i < 12) return r;
+        const c = JSON.parse(JSON.stringify(r));
+        if (c.equipment) c.equipment.photo = "";
+        return c;
+      });
+      try {
+        localStorage.setItem(STORE, JSON.stringify(slim.slice(0, 40)));
+      } catch (e2) {
+        localStorage.setItem(STORE, JSON.stringify(list.slice(0, 8)));
+      }
+    }
   }
   function upsertReport(rep) {
     const list = loadReports().filter((r) => r.id !== rep.id);
@@ -85,10 +99,48 @@
   function templateById(id) {
     return (window.MEC_TEMPLATES || []).find((t) => t.id === id);
   }
-  function eqPhoto(typeId) {
-    if (!typeId) return "";
-    if (window.MEC_PHOTOS && window.MEC_PHOTOS[typeId]) return window.MEC_PHOTOS[typeId];
-    return (window.MEC_ASSET_BASE || "") + "img/equipos/" + typeId + ".jpg";
+  function shotOf(r) {
+    return (r && r.equipment && r.equipment.photo) || "";
+  }
+  function shotTag(r, cls, alt) {
+    const src = shotOf(r);
+    if (!src) return '<div class="' + (cls || "eq-photo") + ' photo-empty">Sin foto</div>';
+    return (
+      '<img class="' +
+      (cls || "eq-photo") +
+      '" src="' +
+      src +
+      '" alt="' +
+      escapeHtml(alt || "") +
+      '">'
+    );
+  }
+  function compressImage(file) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        const max = 960;
+        let w = img.width;
+        let h = img.height;
+        if (w > max || h > max) {
+          const s = max / Math.max(w, h);
+          w = Math.round(w * s);
+          h = Math.round(h * s);
+        }
+        const c = document.createElement("canvas");
+        c.width = w;
+        c.height = h;
+        c.getContext("2d").drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(url);
+        resolve(c.toDataURL("image/jpeg", 0.72));
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error("foto"));
+      };
+      img.src = url;
+    });
   }
   function brandLogo(cls) {
     const src = (window.MEC_ASSET_BASE || "") + "icon.svg";
@@ -102,22 +154,8 @@
       '" width="40" height="40" onerror="window.mecImgFb&&window.mecImgFb(this)">'
     );
   }
-  function eqPhotoTag(typeId, cls, alt) {
-    const src = eqPhoto(typeId);
-    if (!src) return "";
-    return (
-      '<img class="' +
-      (cls || "eq-photo") +
-      '" src="' +
-      src +
-      '" alt="' +
-      escapeHtml(alt || "") +
-      '" loading="lazy" onerror="window.mecImgFb&&window.mecImgFb(this)">'
-    );
-  }
-
   function newDraft(typeId) {
-    const t = templateById(typeId);
+    const t = templateById(typeId) || templateById("libre") || (window.MEC_TEMPLATES || [])[0];
     const s = loadSettings();
     return {
       id: uid(),
@@ -125,20 +163,25 @@
       company: s.company,
       rut: s.rut,
       branch: s.branch,
-      type: t.id,
-      typeName: t.name,
-      group: t.group,
-      equipment: { code: "", brand: "", model: "", serial: "", location: "", capacity: "" },
+      type: t ? t.id : "libre",
+      typeName: "",
+      group: t ? t.group : "General",
+      equipment: { code: "", location: "", photo: "" },
       inspector: s.inspector,
-      cargo: "Técnico / inspector",
-      items: t.items.map((text, i) => ({ id: t.id + "-" + (i + 1), text: text, result: "", note: "" })),
+      cargo: "Inspector",
+      items: ((t && t.items) || []).map((text, i) => ({
+        id: (t ? t.id : "libre") + "-" + (i + 1),
+        text: text,
+        result: "",
+        note: "",
+      })),
       observations: "",
       verdict: "",
       signatures: { inspector: "", supervisor: "" },
-    strokes: { inspector: [], supervisor: [] },
-    supervisorName: "",
-    blobId: "",
-    shareCode: "",
+      strokes: { inspector: [], supervisor: [] },
+      supervisorName: "",
+      blobId: "",
+      shareCode: "",
     };
   }
 
@@ -255,9 +298,10 @@
       ty: r.type,
       tn: r.typeName,
       gp: r.group,
-      eq: r.equipment,
+      eq: r.equipment ? { code: r.equipment.code || "", location: r.equipment.location || "" } : {},
       ins: r.inspector,
       car: r.cargo,
+      tx: (r.items || []).map((i) => i.text),
       rs: (r.items || []).map((i) => (i.result === "ok" ? "o" : i.result === "fail" ? "f" : i.result === "na" ? "n" : ".")).join(""),
       nt: (r.items || []).reduce((a, i, idx) => {
         if (i.note) a[idx] = i.note;
@@ -273,7 +317,7 @@
 
   function expandReport(c) {
     const t = templateById(c.ty);
-    const texts = t ? t.items : [];
+    const texts = c.tx && c.tx.length ? c.tx : t ? t.items : [];
     const items = [];
     const rs = c.rs || "";
     const n = Math.max(texts.length, rs.length);
@@ -503,16 +547,15 @@
       render();
       return;
     }
-    if (p[0] === "nuevo" && p[1]) {
-      if (!state.draft || state.draft.type !== p[1]) state.draft = newDraft(p[1]);
+    if (p[0] === "nuevo") {
+      if (!state.draft) state.draft = newDraft("libre");
       state.view = "form";
       render();
       afterForm();
       return;
     }
     if (p[0] === "tipos") {
-      state.view = "types";
-      render();
+      go("#/nuevo");
       return;
     }
     if (p[0] === "historial") {
@@ -558,9 +601,9 @@
       '</h1><div class="sub">' +
       escapeHtml(s.company) +
       "</div></div></header>" +
-      '<div class="hero"><p>Checklists de escaleras, alza hombre, tecles y el resto del taller. Se firma en el celular y se comparte con un QR.</p></div>' +
+      '<div class="hero"><p>Arma el check para lo que quieras, toma una foto, firma en el celular y comparte la ficha con un QR.</p></div>' +
       '<div class="wrap">' +
-      '<button class="btn" data-go="#/tipos">Nueva inspección</button>' +
+      '<button class="btn" data-go="#/nuevo">Nueva inspección</button>' +
       '<div class="actions">' +
       '<button class="btn ghost" data-go="#/historial">Historial (' +
       n +
@@ -568,87 +611,43 @@
       '<button class="btn ghost" data-go="#/ajustes">Datos de la empresa</button>' +
       "</div>" +
       '<p class="note">Las inspecciones quedan en la memoria de <b>este navegador</b>, en este celular. No hay cuenta en la nube: si borras los datos del sitio, usas otro teléfono u otro explorador, el historial no aparece. El QR sirve para mostrar esa ficha a otra persona.</p>' +
-      '<p class="note">Esto es una bitácora de inspección pre-uso. No reemplaza certificaciones ni fiscalizaciones oficiales.</p>' +
+      '<p class="note">Bitácora de apoyo. No reemplaza certificaciones ni fiscalizaciones oficiales.</p>' +
       "</div>"
     );
   }
 
   function typesView() {
-    const q = (state.filter || "").toLowerCase();
-    const list = (window.MEC_TEMPLATES || []).filter(
-      (t) => !q || (t.name + " " + t.group + " " + t.hint).toLowerCase().indexOf(q) >= 0
-    );
-    const groups = [];
-    list.forEach((t) => {
-      if (!groups.includes(t.group)) groups.push(t.group);
-    });
-    let html =
-      topBar("Elegir equipo", "#/") +
-      '<div class="wrap"><input class="search" id="q" placeholder="Buscar: tecle, escalera, soldadora…" value="' +
-      escapeHtml(state.filter) +
-      '">';
-    if (!list.length) {
-      html +=
-        '<p class="empty">No aparecen equipos. Recarga la página; si sigue igual, abre Check list Técnico desde GitHub Pages o un servidor local (no desde el archivo Raw).</p></div>';
-      return html;
-    }
-    groups.forEach((g) => {
-      html += '<div class="group-title">' + escapeHtml(g) + '</div><div class="grid">';
-      list
-        .filter((t) => t.group === g)
-        .forEach((t) => {
-          html +=
-            '<button class="eq" data-go="#/nuevo/' +
-            t.id +
-            '">' +
-            eqPhotoTag(t.id, "eq-thumb", t.name) +
-            '<span class="eq-body"><span class="tag">' +
-            escapeHtml(t.group) +
-            "</span><b>" +
-            escapeHtml(t.name) +
-            "</b><span>" +
-            escapeHtml(t.hint) +
-            "</span></span></button>";
-        });
-      html += "</div>";
-    });
-    if (!list.length) html += '<p class="empty">Sin coincidencias.</p>';
-    html += "</div>";
-    return html;
+    return home();
   }
 
   function formView() {
     const d = state.draft;
     if (!d) return home();
-    const t = templateById(d.type);
+    if (!d.equipment) d.equipment = { code: "", location: "", photo: "" };
     let html =
-      topBar(d.typeName, "#/tipos") +
+      topBar(d.typeName || "Nueva inspección", "#/") +
       '<div class="wrap">' +
       '<div class="eq-hero">' +
-      eqPhotoTag(d.type, "eq-hero-img", d.typeName) +
+      shotTag(d, "eq-hero-img", d.typeName || "Foto") +
       "</div>" +
-      '<p class="note">' +
-      escapeHtml(t ? t.hint : "") +
-      " Folio <span class=\"folio\">" +
+      '<div class="photo-actions">' +
+      '<label class="btn">Tomar foto<input id="f-photo-cam" type="file" accept="image/*" capture="environment" hidden></label>' +
+      '<label class="btn ghost">Elegir de galería<input id="f-photo-gal" type="file" accept="image/*" hidden></label>' +
+      (shotOf(d) ? '<button type="button" class="btn ghost" id="clr-photo">Quitar foto</button>' : "") +
+      "</div>" +
+      '<p class="note">Folio <span class="folio">' +
       escapeHtml(d.id) +
-      "</span></p>" +
-      '<div class="card"><label>Código / N° interno</label><input id="f-code" value="' +
-      escapeHtml(d.equipment.code) +
+      "</span>. Los puntos sirven para lo que quieras: puedes borrar o agregar.</p>" +
+      '<div class="card"><label>Qué se inspecciona</label><input id="f-name" placeholder="Ej. extintor, silla, sala, lo que sea" value="' +
+      escapeHtml(d.typeName) +
       '">' +
-      '<div class="grid grid-2"><div><label>Marca</label><input id="f-brand" value="' +
-      escapeHtml(d.equipment.brand) +
-      '"></div><div><label>Modelo</label><input id="f-model" value="' +
-      escapeHtml(d.equipment.model) +
-      '"></div></div>' +
-      '<label>N° de serie</label><input id="f-serial" value="' +
-      escapeHtml(d.equipment.serial) +
+      '<label>Código / referencia</label><input id="f-code" value="' +
+      escapeHtml(d.equipment.code || "") +
       '">' +
-      '<div class="grid grid-2"><div><label>Ubicación / faena</label><input id="f-loc" value="' +
-      escapeHtml(d.equipment.location) +
-      '"></div><div><label>Capacidad</label><input id="f-cap" placeholder="ej. 2 t / 8 m" value="' +
-      escapeHtml(d.equipment.capacity) +
-      '"></div></div>' +
-      '<label>Inspector</label><input id="f-insp" value="' +
+      '<label>Ubicación</label><input id="f-loc" value="' +
+      escapeHtml(d.equipment.location || "") +
+      '">' +
+      '<label>Quién revisa</label><input id="f-insp" value="' +
       escapeHtml(d.inspector) +
       '">' +
       '<label>Cargo</label><input id="f-cargo" value="' +
@@ -660,11 +659,13 @@
       html +=
         '<div class="item ' +
         escapeHtml(it.result) +
-        '"><p>' +
-        (i + 1) +
-        ". " +
+        '"><div class="item-head"><input class="item-text" data-item-text="' +
+        i +
+        '" value="' +
         escapeHtml(it.text) +
-        '</p><div class="seg">' +
+        '"><button type="button" class="icon-btn item-del" data-del-item="' +
+        i +
+        '" aria-label="Quitar punto">×</button></div><div class="seg">' +
         '<button data-item="' +
         i +
         '" data-res="ok" class="' +
@@ -685,6 +686,9 @@
           : "") +
         "</div>";
     });
+    html +=
+      '<div class="card"><label>Agregar un punto</label><input id="new-item" placeholder="Escribe el check y agrégalo">' +
+      '<button type="button" class="btn" id="add-item" style="margin-top:8px">Agregar al listado</button></div>';
 
     html +=
       '<div class="card"><label>Observaciones generales</label><textarea id="f-obs">' +
@@ -723,16 +727,18 @@
       const el = document.getElementById(id);
       return el ? el.value : "";
     };
+    d.typeName = val("f-name");
+    if (!d.equipment) d.equipment = { code: "", location: "", photo: "" };
     d.equipment.code = val("f-code");
-    d.equipment.brand = val("f-brand");
-    d.equipment.model = val("f-model");
-    d.equipment.serial = val("f-serial");
     d.equipment.location = val("f-loc");
-    d.equipment.capacity = val("f-cap");
     d.inspector = val("f-insp");
     d.cargo = val("f-cargo");
     d.observations = val("f-obs");
     d.supervisorName = val("f-sup");
+    document.querySelectorAll("input[data-item-text]").forEach((el) => {
+      const i = +el.getAttribute("data-item-text");
+      if (d.items[i]) d.items[i].text = el.value;
+    });
     document.querySelectorAll("input[data-note]").forEach((el) => {
       d.items[+el.getAttribute("data-note")].note = el.value;
     });
@@ -755,6 +761,57 @@
     const cs = document.getElementById("clr-sup");
     if (ci) ci.onclick = () => pads.inspector && pads.inspector.clear();
     if (cs) cs.onclick = () => pads.supervisor && pads.supervisor.clear();
+    const bindShot = (id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.onchange = async () => {
+        const f = el.files && el.files[0];
+        if (!f) return;
+        readForm();
+        try {
+          if (!state.draft.equipment) state.draft.equipment = { code: "", location: "", photo: "" };
+          state.draft.equipment.photo = await compressImage(f);
+        } catch (e) {
+          alert("No se pudo leer la foto.");
+          return;
+        }
+        render();
+        afterForm();
+      };
+    };
+    bindShot("f-photo-cam");
+    bindShot("f-photo-gal");
+    const clrPhoto = document.getElementById("clr-photo");
+    if (clrPhoto)
+      clrPhoto.onclick = () => {
+        readForm();
+        if (state.draft.equipment) state.draft.equipment.photo = "";
+        render();
+        afterForm();
+      };
+    const add = document.getElementById("add-item");
+    if (add)
+      add.onclick = () => {
+        readForm();
+        const inp = document.getElementById("new-item");
+        const text = inp ? inp.value.trim() : "";
+        if (!text) {
+          alert("Escribe el punto a revisar.");
+          return;
+        }
+        state.draft.items.push({ id: "c-" + Date.now(), text: text, result: "", note: "" });
+        render();
+        afterForm();
+      };
+    $app.querySelectorAll("[data-del-item]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        readForm();
+        const i = +btn.getAttribute("data-del-item");
+        state.draft.items.splice(i, 1);
+        render();
+        afterForm();
+      });
+    });
   }
 
   function reportHtml(r, publicLink) {
@@ -779,14 +836,16 @@
         "</div>";
     });
     return (
-      (r.verdict === "rechazado" ? '<div class="banner-bad">EQUIPO FUERA DE SERVICIO — NO USAR</div>' : "") +
+      (r.verdict === "rechazado" ? '<div class="banner-bad">NO APTO — NO USAR</div>' : "") +
       '<div class="card report">' +
       '<div class="report-brand">' +
       brandLogo("brand-logo report-logo") +
       "<span>" +
       APP_NAME +
       "</span></div>" +
-      (r.type ? '<div class="eq-hero">' + eqPhotoTag(r.type, "eq-hero-img", r.typeName) + "</div>" : "") +
+      '<div class="eq-hero">' +
+      shotTag(r, "eq-hero-img", r.typeName) +
+      "</div>" +
       "<div class=\"kv\">" +
       "<i>Empresa</i><b>" +
       escapeHtml(r.company) +
@@ -803,27 +862,16 @@
       "<i>Fecha</i><span>" +
       escapeHtml(fmtDate(r.createdAt)) +
       "</span>" +
-      "<i>Equipo</i><b>" +
+      "<i>Qué se revisó</i><b>" +
       escapeHtml(r.typeName) +
       "</b>" +
       "<i>Código</i><span>" +
       escapeHtml(r.equipment && r.equipment.code ? r.equipment.code : "—") +
       "</span>" +
-      "<i>Marca / modelo</i><span>" +
-      escapeHtml(
-        [r.equipment && r.equipment.brand, r.equipment && r.equipment.model].filter(Boolean).join(" ") || "—"
-      ) +
-      "</span>" +
-      "<i>Serie</i><span>" +
-      escapeHtml((r.equipment && r.equipment.serial) || "—") +
-      "</span>" +
       "<i>Ubicación</i><span>" +
       escapeHtml((r.equipment && r.equipment.location) || "—") +
       "</span>" +
-      "<i>Capacidad</i><span>" +
-      escapeHtml((r.equipment && r.equipment.capacity) || "—") +
-      "</span>" +
-      "<i>Inspector</i><span>" +
+      "<i>Quién revisó</i><span>" +
       escapeHtml(r.inspector || "—") +
       " · " +
       escapeHtml(r.cargo || "") +
@@ -858,7 +906,7 @@
         '<button class="list-row" data-go="#/local/' +
         encodeURIComponent(r.id) +
         '">' +
-        eqPhotoTag(r.type, "eq-mini", r.typeName) +
+        shotTag(r, "eq-mini", r.typeName) +
         '<span class="dot ' +
         escapeHtml(r.verdict || "") +
         '"></span><span style="flex:1"><b>' +
@@ -886,7 +934,7 @@
       "<label>RUT</label><input id=\"s-rut\" value=\"" +
       escapeHtml(s.rut) +
       '">' +
-      "<label>Sucursal / taller</label><input id=\"s-br\" value=\"" +
+      "<label>Sucursal / lugar</label><input id=\"s-br\" value=\"" +
       escapeHtml(s.branch) +
       '">' +
       "<label>Inspector por defecto</label><input id=\"s-in\" value=\"" +
@@ -1054,8 +1102,12 @@
         if (pending) {
           if (!confirm("Quedan " + pending + " puntos sin marcar. ¿Guardar igual?")) return;
         }
+        if (!d.typeName || !d.typeName.trim()) {
+          alert("Escribe qué se inspecciona.");
+          return;
+        }
         if (!d.verdict) {
-          alert("Elige un resultado: apto, con observaciones o fuera de servicio.");
+          alert("Elige un resultado: apto, con observaciones o no apto.");
           return;
         }
         if (!d.signatures.inspector) {
@@ -1077,6 +1129,7 @@
         }
         upsertReport(d);
         state.report = d;
+        state.draft = null;
         go("#/qr/" + d.id);
       };
   }
