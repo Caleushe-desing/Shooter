@@ -16,11 +16,11 @@ python3 -m http.server 8080
 
 ## Uso
 
-1. **Datos** (nombre, RUT, sucursal)
-2. **Nueva inspección** → elige el tipo (se ve la foto de catálogo)
-3. Marca cada punto **OK / Falla / N/A**
-4. Al final: **Tomar foto** del equipo (cámara o galería)
-5. Cierra con un resultado y **firma**
+1. **Datos de la empresa** (obligatorio): nombre, RUT, sucursal, inspector y **logo**. El logo sale en el documento final.
+2. **Nueva inspección** → elige el tipo (foto de catálogo)
+3. Completa **todos** los campos, marca cada punto y, si hay falla, el detalle
+4. Al final: **al menos una foto** del equipo
+5. Resultado, observaciones y **ambas firmas**
 6. Comparte el **QR**
 
 El historial queda en la memoria de **ese navegador**, en ese celular.
