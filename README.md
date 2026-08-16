@@ -1,6 +1,6 @@
 # Check list Técnico
 
-Checklists genéricos para inspeccionar **lo que quieras**. Se toma una foto, se firma en el celular y se genera un **QR** para abrir la ficha.
+Checklists con foto de catálogo del tipo de equipo. Al **final del check** el usuario puede sacar fotos del equipo. Se firma en el celular y se genera un **QR**.
 
 ## Dónde verla
 
@@ -17,9 +17,9 @@ python3 -m http.server 8080
 ## Uso
 
 1. **Datos** (nombre, RUT, sucursal)
-2. **Nueva inspección** → escribe qué se revisa
-3. **Toma una foto** (cámara o galería)
-4. Marca cada punto **OK / Falla / N/A**. Puedes borrar puntos o agregar los tuyos
+2. **Nueva inspección** → elige el tipo (se ve la foto de catálogo)
+3. Marca cada punto **OK / Falla / N/A**
+4. Al final: **Tomar foto** del equipo (cámara o galería)
 5. Cierra con un resultado y **firma**
 6. Comparte el **QR**
 
