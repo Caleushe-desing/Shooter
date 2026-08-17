@@ -2,3 +2,8 @@
 Thumbs.db
 *.log
 node_modules/
+server/node_modules/
+server/dist/
+server/data/
+server/.env
+*.log

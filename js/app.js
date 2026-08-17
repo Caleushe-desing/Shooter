@@ -3,16 +3,13 @@
   "use strict";
 
   const APP_NAME = "Check list Técnico";
-  const STORE = "meccheck-reports-v1";
   const SETTINGS = "meccheck-settings-v1";
-  const BLOB = "https://jsonblob.com/api/jsonBlob";
   const CDN = "https://raw.githubusercontent.com/Caleushe-desing/Shooter/cursor/checklist-mecanica-9fc5/";
 
   if (typeof window.MEC_ASSET_BASE !== "string") {
     const h = location.hostname || "";
-    const local = h === "localhost" || h === "127.0.0.1";
-    const pages = /\.github\.io$/i.test(h) && !/html-?preview/i.test(h);
-    window.MEC_ASSET_BASE = local || pages ? "" : CDN;
+    const preview = /html-?preview/i.test(h);
+    window.MEC_ASSET_BASE = preview ? CDN : "";
   }
   if (!window.MEC_CDN) window.MEC_CDN = CDN;
 
@@ -74,40 +71,39 @@
   function reqLabel(text) {
     return escapeHtml(text) + ' <span class="req">*</span>';
   }
+  let reportCache = [];
+
   function loadReports() {
-    try {
-      return JSON.parse(localStorage.getItem(STORE) || "[]");
-    } catch (e) {
-      return [];
-    }
+    return reportCache;
   }
-  function saveReports(list) {
-    try {
-      localStorage.setItem(STORE, JSON.stringify(list));
-    } catch (e) {
-      const slim = list.map((r, i) => {
-        if (i < 12) return r;
-        const c = JSON.parse(JSON.stringify(r));
-        if (c.equipment) {
-          c.equipment.photo = "";
-          c.equipment.photos = [];
-        }
-        return c;
-      });
-      try {
-        localStorage.setItem(STORE, JSON.stringify(slim.slice(0, 40)));
-      } catch (e2) {
-        localStorage.setItem(STORE, JSON.stringify(list.slice(0, 8)));
-      }
-    }
+  async function refreshReports() {
+    if (!window.MEC_API || !window.MEC_API.available()) return reportCache;
+    const data = await window.MEC_API.listInspections();
+    reportCache = data.inspections || [];
+    return reportCache;
   }
-  function upsertReport(rep) {
-    const list = loadReports().filter((r) => r.id !== rep.id);
-    list.unshift(rep);
-    saveReports(list.slice(0, 120));
+  async function upsertReport(rep) {
+    const data = await window.MEC_API.saveInspection(rep);
+    const saved = data.inspection;
+    reportCache = reportCache.filter((r) => r.id !== saved.id);
+    reportCache.unshift(saved);
+    return saved;
   }
   function getReport(id) {
-    return loadReports().find((r) => r.id === id);
+    return reportCache.find((r) => r.id === id);
+  }
+  async function ensureReport(id) {
+    let r = getReport(id);
+    if (r || !id || !window.MEC_API) return r;
+    try {
+      const data = await window.MEC_API.getInspection(id);
+      if (data.inspection) {
+        reportCache = reportCache.filter((x) => x.id !== data.inspection.id);
+        reportCache.unshift(data.inspection);
+        return data.inspection;
+      }
+    } catch (e) {}
+    return null;
   }
   function templateById(id) {
     return (window.MEC_TEMPLATES || []).find((t) => t.id === id);
@@ -476,8 +472,9 @@
     return publicBase() + "#/local/" + id;
   }
   function shareUrl(r) {
+    const token = r && (r.shareToken || r.blobId);
+    if (token && String(token).indexOf("z") !== 0) return publicBase() + "#/r/" + token;
     if (r && r.shareCode) return publicBase() + "#/v/" + r.shareCode;
-    if (r && r.blobId) return viewUrl(r.blobId);
     if (r) return localViewUrl(r.id);
     return publicBase();
   }
@@ -504,38 +501,13 @@
   }
 
   async function publish(report) {
-    const slim = JSON.parse(JSON.stringify(report));
-    const res = await fetch(BLOB, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify(slim),
-    });
-    if (!res.ok) throw new Error("No se pudo publicar (" + res.status + ")");
-    const loc = res.headers.get("Location") || res.headers.get("location") || res.headers.get("X-jsonblob");
-    let id = "";
-    if (loc) id = String(loc).split("/").pop();
-    if (!id) {
-      try {
-        const body = await res.json();
-        id = body.id || body.blobId || "";
-      } catch (e) {}
-    }
-    if (!id) {
-      const hdrs = [...res.headers.entries()];
-      const hit = hdrs.find((h) => /jsonblob|location/i.test(h[0]));
-      if (hit) id = String(hit[1]).split("/").pop();
-    }
-    if (!id) throw new Error("El servidor no devolvió un ID público");
-    return id;
+    const saved = await upsertReport(report);
+    return saved.shareToken || saved.blobId || saved.id;
   }
 
   async function fetchRemote(id) {
-    const res = await fetch(BLOB + "/" + id, { headers: { Accept: "application/json" } });
-    if (!res.ok) throw new Error("Ficha no encontrada");
-    return res.json();
+    const data = await window.MEC_API.publicInspection(id);
+    return data.inspection || data;
   }
 
   /* ---------- routing ---------- */
@@ -592,7 +564,7 @@
     }
     if (p[0] === "local" && p[1]) {
       state.view = "view";
-      state.report = getReport(p[1]) || null;
+      state.report = (await ensureReport(p[1])) || getReport(p[1]) || null;
       render();
       return;
     }
@@ -663,6 +635,11 @@
     }
     if (p[0] === "historial") {
       if (!needInspect()) return;
+      try {
+        await refreshReports();
+      } catch (e) {
+        alert((e && e.message) || "No se pudo cargar el historial.");
+      }
       state.view = "history";
       render();
       return;
@@ -681,19 +658,20 @@
     }
     if (p[0] === "app") {
       if (!needInspect()) return;
+      refreshReports().catch(function () {});
       state.view = "home";
       render();
       return;
     }
     if (p[0] === "pdf") {
       state.view = "print";
-      if (p[1]) state.report = getReport(decodeURIComponent(p[1])) || state.report;
+      if (p[1]) state.report = (await ensureReport(decodeURIComponent(p[1]))) || getReport(decodeURIComponent(p[1])) || state.report;
       render();
       return;
     }
     if (p[0] === "qr" && p[1]) {
       state.view = "qr";
-      state.report = getReport(p[1]) || state.report;
+      state.report = (await ensureReport(p[1])) || getReport(p[1]) || state.report;
       render();
       afterQr();
       return;
@@ -1449,7 +1427,7 @@
       };
     const saveSet = document.getElementById("save-set");
     if (saveSet)
-      saveSet.onclick = () => {
+      saveSet.onclick = async () => {
         readSettingsForm();
         const s = state.editSettings;
         if (blank(s.company) || blank(s.rut) || blank(s.branch) || blank(s.inspector) || blank(s.logo)) {
@@ -1463,17 +1441,22 @@
           inspector: s.inspector.trim(),
           logo: s.logo,
         });
-        const A = window.MEC_AUTH;
-        if (A && A.isAdmin()) {
-          const sess = A.loadSession();
-          const org = sess ? A.findLocalOrg(sess.companyCode || sess.blobId) : null;
-          if (org) {
-            org.company = s.company.trim();
-            org.rut = s.rut.trim();
-            org.branch = s.branch.trim();
-            org.logo = s.logo;
-            if (org.admin) org.admin.name = s.inspector.trim();
-            A.pushOrg(org).catch(function () {});
+        if (window.MEC_API && window.MEC_AUTH && window.MEC_AUTH.isAdmin()) {
+          const payload = {
+            company: s.company.trim(),
+            rut: s.rut.trim(),
+            branch: s.branch.trim(),
+            inspector: s.inspector.trim(),
+          };
+          if (s.logo.indexOf("data:") === 0) payload.logo = s.logo;
+          try {
+            const data = await window.MEC_API.patchCompany(payload);
+            if (data.company && window.MEC_AUTH.applyApiAuth) {
+              window.MEC_AUTH.applyApiAuth({ company: data.company, session: window.MEC_AUTH.loadSession() });
+            }
+          } catch (e) {
+            alert((e && e.message) || "No se pudo guardar en el servidor.");
+            return;
           }
         }
         go("#/app");
@@ -1511,22 +1494,17 @@
         d.companyLogo = set.logo || d.companyLogo || "";
         d.createdAt = d.createdAt || nowISO();
         save.disabled = true;
-        save.textContent = "Generando QR…";
+        save.textContent = "Guardando…";
         try {
-          d.shareCode = await encodeShare(d);
+          const saved = await upsertReport(d);
+          state.report = saved;
+          state.draft = null;
+          go("#/qr/" + saved.id);
         } catch (e) {
-          d.shareCode = "";
+          save.disabled = false;
+          save.textContent = "Guardar, firmar y crear QR";
+          alert((e && e.message) || "No se pudo guardar en el servidor.");
         }
-        try {
-          const id = await publish(d);
-          d.blobId = id;
-        } catch (e) {
-          d.blobId = "";
-        }
-        upsertReport(d);
-        state.report = d;
-        state.draft = null;
-        go("#/qr/" + d.id);
       };
     afterAuth();
   }
@@ -1700,8 +1678,20 @@
     });
   }
 
-  function boot() {
+  async function boot() {
     try {
+      if (window.MEC_API && window.MEC_API.available() && window.MEC_AUTH) {
+        try {
+          const data = await window.MEC_API.me();
+          window.MEC_AUTH.applyApiAuth(data);
+        } catch (e) {
+          if (e && e.status === 401) {
+            try {
+              localStorage.removeItem("meccheck-session-v1");
+            } catch (err) {}
+          }
+        }
+      }
       route();
     } catch (e) {
       if ($app) {

@@ -1,41 +1,38 @@
 # Check list Técnico
 
-Checklists con foto de catálogo del tipo de equipo. Al **final del check** el usuario saca fotos, se firma en el celular y se genera un **QR** o un **PDF carta**.
+Inspecciones en el celular: catálogo de equipos, fotos, firmas, QR y PDF carta.  
+Hay **web de bienvenida**, **administrador** (autoriza usuarios) y **inspectores**.
 
-## Dónde verla
+Los datos viven en un **servidor propio** (Node.js + SQLite), no en el celular.
 
-Abre `index.html` (o GitHub Pages si está activo). La primera pantalla es la **web de bienvenida**: explica la app con fotos y tiene ingreso de administrador y de usuarios.
-
-**https://caleushe-desing.github.io/Shooter/**
-
-En el computador:
+## Cómo correrla
 
 ```bash
-python3 -m http.server 8080
+cd server
+npm install
+npm start
 ```
 
-Luego http://127.0.0.1:8080/
+En el computador: http://127.0.0.1:3000/  
+En el celular: `http://IP-DEL-VPS-O-PC:3000/` (misma red o dominio con HTTPS).
 
 ## Acceso
 
-1. **Administrador**: registra la empresa (nombre, RUT, sucursal, logo, usuario y clave). Comparte el **código de empresa**.
-2. **Usuario**: pide acceso con ese código. **No entra al check hasta que el admin lo autorice.**
-3. El admin autoriza o rechaza en **Autorizar usuarios**.
+1. **Administrador** → Crear cuenta (empresa, RUT, sucursal, logo, usuario, clave).
+2. Comparte el **código de 6 letras**.
+3. **Usuario** pide acceso con ese código.
+4. El admin autoriza en **Autorizar usuarios**.
+5. El inspector hace checks; el historial queda en el servidor.
 
 ## Uso (inspección)
 
-1. Nueva inspección → elige el tipo (foto de catálogo)
-2. Completa todos los campos y marca cada punto
-3. Al final: al menos una foto del equipo
-4. Resultado, observaciones y ambas firmas
-5. QR o **Exportar PDF carta** (8,5 × 11 pulgadas)
+Catálogo → todos los campos → foto del equipo → firmas → QR / PDF carta (8,5 × 11).
 
-Las inspecciones quedan en la memoria de **ese navegador**. El listado de quién está autorizado se sincroniza cuando hay internet.
-
-Tras cambiar `css/` o `js/`:
+Tras cambiar `css/` o `js/` de la SPA:
 
 ```bash
 python3 scripts/build-index.py
 ```
 
-Detalle técnico para seguir desarrollando: [ESPECIFICACION.md](ESPECIFICACION.md).
+Detalle de producto: [ESPECIFICACION.md](ESPECIFICACION.md).  
+API: [server/README.md](server/README.md).

@@ -1143,14 +1143,87 @@ window.MEC_VERDICTS = [
 
   </script>
   <script>
+/* Cliente HTTP de Check list Técnico → /api/v1 */
+(function (w) {
+  "use strict";
+
+  function base() {
+    if (typeof w.MEC_API_BASE === "string" && w.MEC_API_BASE) return w.MEC_API_BASE.replace(/\/$/, "");
+    if (location.protocol === "http:" || location.protocol === "https:") return location.origin + "/api/v1";
+    return "";
+  }
+
+  function available() {
+    return !!base();
+  }
+
+  async function req(method, path, body) {
+    const root = base();
+    if (!root) throw new Error("Abre la app desde el servidor (no como archivo). Ej: http://IP:3000/");
+    const opts = {
+      method: method,
+      credentials: "include",
+      headers: { Accept: "application/json" },
+    };
+    if (body !== undefined) {
+      opts.headers["Content-Type"] = "application/json";
+      opts.body = JSON.stringify(body);
+    }
+    let res;
+    try {
+      res = await fetch(root + path, opts);
+    } catch (e) {
+      throw new Error("No hay conexión con el servidor.");
+    }
+    let data = {};
+    const text = await res.text();
+    if (text) {
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        data = { error: text.slice(0, 180) };
+      }
+    }
+    if (!res.ok) {
+      const err = new Error(data.error || "Error " + res.status);
+      err.status = res.status;
+      err.data = data;
+      throw err;
+    }
+    return data;
+  }
+
+  w.MEC_API = {
+    available: available,
+    base: base,
+    health: () => req("GET", "/health"),
+    registerCompany: (body) => req("POST", "/auth/register-company", body),
+    login: (body) => req("POST", "/auth/login", body),
+    logout: () => req("POST", "/auth/logout", {}),
+    me: () => req("GET", "/auth/me"),
+    requestAccess: (body) => req("POST", "/auth/request-access", body),
+    getCompany: () => req("GET", "/auth/company"),
+    patchCompany: (body) => req("PATCH", "/auth/company", body),
+    listUsers: () => req("GET", "/auth/company/users"),
+    approveUser: (id) => req("POST", "/auth/company/users/" + encodeURIComponent(id) + "/approve", {}),
+    rejectUser: (id) => req("POST", "/auth/company/users/" + encodeURIComponent(id) + "/reject", {}),
+    listInspections: () => req("GET", "/inspections"),
+    getInspection: (id) => req("GET", "/inspections/" + encodeURIComponent(id)),
+    saveInspection: (body) => req("POST", "/inspections", body),
+    publicInspection: (token) => req("GET", "/public/inspections/" + encodeURIComponent(token)),
+  };
+})(window);
+
+  </script>
+  <script>
 /* Bienvenida, cuentas de empresa y autorización de usuarios */
 (function (w) {
   "use strict";
 
-  const BLOB = "https://jsonblob.com/api/jsonBlob";
-  const ORG_STORE = "meccheck-orgs-v1";
   const SESS = "meccheck-session-v1";
   const SETTINGS = "meccheck-settings-v1";
+
+  let orgCache = null;
 
   const authState = {
     tab: "entrar",
@@ -1191,45 +1264,23 @@ window.MEC_VERDICTS = [
   }
 
   function loadOrgs() {
-    try {
-      const list = JSON.parse(localStorage.getItem(ORG_STORE) || "[]");
-      return Array.isArray(list) ? list : [];
-    } catch (e) {
-      return [];
-    }
-  }
-  function saveOrgs(list) {
-    localStorage.setItem(ORG_STORE, JSON.stringify(list));
+    return orgCache ? [orgCache] : [];
   }
   function upsertOrg(org) {
-    const list = loadOrgs().filter((o) => o.code !== org.code && o.blobId !== org.blobId);
-    list.unshift(org);
-    saveOrgs(list.slice(0, 30));
+    if (org) orgCache = org;
     return org;
   }
-  function findLocalOrg(codeOrBlob) {
-    const q = String(codeOrBlob || "").trim();
-    if (!q) return null;
-    return (
-      loadOrgs().find(
-        (o) =>
-          o.code === q.toUpperCase() ||
-          o.blobId === q ||
-          inviteOf(o) === q ||
-          (o.code && q.toUpperCase().indexOf(o.code) === 0)
-      ) || null
-    );
+  function findLocalOrg() {
+    return orgCache;
   }
   function inviteOf(org) {
-    if (!org) return "";
-    if (org.blobId) return org.code + "." + org.blobId;
-    return org.code || "";
+    return (org && org.code) || "";
   }
   function joinHref(org) {
     const origin = location.origin && location.origin !== "null" ? location.origin : "";
-    const path = location.pathname || "";
-    const base = origin + path;
-    if (org && org.blobId) return base + "#/unirse/" + org.blobId;
+    const pathName = location.pathname || "";
+    const base = origin + pathName;
+    if (org && org.code) return base + "#/unirse/" + org.code;
     return base + "#/usuario/registro";
   }
   function parseInvite(raw) {
@@ -1239,7 +1290,6 @@ window.MEC_VERDICTS = [
       const i = t.indexOf(".");
       return { code: t.slice(0, i).toUpperCase(), blobId: t.slice(i + 1) };
     }
-    if (/^[0-9a-f-]{20,}$/i.test(t)) return { code: "", blobId: t };
     return { code: t.toUpperCase(), blobId: "" };
   }
 
@@ -1256,6 +1306,9 @@ window.MEC_VERDICTS = [
   }
   function clearSession() {
     localStorage.removeItem(SESS);
+    orgCache = null;
+    const api = w.MEC_API;
+    if (api && api.available()) api.logout().catch(function () {});
   }
   function isAdmin() {
     const s = loadSession();
@@ -1268,90 +1321,25 @@ window.MEC_VERDICTS = [
     return s.role === "user" && s.status === "approved";
   }
 
-  async function hashPass(salt, user, pass) {
-    const msg = String(salt || "") + "\n" + String(user || "").trim().toLowerCase() + "\n" + String(pass || "");
-    if (w.crypto && w.crypto.subtle) {
-      const buf = await w.crypto.subtle.digest("SHA-256", new TextEncoder().encode(msg));
-      return Array.from(new Uint8Array(buf))
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join("");
+  function applyApiAuth(data) {
+    if (data.company) upsertOrg(data.company);
+    if (data.session) {
+      saveSession(data.session);
+      const inspector = data.session.name || "";
+      applyOrgToSettings(data.company || orgCache || {}, inspector);
     }
-    let h = 2166136261;
-    for (let i = 0; i < msg.length; i++) {
-      h ^= msg.charCodeAt(i);
-      h = Math.imul(h, 16777619);
-    }
-    return "x" + (h >>> 0).toString(16);
+    return data;
   }
 
-  async function postBlob(data) {
-    const res = await fetch(BLOB, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) throw new Error("No se pudo registrar la empresa en línea (" + res.status + ")");
-    const loc = res.headers.get("Location") || res.headers.get("location") || res.headers.get("X-jsonblob") || "";
-    let id = loc ? String(loc).split("/").pop() : "";
-    if (!id) {
-      try {
-        const body = await res.json();
-        id = body.id || body.blobId || "";
-      } catch (e) {}
-    }
-    if (!id) throw new Error("El servidor no devolvió el código de empresa");
-    return id;
+  async function pullOrg() {
+    const api = w.MEC_API;
+    const data = await api.listUsers().catch(() => api.getCompany());
+    if (data && data.company) upsertOrg(data.company);
+    if (!orgCache) throw new Error("No hay empresa en este servidor.");
+    return orgCache;
   }
-  async function getBlob(id) {
-    const res = await fetch(BLOB + "/" + id, { headers: { Accept: "application/json" } });
-    if (!res.ok) throw new Error("No se encontró esa empresa. Revisa el código.");
-    return res.json();
-  }
-  async function putBlob(id, data) {
-    const res = await fetch(BLOB + "/" + id, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) throw new Error("No se pudo actualizar la empresa (" + res.status + ")");
-    return true;
-  }
-  function orgForNet(org) {
-    const o = JSON.parse(JSON.stringify(org));
-    if (o.logo && o.logo.length > 160000) o.logo = "";
-    return o;
-  }
-  async function pullOrg(codeOrBlob) {
-    const parsed = parseInvite(codeOrBlob);
-    let org = findLocalOrg(parsed.code || parsed.blobId || codeOrBlob);
-    const blobId = parsed.blobId || (org && org.blobId) || "";
-    if (blobId) {
-      try {
-        const remote = await getBlob(blobId);
-        if (remote && remote.code) {
-          remote.blobId = blobId;
-          org = upsertOrg(remote);
-        }
-      } catch (e) {
-        if (!org) throw e;
-      }
-    }
-    if (!org && parsed.code) org = findLocalOrg(parsed.code);
-    if (!org) throw new Error("No encontramos esa empresa. Pide al administrador el código o el QR de acceso.");
-    return org;
-  }
-  async function pushOrg(org) {
-    upsertOrg(org);
-    org.updatedAt = nowISO();
-    try {
-      if (!org.blobId) org.blobId = await postBlob(orgForNet(org));
-      else await putBlob(org.blobId, orgForNet(org));
-    } catch (e) {
-      upsertOrg(org);
-      throw e;
-    }
-    upsertOrg(org);
-    return org;
+  async function pushOrg() {
+    return orgCache;
   }
 
   function applyOrgToSettings(org, inspector) {
@@ -1578,9 +1566,9 @@ window.MEC_VERDICTS = [
       "#/",
       tabs("#/admin", "#/admin", "#/admin/registro") +
         '<div class="card">' +
-        "<p class=\"note\">Entra con el usuario de la empresa. Si es otro celular, pega también el código de empresa.</p>" +
+        "<p class=\"note\">Entra con el usuario de la empresa. Si es otro celular, pega el código de 6 letras.</p>" +
         "<label>Código de empresa</label>" +
-        '<input id="a-invite" placeholder="Ej: K7M2PQ.xxxxxxxx" autocapitalize="none" autocomplete="off">' +
+        '<input id="a-invite" placeholder="Ej: K7M2PQ" autocapitalize="characters" autocomplete="off">' +
         "<label>Usuario <span class=\"req\">*</span></label>" +
         '<input id="a-user" autocomplete="username" autocapitalize="none">' +
         "<label>Clave <span class=\"req\">*</span></label>" +
@@ -1736,7 +1724,7 @@ window.MEC_VERDICTS = [
     return el ? el.value : "";
   }
 
-  async function registerAdmin(compressImage) {
+  async function registerAdmin() {
     authState.msg = "";
     const company = val("a-co").trim();
     const rut = val("a-rut").trim();
@@ -1751,37 +1739,17 @@ window.MEC_VERDICTS = [
     }
     if (pass.length < 4) throw new Error("La clave debe tener al menos 4 caracteres.");
     if (pass !== pass2) throw new Error("Las claves no coinciden.");
-    const code = makeCode();
-    const passHash = await hashPass(code, user, pass);
-    const org = {
-      v: 2,
-      code: code,
-      blobId: "",
+    const data = await w.MEC_API.registerCompany({
       company: company,
       rut: rut,
       branch: branch,
-      logo: logo,
-      admin: { id: uid("A"), name: name, user: user, pass: passHash },
-      users: [],
-      createdAt: nowISO(),
-      updatedAt: nowISO(),
-    };
-    try {
-      await pushOrg(org);
-    } catch (e) {
-      upsertOrg(org);
-    }
-    applyOrgToSettings(org, name);
-    saveSession({
-      role: "admin",
-      companyCode: org.code,
-      blobId: org.blobId || "",
-      userId: org.admin.id,
-      user: user,
       name: name,
-      status: "approved",
+      username: user,
+      password: pass,
+      logo: logo,
     });
-    return org;
+    applyApiAuth(data);
+    return data.company;
   }
 
   async function loginAdmin() {
@@ -1790,44 +1758,21 @@ window.MEC_VERDICTS = [
     const user = val("a-user").trim().toLowerCase();
     const pass = val("a-pass");
     if (blank(user) || blank(pass)) throw new Error("Ingresa usuario y clave.");
-    let org = null;
-    if (invite) org = await pullOrg(invite);
-    if (!org) {
-      const list = loadOrgs();
-      for (let i = 0; i < list.length; i++) {
-        const o = list[i];
-        if (o.admin && o.admin.user === user) {
-          org = o;
-          break;
-        }
-      }
-    }
-    if (!org) throw new Error("No hay una empresa en este celular. Pega el código o registra la empresa.");
-    if (org.blobId) {
-      try {
-        org = await pullOrg(org.blobId);
-      } catch (e) {}
-    }
-    const hash = await hashPass(org.code, user, pass);
-    if (!org.admin || org.admin.user !== user || org.admin.pass !== hash) {
-      throw new Error("Usuario o clave de administrador incorrectos.");
-    }
-    applyOrgToSettings(org, org.admin.name);
-    saveSession({
-      role: "admin",
-      companyCode: org.code,
-      blobId: org.blobId || "",
-      userId: org.admin.id,
-      user: user,
-      name: org.admin.name,
-      status: "approved",
+    const data = await w.MEC_API.login({
+      username: user,
+      password: pass,
+      companyCode: parseInvite(invite).code,
     });
-    return org;
+    applyApiAuth(data);
+    if (data.session && data.session.role !== "admin") {
+      throw new Error("Esa cuenta no es de administrador. Entra por ingreso usuarios.");
+    }
+    return data.company;
   }
 
   async function registerUser() {
     authState.msg = "";
-    const invite = val("u-invite").trim() || authState.joinBlob;
+    const invite = val("u-invite").trim() || authState.joinBlob || authState.joinCode;
     const name = val("u-name").trim();
     const user = val("u-user").trim().toLowerCase();
     const pass = val("u-pass");
@@ -1835,37 +1780,15 @@ window.MEC_VERDICTS = [
       throw new Error("Completa código de empresa, nombre, usuario y clave.");
     }
     if (pass.length < 4) throw new Error("La clave debe tener al menos 4 caracteres.");
-    const org = await pullOrg(invite);
-    org.users = org.users || [];
-    if (org.admin && org.admin.user === user) throw new Error("Ese usuario es el administrador. Entra por ingreso admin.");
-    if (org.users.some((u) => u.user === user)) throw new Error("Ese usuario ya pidió acceso. Entra o espera la autorización.");
-    const rec = {
-      id: uid("U"),
+    const data = await w.MEC_API.requestAccess({
+      invite: invite,
+      companyCode: parseInvite(invite).code,
       name: name,
-      user: user,
-      pass: await hashPass(org.code, user, pass),
-      status: "pending",
-      requestedAt: nowISO(),
-    };
-    org.users.push(rec);
-    try {
-      await pushOrg(org);
-    } catch (e) {
-      upsertOrg(org);
-      if (!org.blobId) {
-        throw new Error("La empresa aún no está en línea. Pide al admin que entre con internet y te reenvíe el código completo.");
-      }
-    }
-    saveSession({
-      role: "user",
-      companyCode: org.code,
-      blobId: org.blobId || "",
-      userId: rec.id,
-      user: user,
-      name: name,
-      status: "pending",
+      username: user,
+      password: pass,
     });
-    return rec;
+    applyApiAuth(data);
+    return data.session;
   }
 
   async function loginUser() {
@@ -1874,56 +1797,29 @@ window.MEC_VERDICTS = [
     const user = val("u-user").trim().toLowerCase();
     const pass = val("u-pass");
     if (blank(invite) || blank(user) || blank(pass)) throw new Error("Completa código, usuario y clave.");
-    const org = await pullOrg(invite);
-    const rec = (org.users || []).find((u) => u.user === user);
-    if (!rec) throw new Error("No hay una solicitud con ese usuario. Pide acceso primero.");
-    const hash = await hashPass(org.code, user, pass);
-    if (rec.pass !== hash) throw new Error("Usuario o clave incorrectos.");
-    saveSession({
-      role: "user",
-      companyCode: org.code,
-      blobId: org.blobId || "",
-      userId: rec.id,
-      user: user,
-      name: rec.name,
-      status: rec.status,
+    const data = await w.MEC_API.login({
+      username: user,
+      password: pass,
+      companyCode: parseInvite(invite).code,
     });
-    if (rec.status === "rejected") throw new Error("El administrador rechazó tu acceso.");
-    if (rec.status !== "approved") throw new Error("PENDING");
-    applyOrgToSettings(org, rec.name);
-    return rec;
+    applyApiAuth(data);
+    if (data.session && data.session.status === "rejected") throw new Error("El administrador rechazó tu acceso.");
+    if (data.pending || (data.session && data.session.status !== "approved")) throw new Error("PENDING");
+    return data.session;
   }
 
   async function refreshUser() {
-    const sess = loadSession();
-    if (!sess || !sess.blobId && !sess.companyCode) throw new Error("No hay solicitud.");
-    const org = await pullOrg(sess.blobId || inviteOf(findLocalOrg(sess.companyCode)) || sess.companyCode);
-    const rec = (org.users || []).find((u) => u.id === sess.userId || u.user === sess.user);
-    if (!rec) throw new Error("El administrador no tiene tu solicitud. Vuelve a pedir acceso.");
-    sess.status = rec.status;
-    sess.name = rec.name;
-    sess.blobId = org.blobId || sess.blobId;
-    saveSession(sess);
-    if (rec.status === "approved") applyOrgToSettings(org, rec.name);
+    const data = await w.MEC_API.me();
+    applyApiAuth(data);
+    const rec = data.session || {};
+    if (rec.status === "rejected") throw new Error("El administrador rechazó tu acceso.");
     return rec;
   }
 
   async function setUserStatus(userId, status) {
-    const sess = loadSession();
-    if (!sess || sess.role !== "admin") throw new Error("Solo el administrador puede autorizar.");
-    let org = findLocalOrg(sess.companyCode || sess.blobId);
-    if (org && org.blobId) {
-      try {
-        org = await pullOrg(org.blobId);
-      } catch (e) {}
-    }
-    if (!org) throw new Error("No hay empresa.");
-    const rec = (org.users || []).find((u) => u.id === userId);
-    if (!rec) throw new Error("Usuario no encontrado.");
-    rec.status = status;
-    rec.decidedAt = nowISO();
-    await pushOrg(org);
-    return rec;
+    const data = status === "approved" ? await w.MEC_API.approveUser(userId) : await w.MEC_API.rejectUser(userId);
+    if (data.company) upsertOrg(data.company);
+    return data.user;
   }
 
   w.MEC_AUTH = {
@@ -1946,6 +1842,7 @@ window.MEC_VERDICTS = [
     refreshUser: refreshUser,
     setUserStatus: setUserStatus,
     applyOrgToSettings: applyOrgToSettings,
+    applyApiAuth: applyApiAuth,
     pullOrg: pullOrg,
     pushOrg: pushOrg,
     val: val,
@@ -1959,16 +1856,13 @@ window.MEC_VERDICTS = [
   "use strict";
 
   const APP_NAME = "Check list Técnico";
-  const STORE = "meccheck-reports-v1";
   const SETTINGS = "meccheck-settings-v1";
-  const BLOB = "https://jsonblob.com/api/jsonBlob";
   const CDN = "https://raw.githubusercontent.com/Caleushe-desing/Shooter/cursor/checklist-mecanica-9fc5/";
 
   if (typeof window.MEC_ASSET_BASE !== "string") {
     const h = location.hostname || "";
-    const local = h === "localhost" || h === "127.0.0.1";
-    const pages = /\.github\.io$/i.test(h) && !/html-?preview/i.test(h);
-    window.MEC_ASSET_BASE = local || pages ? "" : CDN;
+    const preview = /html-?preview/i.test(h);
+    window.MEC_ASSET_BASE = preview ? CDN : "";
   }
   if (!window.MEC_CDN) window.MEC_CDN = CDN;
 
@@ -2030,40 +1924,39 @@ window.MEC_VERDICTS = [
   function reqLabel(text) {
     return escapeHtml(text) + ' <span class="req">*</span>';
   }
+  let reportCache = [];
+
   function loadReports() {
-    try {
-      return JSON.parse(localStorage.getItem(STORE) || "[]");
-    } catch (e) {
-      return [];
-    }
+    return reportCache;
   }
-  function saveReports(list) {
-    try {
-      localStorage.setItem(STORE, JSON.stringify(list));
-    } catch (e) {
-      const slim = list.map((r, i) => {
-        if (i < 12) return r;
-        const c = JSON.parse(JSON.stringify(r));
-        if (c.equipment) {
-          c.equipment.photo = "";
-          c.equipment.photos = [];
-        }
-        return c;
-      });
-      try {
-        localStorage.setItem(STORE, JSON.stringify(slim.slice(0, 40)));
-      } catch (e2) {
-        localStorage.setItem(STORE, JSON.stringify(list.slice(0, 8)));
-      }
-    }
+  async function refreshReports() {
+    if (!window.MEC_API || !window.MEC_API.available()) return reportCache;
+    const data = await window.MEC_API.listInspections();
+    reportCache = data.inspections || [];
+    return reportCache;
   }
-  function upsertReport(rep) {
-    const list = loadReports().filter((r) => r.id !== rep.id);
-    list.unshift(rep);
-    saveReports(list.slice(0, 120));
+  async function upsertReport(rep) {
+    const data = await window.MEC_API.saveInspection(rep);
+    const saved = data.inspection;
+    reportCache = reportCache.filter((r) => r.id !== saved.id);
+    reportCache.unshift(saved);
+    return saved;
   }
   function getReport(id) {
-    return loadReports().find((r) => r.id === id);
+    return reportCache.find((r) => r.id === id);
+  }
+  async function ensureReport(id) {
+    let r = getReport(id);
+    if (r || !id || !window.MEC_API) return r;
+    try {
+      const data = await window.MEC_API.getInspection(id);
+      if (data.inspection) {
+        reportCache = reportCache.filter((x) => x.id !== data.inspection.id);
+        reportCache.unshift(data.inspection);
+        return data.inspection;
+      }
+    } catch (e) {}
+    return null;
   }
   function templateById(id) {
     return (window.MEC_TEMPLATES || []).find((t) => t.id === id);
@@ -2432,8 +2325,9 @@ window.MEC_VERDICTS = [
     return publicBase() + "#/local/" + id;
   }
   function shareUrl(r) {
+    const token = r && (r.shareToken || r.blobId);
+    if (token && String(token).indexOf("z") !== 0) return publicBase() + "#/r/" + token;
     if (r && r.shareCode) return publicBase() + "#/v/" + r.shareCode;
-    if (r && r.blobId) return viewUrl(r.blobId);
     if (r) return localViewUrl(r.id);
     return publicBase();
   }
@@ -2460,38 +2354,13 @@ window.MEC_VERDICTS = [
   }
 
   async function publish(report) {
-    const slim = JSON.parse(JSON.stringify(report));
-    const res = await fetch(BLOB, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify(slim),
-    });
-    if (!res.ok) throw new Error("No se pudo publicar (" + res.status + ")");
-    const loc = res.headers.get("Location") || res.headers.get("location") || res.headers.get("X-jsonblob");
-    let id = "";
-    if (loc) id = String(loc).split("/").pop();
-    if (!id) {
-      try {
-        const body = await res.json();
-        id = body.id || body.blobId || "";
-      } catch (e) {}
-    }
-    if (!id) {
-      const hdrs = [...res.headers.entries()];
-      const hit = hdrs.find((h) => /jsonblob|location/i.test(h[0]));
-      if (hit) id = String(hit[1]).split("/").pop();
-    }
-    if (!id) throw new Error("El servidor no devolvió un ID público");
-    return id;
+    const saved = await upsertReport(report);
+    return saved.shareToken || saved.blobId || saved.id;
   }
 
   async function fetchRemote(id) {
-    const res = await fetch(BLOB + "/" + id, { headers: { Accept: "application/json" } });
-    if (!res.ok) throw new Error("Ficha no encontrada");
-    return res.json();
+    const data = await window.MEC_API.publicInspection(id);
+    return data.inspection || data;
   }
 
   /* ---------- routing ---------- */
@@ -2548,7 +2417,7 @@ window.MEC_VERDICTS = [
     }
     if (p[0] === "local" && p[1]) {
       state.view = "view";
-      state.report = getReport(p[1]) || null;
+      state.report = (await ensureReport(p[1])) || getReport(p[1]) || null;
       render();
       return;
     }
@@ -2619,6 +2488,11 @@ window.MEC_VERDICTS = [
     }
     if (p[0] === "historial") {
       if (!needInspect()) return;
+      try {
+        await refreshReports();
+      } catch (e) {
+        alert((e && e.message) || "No se pudo cargar el historial.");
+      }
       state.view = "history";
       render();
       return;
@@ -2637,19 +2511,20 @@ window.MEC_VERDICTS = [
     }
     if (p[0] === "app") {
       if (!needInspect()) return;
+      refreshReports().catch(function () {});
       state.view = "home";
       render();
       return;
     }
     if (p[0] === "pdf") {
       state.view = "print";
-      if (p[1]) state.report = getReport(decodeURIComponent(p[1])) || state.report;
+      if (p[1]) state.report = (await ensureReport(decodeURIComponent(p[1]))) || getReport(decodeURIComponent(p[1])) || state.report;
       render();
       return;
     }
     if (p[0] === "qr" && p[1]) {
       state.view = "qr";
-      state.report = getReport(p[1]) || state.report;
+      state.report = (await ensureReport(p[1])) || getReport(p[1]) || state.report;
       render();
       afterQr();
       return;
@@ -3405,7 +3280,7 @@ window.MEC_VERDICTS = [
       };
     const saveSet = document.getElementById("save-set");
     if (saveSet)
-      saveSet.onclick = () => {
+      saveSet.onclick = async () => {
         readSettingsForm();
         const s = state.editSettings;
         if (blank(s.company) || blank(s.rut) || blank(s.branch) || blank(s.inspector) || blank(s.logo)) {
@@ -3419,17 +3294,22 @@ window.MEC_VERDICTS = [
           inspector: s.inspector.trim(),
           logo: s.logo,
         });
-        const A = window.MEC_AUTH;
-        if (A && A.isAdmin()) {
-          const sess = A.loadSession();
-          const org = sess ? A.findLocalOrg(sess.companyCode || sess.blobId) : null;
-          if (org) {
-            org.company = s.company.trim();
-            org.rut = s.rut.trim();
-            org.branch = s.branch.trim();
-            org.logo = s.logo;
-            if (org.admin) org.admin.name = s.inspector.trim();
-            A.pushOrg(org).catch(function () {});
+        if (window.MEC_API && window.MEC_AUTH && window.MEC_AUTH.isAdmin()) {
+          const payload = {
+            company: s.company.trim(),
+            rut: s.rut.trim(),
+            branch: s.branch.trim(),
+            inspector: s.inspector.trim(),
+          };
+          if (s.logo.indexOf("data:") === 0) payload.logo = s.logo;
+          try {
+            const data = await window.MEC_API.patchCompany(payload);
+            if (data.company && window.MEC_AUTH.applyApiAuth) {
+              window.MEC_AUTH.applyApiAuth({ company: data.company, session: window.MEC_AUTH.loadSession() });
+            }
+          } catch (e) {
+            alert((e && e.message) || "No se pudo guardar en el servidor.");
+            return;
           }
         }
         go("#/app");
@@ -3467,22 +3347,17 @@ window.MEC_VERDICTS = [
         d.companyLogo = set.logo || d.companyLogo || "";
         d.createdAt = d.createdAt || nowISO();
         save.disabled = true;
-        save.textContent = "Generando QR…";
+        save.textContent = "Guardando…";
         try {
-          d.shareCode = await encodeShare(d);
+          const saved = await upsertReport(d);
+          state.report = saved;
+          state.draft = null;
+          go("#/qr/" + saved.id);
         } catch (e) {
-          d.shareCode = "";
+          save.disabled = false;
+          save.textContent = "Guardar, firmar y crear QR";
+          alert((e && e.message) || "No se pudo guardar en el servidor.");
         }
-        try {
-          const id = await publish(d);
-          d.blobId = id;
-        } catch (e) {
-          d.blobId = "";
-        }
-        upsertReport(d);
-        state.report = d;
-        state.draft = null;
-        go("#/qr/" + d.id);
       };
     afterAuth();
   }
@@ -3656,8 +3531,20 @@ window.MEC_VERDICTS = [
     });
   }
 
-  function boot() {
+  async function boot() {
     try {
+      if (window.MEC_API && window.MEC_API.available() && window.MEC_AUTH) {
+        try {
+          const data = await window.MEC_API.me();
+          window.MEC_AUTH.applyApiAuth(data);
+        } catch (e) {
+          if (e && e.status === 401) {
+            try {
+              localStorage.removeItem("meccheck-session-v1");
+            } catch (err) {}
+          }
+        }
+      }
       route();
     } catch (e) {
       if ($app) {

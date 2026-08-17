@@ -2,10 +2,10 @@
 (function (w) {
   "use strict";
 
-  const BLOB = "https://jsonblob.com/api/jsonBlob";
-  const ORG_STORE = "meccheck-orgs-v1";
   const SESS = "meccheck-session-v1";
   const SETTINGS = "meccheck-settings-v1";
+
+  let orgCache = null;
 
   const authState = {
     tab: "entrar",
@@ -46,45 +46,23 @@
   }
 
   function loadOrgs() {
-    try {
-      const list = JSON.parse(localStorage.getItem(ORG_STORE) || "[]");
-      return Array.isArray(list) ? list : [];
-    } catch (e) {
-      return [];
-    }
-  }
-  function saveOrgs(list) {
-    localStorage.setItem(ORG_STORE, JSON.stringify(list));
+    return orgCache ? [orgCache] : [];
   }
   function upsertOrg(org) {
-    const list = loadOrgs().filter((o) => o.code !== org.code && o.blobId !== org.blobId);
-    list.unshift(org);
-    saveOrgs(list.slice(0, 30));
+    if (org) orgCache = org;
     return org;
   }
-  function findLocalOrg(codeOrBlob) {
-    const q = String(codeOrBlob || "").trim();
-    if (!q) return null;
-    return (
-      loadOrgs().find(
-        (o) =>
-          o.code === q.toUpperCase() ||
-          o.blobId === q ||
-          inviteOf(o) === q ||
-          (o.code && q.toUpperCase().indexOf(o.code) === 0)
-      ) || null
-    );
+  function findLocalOrg() {
+    return orgCache;
   }
   function inviteOf(org) {
-    if (!org) return "";
-    if (org.blobId) return org.code + "." + org.blobId;
-    return org.code || "";
+    return (org && org.code) || "";
   }
   function joinHref(org) {
     const origin = location.origin && location.origin !== "null" ? location.origin : "";
-    const path = location.pathname || "";
-    const base = origin + path;
-    if (org && org.blobId) return base + "#/unirse/" + org.blobId;
+    const pathName = location.pathname || "";
+    const base = origin + pathName;
+    if (org && org.code) return base + "#/unirse/" + org.code;
     return base + "#/usuario/registro";
   }
   function parseInvite(raw) {
@@ -94,7 +72,6 @@
       const i = t.indexOf(".");
       return { code: t.slice(0, i).toUpperCase(), blobId: t.slice(i + 1) };
     }
-    if (/^[0-9a-f-]{20,}$/i.test(t)) return { code: "", blobId: t };
     return { code: t.toUpperCase(), blobId: "" };
   }
 
@@ -111,6 +88,9 @@
   }
   function clearSession() {
     localStorage.removeItem(SESS);
+    orgCache = null;
+    const api = w.MEC_API;
+    if (api && api.available()) api.logout().catch(function () {});
   }
   function isAdmin() {
     const s = loadSession();
@@ -123,90 +103,25 @@
     return s.role === "user" && s.status === "approved";
   }
 
-  async function hashPass(salt, user, pass) {
-    const msg = String(salt || "") + "\n" + String(user || "").trim().toLowerCase() + "\n" + String(pass || "");
-    if (w.crypto && w.crypto.subtle) {
-      const buf = await w.crypto.subtle.digest("SHA-256", new TextEncoder().encode(msg));
-      return Array.from(new Uint8Array(buf))
-        .map((b) => b.toString(16).padStart(2, "0"))
-        .join("");
+  function applyApiAuth(data) {
+    if (data.company) upsertOrg(data.company);
+    if (data.session) {
+      saveSession(data.session);
+      const inspector = data.session.name || "";
+      applyOrgToSettings(data.company || orgCache || {}, inspector);
     }
-    let h = 2166136261;
-    for (let i = 0; i < msg.length; i++) {
-      h ^= msg.charCodeAt(i);
-      h = Math.imul(h, 16777619);
-    }
-    return "x" + (h >>> 0).toString(16);
+    return data;
   }
 
-  async function postBlob(data) {
-    const res = await fetch(BLOB, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) throw new Error("No se pudo registrar la empresa en línea (" + res.status + ")");
-    const loc = res.headers.get("Location") || res.headers.get("location") || res.headers.get("X-jsonblob") || "";
-    let id = loc ? String(loc).split("/").pop() : "";
-    if (!id) {
-      try {
-        const body = await res.json();
-        id = body.id || body.blobId || "";
-      } catch (e) {}
-    }
-    if (!id) throw new Error("El servidor no devolvió el código de empresa");
-    return id;
+  async function pullOrg() {
+    const api = w.MEC_API;
+    const data = await api.listUsers().catch(() => api.getCompany());
+    if (data && data.company) upsertOrg(data.company);
+    if (!orgCache) throw new Error("No hay empresa en este servidor.");
+    return orgCache;
   }
-  async function getBlob(id) {
-    const res = await fetch(BLOB + "/" + id, { headers: { Accept: "application/json" } });
-    if (!res.ok) throw new Error("No se encontró esa empresa. Revisa el código.");
-    return res.json();
-  }
-  async function putBlob(id, data) {
-    const res = await fetch(BLOB + "/" + id, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) throw new Error("No se pudo actualizar la empresa (" + res.status + ")");
-    return true;
-  }
-  function orgForNet(org) {
-    const o = JSON.parse(JSON.stringify(org));
-    if (o.logo && o.logo.length > 160000) o.logo = "";
-    return o;
-  }
-  async function pullOrg(codeOrBlob) {
-    const parsed = parseInvite(codeOrBlob);
-    let org = findLocalOrg(parsed.code || parsed.blobId || codeOrBlob);
-    const blobId = parsed.blobId || (org && org.blobId) || "";
-    if (blobId) {
-      try {
-        const remote = await getBlob(blobId);
-        if (remote && remote.code) {
-          remote.blobId = blobId;
-          org = upsertOrg(remote);
-        }
-      } catch (e) {
-        if (!org) throw e;
-      }
-    }
-    if (!org && parsed.code) org = findLocalOrg(parsed.code);
-    if (!org) throw new Error("No encontramos esa empresa. Pide al administrador el código o el QR de acceso.");
-    return org;
-  }
-  async function pushOrg(org) {
-    upsertOrg(org);
-    org.updatedAt = nowISO();
-    try {
-      if (!org.blobId) org.blobId = await postBlob(orgForNet(org));
-      else await putBlob(org.blobId, orgForNet(org));
-    } catch (e) {
-      upsertOrg(org);
-      throw e;
-    }
-    upsertOrg(org);
-    return org;
+  async function pushOrg() {
+    return orgCache;
   }
 
   function applyOrgToSettings(org, inspector) {
@@ -433,9 +348,9 @@
       "#/",
       tabs("#/admin", "#/admin", "#/admin/registro") +
         '<div class="card">' +
-        "<p class=\"note\">Entra con el usuario de la empresa. Si es otro celular, pega también el código de empresa.</p>" +
+        "<p class=\"note\">Entra con el usuario de la empresa. Si es otro celular, pega el código de 6 letras.</p>" +
         "<label>Código de empresa</label>" +
-        '<input id="a-invite" placeholder="Ej: K7M2PQ.xxxxxxxx" autocapitalize="none" autocomplete="off">' +
+        '<input id="a-invite" placeholder="Ej: K7M2PQ" autocapitalize="characters" autocomplete="off">' +
         "<label>Usuario <span class=\"req\">*</span></label>" +
         '<input id="a-user" autocomplete="username" autocapitalize="none">' +
         "<label>Clave <span class=\"req\">*</span></label>" +
@@ -591,7 +506,7 @@
     return el ? el.value : "";
   }
 
-  async function registerAdmin(compressImage) {
+  async function registerAdmin() {
     authState.msg = "";
     const company = val("a-co").trim();
     const rut = val("a-rut").trim();
@@ -606,37 +521,17 @@
     }
     if (pass.length < 4) throw new Error("La clave debe tener al menos 4 caracteres.");
     if (pass !== pass2) throw new Error("Las claves no coinciden.");
-    const code = makeCode();
-    const passHash = await hashPass(code, user, pass);
-    const org = {
-      v: 2,
-      code: code,
-      blobId: "",
+    const data = await w.MEC_API.registerCompany({
       company: company,
       rut: rut,
       branch: branch,
-      logo: logo,
-      admin: { id: uid("A"), name: name, user: user, pass: passHash },
-      users: [],
-      createdAt: nowISO(),
-      updatedAt: nowISO(),
-    };
-    try {
-      await pushOrg(org);
-    } catch (e) {
-      upsertOrg(org);
-    }
-    applyOrgToSettings(org, name);
-    saveSession({
-      role: "admin",
-      companyCode: org.code,
-      blobId: org.blobId || "",
-      userId: org.admin.id,
-      user: user,
       name: name,
-      status: "approved",
+      username: user,
+      password: pass,
+      logo: logo,
     });
-    return org;
+    applyApiAuth(data);
+    return data.company;
   }
 
   async function loginAdmin() {
@@ -645,44 +540,21 @@
     const user = val("a-user").trim().toLowerCase();
     const pass = val("a-pass");
     if (blank(user) || blank(pass)) throw new Error("Ingresa usuario y clave.");
-    let org = null;
-    if (invite) org = await pullOrg(invite);
-    if (!org) {
-      const list = loadOrgs();
-      for (let i = 0; i < list.length; i++) {
-        const o = list[i];
-        if (o.admin && o.admin.user === user) {
-          org = o;
-          break;
-        }
-      }
-    }
-    if (!org) throw new Error("No hay una empresa en este celular. Pega el código o registra la empresa.");
-    if (org.blobId) {
-      try {
-        org = await pullOrg(org.blobId);
-      } catch (e) {}
-    }
-    const hash = await hashPass(org.code, user, pass);
-    if (!org.admin || org.admin.user !== user || org.admin.pass !== hash) {
-      throw new Error("Usuario o clave de administrador incorrectos.");
-    }
-    applyOrgToSettings(org, org.admin.name);
-    saveSession({
-      role: "admin",
-      companyCode: org.code,
-      blobId: org.blobId || "",
-      userId: org.admin.id,
-      user: user,
-      name: org.admin.name,
-      status: "approved",
+    const data = await w.MEC_API.login({
+      username: user,
+      password: pass,
+      companyCode: parseInvite(invite).code,
     });
-    return org;
+    applyApiAuth(data);
+    if (data.session && data.session.role !== "admin") {
+      throw new Error("Esa cuenta no es de administrador. Entra por ingreso usuarios.");
+    }
+    return data.company;
   }
 
   async function registerUser() {
     authState.msg = "";
-    const invite = val("u-invite").trim() || authState.joinBlob;
+    const invite = val("u-invite").trim() || authState.joinBlob || authState.joinCode;
     const name = val("u-name").trim();
     const user = val("u-user").trim().toLowerCase();
     const pass = val("u-pass");
@@ -690,37 +562,15 @@
       throw new Error("Completa código de empresa, nombre, usuario y clave.");
     }
     if (pass.length < 4) throw new Error("La clave debe tener al menos 4 caracteres.");
-    const org = await pullOrg(invite);
-    org.users = org.users || [];
-    if (org.admin && org.admin.user === user) throw new Error("Ese usuario es el administrador. Entra por ingreso admin.");
-    if (org.users.some((u) => u.user === user)) throw new Error("Ese usuario ya pidió acceso. Entra o espera la autorización.");
-    const rec = {
-      id: uid("U"),
+    const data = await w.MEC_API.requestAccess({
+      invite: invite,
+      companyCode: parseInvite(invite).code,
       name: name,
-      user: user,
-      pass: await hashPass(org.code, user, pass),
-      status: "pending",
-      requestedAt: nowISO(),
-    };
-    org.users.push(rec);
-    try {
-      await pushOrg(org);
-    } catch (e) {
-      upsertOrg(org);
-      if (!org.blobId) {
-        throw new Error("La empresa aún no está en línea. Pide al admin que entre con internet y te reenvíe el código completo.");
-      }
-    }
-    saveSession({
-      role: "user",
-      companyCode: org.code,
-      blobId: org.blobId || "",
-      userId: rec.id,
-      user: user,
-      name: name,
-      status: "pending",
+      username: user,
+      password: pass,
     });
-    return rec;
+    applyApiAuth(data);
+    return data.session;
   }
 
   async function loginUser() {
@@ -729,56 +579,29 @@
     const user = val("u-user").trim().toLowerCase();
     const pass = val("u-pass");
     if (blank(invite) || blank(user) || blank(pass)) throw new Error("Completa código, usuario y clave.");
-    const org = await pullOrg(invite);
-    const rec = (org.users || []).find((u) => u.user === user);
-    if (!rec) throw new Error("No hay una solicitud con ese usuario. Pide acceso primero.");
-    const hash = await hashPass(org.code, user, pass);
-    if (rec.pass !== hash) throw new Error("Usuario o clave incorrectos.");
-    saveSession({
-      role: "user",
-      companyCode: org.code,
-      blobId: org.blobId || "",
-      userId: rec.id,
-      user: user,
-      name: rec.name,
-      status: rec.status,
+    const data = await w.MEC_API.login({
+      username: user,
+      password: pass,
+      companyCode: parseInvite(invite).code,
     });
-    if (rec.status === "rejected") throw new Error("El administrador rechazó tu acceso.");
-    if (rec.status !== "approved") throw new Error("PENDING");
-    applyOrgToSettings(org, rec.name);
-    return rec;
+    applyApiAuth(data);
+    if (data.session && data.session.status === "rejected") throw new Error("El administrador rechazó tu acceso.");
+    if (data.pending || (data.session && data.session.status !== "approved")) throw new Error("PENDING");
+    return data.session;
   }
 
   async function refreshUser() {
-    const sess = loadSession();
-    if (!sess || !sess.blobId && !sess.companyCode) throw new Error("No hay solicitud.");
-    const org = await pullOrg(sess.blobId || inviteOf(findLocalOrg(sess.companyCode)) || sess.companyCode);
-    const rec = (org.users || []).find((u) => u.id === sess.userId || u.user === sess.user);
-    if (!rec) throw new Error("El administrador no tiene tu solicitud. Vuelve a pedir acceso.");
-    sess.status = rec.status;
-    sess.name = rec.name;
-    sess.blobId = org.blobId || sess.blobId;
-    saveSession(sess);
-    if (rec.status === "approved") applyOrgToSettings(org, rec.name);
+    const data = await w.MEC_API.me();
+    applyApiAuth(data);
+    const rec = data.session || {};
+    if (rec.status === "rejected") throw new Error("El administrador rechazó tu acceso.");
     return rec;
   }
 
   async function setUserStatus(userId, status) {
-    const sess = loadSession();
-    if (!sess || sess.role !== "admin") throw new Error("Solo el administrador puede autorizar.");
-    let org = findLocalOrg(sess.companyCode || sess.blobId);
-    if (org && org.blobId) {
-      try {
-        org = await pullOrg(org.blobId);
-      } catch (e) {}
-    }
-    if (!org) throw new Error("No hay empresa.");
-    const rec = (org.users || []).find((u) => u.id === userId);
-    if (!rec) throw new Error("Usuario no encontrado.");
-    rec.status = status;
-    rec.decidedAt = nowISO();
-    await pushOrg(org);
-    return rec;
+    const data = status === "approved" ? await w.MEC_API.approveUser(userId) : await w.MEC_API.rejectUser(userId);
+    if (data.company) upsertOrg(data.company);
+    return data.user;
   }
 
   w.MEC_AUTH = {
@@ -801,6 +624,7 @@
     refreshUser: refreshUser,
     setUserStatus: setUserStatus,
     applyOrgToSettings: applyOrgToSettings,
+    applyApiAuth: applyApiAuth,
     pullOrg: pullOrg,
     pushOrg: pushOrg,
     val: val,
