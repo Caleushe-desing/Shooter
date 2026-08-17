@@ -549,6 +549,15 @@
     location.hash = path;
   }
 
+  function needInspect() {
+    const A = window.MEC_AUTH;
+    if (A && A.canInspect()) return true;
+    const s = A && A.loadSession();
+    if (s && s.role === "user" && s.status !== "approved") go("#/usuario");
+    else go("#/");
+    return false;
+  }
+
   window.addEventListener("hashchange", () => {
     route();
   });
@@ -587,7 +596,48 @@
       render();
       return;
     }
+    const A = window.MEC_AUTH;
+    if (A) A.authState.msg = A.authState.msg || "";
+    if (p[0] === "admin") {
+      if (A) {
+        A.authState.tab = p[1] === "registro" ? "registro" : "entrar";
+        if (p[1] === "equipo") {
+          if (!A.isAdmin()) {
+            go("#/admin");
+            return;
+          }
+          state.view = "team";
+          render();
+          return;
+        }
+      }
+      state.view = "admin";
+      render();
+      return;
+    }
+    if (p[0] === "usuario") {
+      if (A) A.authState.tab = p[1] === "registro" ? "registro" : "entrar";
+      state.view = "user";
+      render();
+      return;
+    }
+    if (p[0] === "unirse") {
+      if (A) {
+        A.authState.tab = "registro";
+        A.authState.joinBlob = decodeURIComponent(p[1] || "");
+        A.authState.joinCode = A.authState.joinBlob;
+      }
+      state.view = "user";
+      render();
+      return;
+    }
+    if (p[0] === "bienvenida" || p.length === 0 || p[0] === "inicio") {
+      state.view = "landing";
+      render();
+      return;
+    }
     if (p[0] === "nuevo") {
+      if (!needInspect()) return;
       if (!settingsComplete()) {
         alert("Primero completa los datos de la empresa, incluido el logo.");
         go("#/ajustes");
@@ -601,6 +651,7 @@
       return;
     }
     if (p[0] === "tipos") {
+      if (!needInspect()) return;
       if (!settingsComplete()) {
         alert("Primero completa los datos de la empresa, incluido el logo.");
         go("#/ajustes");
@@ -611,13 +662,26 @@
       return;
     }
     if (p[0] === "historial") {
+      if (!needInspect()) return;
       state.view = "history";
       render();
       return;
     }
     if (p[0] === "ajustes") {
+      if (!needInspect()) return;
+      if (A && !A.isAdmin()) {
+        alert("Solo el administrador edita los datos de la empresa.");
+        go("#/app");
+        return;
+      }
       state.editSettings = Object.assign({}, loadSettings());
       state.view = "settings";
+      render();
+      return;
+    }
+    if (p[0] === "app") {
+      if (!needInspect()) return;
+      state.view = "home";
       render();
       return;
     }
@@ -634,7 +698,7 @@
       afterQr();
       return;
     }
-    state.view = "home";
+    state.view = "landing";
     render();
   }
 
@@ -652,6 +716,8 @@
   function home() {
     const s = loadSettings();
     const n = loadReports().length;
+    const A = window.MEC_AUTH;
+    const sess = A && A.loadSession();
     return (
       '<header class="top">' +
       (s.logo
@@ -661,6 +727,7 @@
       APP_NAME +
       '</h1><div class="sub">' +
       escapeHtml(s.company || "Completa los datos de la empresa") +
+      (sess ? " · " + escapeHtml(sess.name || sess.user || "") : "") +
       "</div></div></header>" +
       '<div class="hero"><p>Elige qué vas a revisar, marca los checks y al final saca fotos del equipo. Se firma en el celular y se comparte con un QR.</p></div>' +
       '<div class="wrap">' +
@@ -669,14 +736,19 @@
       '<button class="btn ghost" data-go="#/historial">Historial (' +
       n +
       ")</button>" +
-      '<button class="btn ghost" data-go="#/ajustes">Datos de la empresa' +
-      (settingsComplete() ? "" : " (obligatorio)") +
-      "</button>" +
+      (A && A.isAdmin()
+        ? '<button class="btn ghost" data-go="#/admin/equipo">Autorizar usuarios</button>' +
+          '<button class="btn ghost" data-go="#/ajustes">Datos de la empresa' +
+          (settingsComplete() ? "" : " (obligatorio)") +
+          "</button>"
+        : "") +
+      '<button class="btn ghost" data-go="#/">Web de bienvenida</button>' +
+      '<button class="btn ghost" id="logout">Cerrar sesión</button>' +
       "</div>" +
       (settingsComplete()
         ? ""
         : '<p class="banner-bad">Completa nombre, RUT, sucursal, inspector y el logo de la empresa antes de inspeccionar.</p>') +
-      '<p class="note">Las inspecciones quedan en la memoria de <b>este navegador</b>, en este celular. No hay cuenta en la nube: si borras los datos del sitio, usas otro teléfono u otro explorador, el historial no aparece. El QR sirve para mostrar esa ficha a otra persona.</p>' +
+      '<p class="note">Las inspecciones quedan en la memoria de <b>este navegador</b>, en este celular. El administrador de la empresa autoriza quién puede entrar.</p>' +
       '<p class="note">Bitácora de apoyo. No reemplaza certificaciones ni fiscalizaciones oficiales.</p>' +
       "</div>"
     );
@@ -692,7 +764,7 @@
       if (!groups.includes(t.group)) groups.push(t.group);
     });
     let html =
-      topBar("Qué se inspecciona", "#/") +
+      topBar("Qué se inspecciona", "#/app") +
       '<div class="wrap"><input class="search" id="q" placeholder="Buscar…" value="' +
       escapeHtml(state.filter) +
       '">';
@@ -1078,7 +1150,7 @@
 
   function historyView() {
     const rows = loadReports();
-    let html = topBar("Historial", "#/") + '<div class="wrap">';
+    let html = topBar("Historial", "#/app") + '<div class="wrap">';
     if (!rows.length) html += '<p class="empty">Aún no hay inspecciones en este navegador. Quedan guardadas solo en este celular.</p>';
     rows.forEach((r) => {
       html +=
@@ -1109,7 +1181,7 @@
     if (!state.editSettings) state.editSettings = Object.assign({}, loadSettings());
     const s = state.editSettings;
     return (
-      topBar("Empresa", "#/") +
+      topBar("Empresa", "#/app") +
       '<div class="wrap"><div class="card">' +
       "<p class=\"note\">Todos los datos son obligatorios, incluido el logo. Aparece en el documento final.</p>" +
       "<label>" +
@@ -1148,7 +1220,7 @@
 
   function qrView() {
     const r = state.report;
-    if (!r) return topBar("QR", "#/") + '<div class="wrap"><p class="empty">No hay ficha.</p></div>';
+    if (!r) return topBar("QR", "#/app") + '<div class="wrap"><p class="empty">No hay ficha.</p></div>';
     const link = shareUrl(r);
     return (
       topBar("Ficha y QR", "#/historial") +
@@ -1229,7 +1301,7 @@
 
   function printView() {
     const r = state.report;
-    const back = r ? "#/local/" + encodeURIComponent(r.id) : "#/";
+    const back = r ? "#/local/" + encodeURIComponent(r.id) : "#/app";
     if (!r) {
       return topBar("PDF carta", back) + '<div class="wrap"><p class="empty">No hay ficha para exportar.</p></div>';
     }
@@ -1270,7 +1342,7 @@
 
   function viewPane(title, r, err) {
     return (
-      topBar(title, "#/") +
+      topBar(title, "#/app") +
       '<div class="wrap">' +
       (err ? '<div class="banner-bad">' + escapeHtml(err) + "</div>" : "") +
       (r
@@ -1288,7 +1360,15 @@
   }
 
   function render() {
-    if (state.view === "types") $app.innerHTML = typesView();
+    if ($app) {
+      $app.classList.toggle("wide", state.view === "landing");
+    }
+    const A = window.MEC_AUTH;
+    if (state.view === "landing") $app.innerHTML = A ? A.landingView() : home();
+    else if (state.view === "admin") $app.innerHTML = A ? A.adminView() : "";
+    else if (state.view === "user") $app.innerHTML = A ? A.userView() : "";
+    else if (state.view === "team") $app.innerHTML = A ? A.teamView() : "";
+    else if (state.view === "types") $app.innerHTML = typesView();
     else if (state.view === "form") $app.innerHTML = formView();
     else if (state.view === "history") $app.innerHTML = historyView();
     else if (state.view === "settings") $app.innerHTML = settingsView();
@@ -1383,7 +1463,20 @@
           inspector: s.inspector.trim(),
           logo: s.logo,
         });
-        go("#/");
+        const A = window.MEC_AUTH;
+        if (A && A.isAdmin()) {
+          const sess = A.loadSession();
+          const org = sess ? A.findLocalOrg(sess.companyCode || sess.blobId) : null;
+          if (org) {
+            org.company = s.company.trim();
+            org.rut = s.rut.trim();
+            org.branch = s.branch.trim();
+            org.logo = s.logo;
+            if (org.admin) org.admin.name = s.inspector.trim();
+            A.pushOrg(org).catch(function () {});
+          }
+        }
+        go("#/app");
       };
     const save = document.getElementById("save");
     if (save)
@@ -1435,6 +1528,176 @@
         state.draft = null;
         go("#/qr/" + d.id);
       };
+    afterAuth();
+  }
+
+  function afterAuth() {
+    const A = window.MEC_AUTH;
+    const logout = document.getElementById("logout");
+    if (logout)
+      logout.onclick = () => {
+        if (A) A.clearSession();
+        go("#/");
+      };
+    if (!A) return;
+    const fail = (e) => {
+      A.authState.busy = false;
+      if (e && e.message === "PENDING") {
+        go("#/usuario");
+        return;
+      }
+      A.authState.msg = (e && e.message) || "No se pudo completar.";
+      render();
+    };
+    const lock = (btn, label) => {
+      if (!btn) return;
+      btn.disabled = true;
+      btn.textContent = label;
+    };
+    const aLogo = document.getElementById("a-logo");
+    if (aLogo)
+      aLogo.onchange = async () => {
+        const f = aLogo.files && aLogo.files[0];
+        if (!f) return;
+        try {
+          A.authState.logo = await compressImage(f, 480, 0.84);
+        } catch (err) {
+          alert("No se pudo leer el logo.");
+          return;
+        }
+        render();
+      };
+    const aReg = document.getElementById("a-register");
+    if (aReg)
+      aReg.onclick = async () => {
+        A.authState.msg = "";
+        lock(aReg, "Creando…");
+        try {
+          await A.registerAdmin(compressImage);
+          A.authState.busy = false;
+          go("#/app");
+        } catch (e) {
+          fail(e);
+        }
+      };
+    const aLogin = document.getElementById("a-login");
+    if (aLogin)
+      aLogin.onclick = async () => {
+        A.authState.msg = "";
+        lock(aLogin, "Entrando…");
+        try {
+          await A.loginAdmin();
+          A.authState.busy = false;
+          go("#/app");
+        } catch (e) {
+          fail(e);
+        }
+      };
+    const uReg = document.getElementById("u-register");
+    if (uReg)
+      uReg.onclick = async () => {
+        A.authState.msg = "";
+        lock(uReg, "Enviando…");
+        try {
+          await A.registerUser();
+          A.authState.busy = false;
+          go("#/usuario");
+        } catch (e) {
+          fail(e);
+        }
+      };
+    const uLogin = document.getElementById("u-login");
+    if (uLogin)
+      uLogin.onclick = async () => {
+        A.authState.msg = "";
+        lock(uLogin, "Entrando…");
+        try {
+          await A.loginUser();
+          A.authState.busy = false;
+          go("#/app");
+        } catch (e) {
+          fail(e);
+        }
+      };
+    const uRef = document.getElementById("u-refresh");
+    if (uRef)
+      uRef.onclick = async () => {
+        A.authState.msg = "";
+        lock(uRef, "Consultando…");
+        try {
+          const rec = await A.refreshUser();
+          A.authState.busy = false;
+          if (rec.status === "approved") go("#/app");
+          else if (rec.status === "rejected") {
+            A.authState.msg = "El administrador rechazó tu acceso.";
+            render();
+          } else {
+            A.authState.msg = "";
+            render();
+            alert("Todavía está pendiente. Pide al admin que te autorice.");
+          }
+        } catch (e) {
+          fail(e);
+        }
+      };
+    const copyInv = document.getElementById("copy-invite");
+    if (copyInv)
+      copyInv.onclick = async () => {
+        const inp = document.getElementById("org-invite");
+        const text = inp ? inp.value : "";
+        try {
+          await navigator.clipboard.writeText(text);
+          copyInv.textContent = "Código copiado";
+        } catch (e) {
+          prompt("Copia el código de empresa:", text);
+        }
+      };
+    const teamRef = document.getElementById("team-refresh");
+    if (teamRef)
+      teamRef.onclick = async () => {
+        const sess = A.loadSession();
+        if (!sess) return;
+        teamRef.disabled = true;
+        try {
+          await A.pullOrg(sess.blobId || sess.companyCode);
+          render();
+        } catch (e) {
+          alert((e && e.message) || "No se pudo actualizar.");
+          teamRef.disabled = false;
+        }
+      };
+    const joinQr = document.getElementById("join-qr");
+    if (joinQr && joinQr.getAttribute("data-join")) drawQr(joinQr, joinQr.getAttribute("data-join"));
+    $app.querySelectorAll("[data-approve]").forEach((btn) => {
+      btn.onclick = async () => {
+        try {
+          await A.setUserStatus(btn.getAttribute("data-approve"), "approved");
+          render();
+        } catch (e) {
+          alert((e && e.message) || "No se pudo autorizar.");
+        }
+      };
+    });
+    $app.querySelectorAll("[data-reject]").forEach((btn) => {
+      btn.onclick = async () => {
+        try {
+          await A.setUserStatus(btn.getAttribute("data-reject"), "rejected");
+          render();
+        } catch (e) {
+          alert((e && e.message) || "No se pudo rechazar.");
+        }
+      };
+    });
+    ["a-pass", "a-pass2", "a-user", "u-pass", "u-user", "u-invite"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.onkeydown = (e) => {
+        if (e.key !== "Enter") return;
+        e.preventDefault();
+        const btn = document.getElementById("a-login") || document.getElementById("a-register") || document.getElementById("u-login") || document.getElementById("u-register");
+        if (btn) btn.click();
+      };
+    });
   }
 
   function boot() {

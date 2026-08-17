@@ -345,6 +345,177 @@ textarea { min-height: 72px; resize: vertical; }
 
 .note { font-size: 12px; color: var(--muted); margin-top: 8px; }
 
+/* Bienvenida y acceso */
+#app.wide { max-width: 840px; }
+.lp { padding-bottom: 40px; }
+.lp-hero {
+  background: var(--steel);
+  color: #fff;
+  padding: 28px var(--pad) 32px;
+  position: relative;
+  overflow: hidden;
+}
+.lp-hero-inner { position: relative; z-index: 1; }
+.lp-hero::after {
+  content: "";
+  position: absolute;
+  right: -30px;
+  top: -48px;
+  width: 160px;
+  height: 160px;
+  background: var(--yellow);
+  border-radius: 36px;
+  transform: rotate(22deg);
+  opacity: 0.95;
+}
+.lp-mark {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  display: block;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow);
+}
+.lp-kicker {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--yellow);
+  margin-bottom: 6px;
+}
+.lp-hero h1 {
+  font-size: 28px;
+  line-height: 1.15;
+  max-width: 14ch;
+  margin-bottom: 10px;
+}
+.lp-lead {
+  color: #d5dae0;
+  font-size: 15px;
+  line-height: 1.45;
+  max-width: 36rem;
+}
+.lp-lead b { color: #fff; }
+.lp-cta { display: grid; gap: 8px; margin-top: 20px; }
+.lp-cta-user { background: #fff; }
+.lp-wait {
+  margin-top: 14px;
+  background: #3a424e;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+}
+.lp-strip {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0;
+  height: 72px;
+  overflow: hidden;
+  background: #1a2027;
+}
+.lp-strip-img {
+  width: 100%;
+  height: 72px;
+  object-fit: cover;
+  filter: saturate(0.9);
+}
+.lp-body { padding: 22px var(--pad) 8px; }
+.lp-body h2 { font-size: 20px; margin: 8px 0 8px; }
+.lp-intro { color: var(--muted); margin-bottom: 16px; }
+.lp-features { display: grid; gap: 12px; margin-bottom: 28px; }
+.lp-card {
+  background: #fff;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.lp-card-img {
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+  display: block;
+  background: #dfe3e8;
+}
+.lp-card > div { padding: 12px 14px 16px; }
+.lp-n {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #8a6a00;
+}
+.lp-card h3 { font-size: 17px; margin: 2px 0 6px; }
+.lp-card p { font-size: 14px; color: var(--muted); }
+.lp-access {
+  display: grid;
+  gap: 12px;
+  margin: 12px 0 16px;
+}
+.lp-access-col {
+  background: #fff;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px;
+}
+.lp-access-col h3 { margin-bottom: 6px; }
+.lp-access-col p { font-size: 14px; color: var(--muted); margin-bottom: 8px; }
+.lp-access-col ul {
+  margin: 0 0 14px 18px;
+  color: var(--ink);
+  font-size: 14px;
+}
+.lp-access-col li { margin: 4px 0; }
+.lp-steps { display: grid; gap: 10px; margin: 8px 0 24px; }
+.lp-step {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  gap: 12px;
+  align-items: center;
+  background: #fff;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.lp-step-img {
+  width: 92px;
+  height: 92px;
+  object-fit: cover;
+  display: block;
+  background: #dfe3e8;
+}
+.lp-step h3 { font-size: 16px; margin: 2px 0 4px; }
+.lp-step p { font-size: 13px; color: var(--muted); padding-right: 10px; }
+.auth-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.auth-tabs button {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 10px;
+  padding: 10px;
+  font-weight: 750;
+  min-height: 44px;
+}
+.auth-tabs button.on {
+  background: var(--steel);
+  color: #fff;
+  border-color: var(--steel);
+}
+.team-row b { display: block; }
+a { color: #1a4a8a; }
+
+@media (min-width: 640px) {
+  .lp-features { grid-template-columns: 1fr 1fr; }
+  .lp-access { grid-template-columns: 1fr 1fr; }
+  .lp-strip { height: 96px; }
+  .lp-strip-img { height: 96px; }
+  .lp-card-img { height: 170px; }
+}
+
 .letter-page {
   max-width: 8.5in;
   margin: 16px auto 32px;
@@ -972,6 +1143,817 @@ window.MEC_VERDICTS = [
 
   </script>
   <script>
+/* Bienvenida, cuentas de empresa y autorización de usuarios */
+(function (w) {
+  "use strict";
+
+  const BLOB = "https://jsonblob.com/api/jsonBlob";
+  const ORG_STORE = "meccheck-orgs-v1";
+  const SESS = "meccheck-session-v1";
+  const SETTINGS = "meccheck-settings-v1";
+
+  const authState = {
+    tab: "entrar",
+    msg: "",
+    busy: false,
+    joinBlob: "",
+    joinCode: "",
+    logo: "",
+  };
+
+  function escapeHtml(s) {
+    return String(s || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+  function blank(s) {
+    return !String(s || "").trim();
+  }
+  function nowISO() {
+    return new Date().toISOString();
+  }
+  function uid(prefix) {
+    return (prefix || "U") + "-" + Math.random().toString(36).slice(2, 8).toUpperCase();
+  }
+  function makeCode() {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let s = "";
+    for (let i = 0; i < 6; i++) s += chars[Math.floor(Math.random() * chars.length)];
+    return s;
+  }
+  function asset(file) {
+    return (w.MEC_ASSET_BASE || w.MEC_CDN || "") + file;
+  }
+  function eqSrc(id) {
+    return asset("img/equipos/" + id + ".jpg");
+  }
+
+  function loadOrgs() {
+    try {
+      const list = JSON.parse(localStorage.getItem(ORG_STORE) || "[]");
+      return Array.isArray(list) ? list : [];
+    } catch (e) {
+      return [];
+    }
+  }
+  function saveOrgs(list) {
+    localStorage.setItem(ORG_STORE, JSON.stringify(list));
+  }
+  function upsertOrg(org) {
+    const list = loadOrgs().filter((o) => o.code !== org.code && o.blobId !== org.blobId);
+    list.unshift(org);
+    saveOrgs(list.slice(0, 30));
+    return org;
+  }
+  function findLocalOrg(codeOrBlob) {
+    const q = String(codeOrBlob || "").trim();
+    if (!q) return null;
+    return (
+      loadOrgs().find(
+        (o) =>
+          o.code === q.toUpperCase() ||
+          o.blobId === q ||
+          inviteOf(o) === q ||
+          (o.code && q.toUpperCase().indexOf(o.code) === 0)
+      ) || null
+    );
+  }
+  function inviteOf(org) {
+    if (!org) return "";
+    if (org.blobId) return org.code + "." + org.blobId;
+    return org.code || "";
+  }
+  function joinHref(org) {
+    const origin = location.origin && location.origin !== "null" ? location.origin : "";
+    const path = location.pathname || "";
+    const base = origin + path;
+    if (org && org.blobId) return base + "#/unirse/" + org.blobId;
+    return base + "#/usuario/registro";
+  }
+  function parseInvite(raw) {
+    const t = String(raw || "").trim();
+    if (!t) return { code: "", blobId: "" };
+    if (t.indexOf(".") >= 0) {
+      const i = t.indexOf(".");
+      return { code: t.slice(0, i).toUpperCase(), blobId: t.slice(i + 1) };
+    }
+    if (/^[0-9a-f-]{20,}$/i.test(t)) return { code: "", blobId: t };
+    return { code: t.toUpperCase(), blobId: "" };
+  }
+
+  function loadSession() {
+    try {
+      return JSON.parse(localStorage.getItem(SESS) || "null");
+    } catch (e) {
+      return null;
+    }
+  }
+  function saveSession(s) {
+    if (!s) localStorage.removeItem(SESS);
+    else localStorage.setItem(SESS, JSON.stringify(s));
+  }
+  function clearSession() {
+    localStorage.removeItem(SESS);
+  }
+  function isAdmin() {
+    const s = loadSession();
+    return !!(s && s.role === "admin");
+  }
+  function canInspect() {
+    const s = loadSession();
+    if (!s) return false;
+    if (s.role === "admin") return true;
+    return s.role === "user" && s.status === "approved";
+  }
+
+  async function hashPass(salt, user, pass) {
+    const msg = String(salt || "") + "\n" + String(user || "").trim().toLowerCase() + "\n" + String(pass || "");
+    if (w.crypto && w.crypto.subtle) {
+      const buf = await w.crypto.subtle.digest("SHA-256", new TextEncoder().encode(msg));
+      return Array.from(new Uint8Array(buf))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+    }
+    let h = 2166136261;
+    for (let i = 0; i < msg.length; i++) {
+      h ^= msg.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return "x" + (h >>> 0).toString(16);
+  }
+
+  async function postBlob(data) {
+    const res = await fetch(BLOB, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error("No se pudo registrar la empresa en línea (" + res.status + ")");
+    const loc = res.headers.get("Location") || res.headers.get("location") || res.headers.get("X-jsonblob") || "";
+    let id = loc ? String(loc).split("/").pop() : "";
+    if (!id) {
+      try {
+        const body = await res.json();
+        id = body.id || body.blobId || "";
+      } catch (e) {}
+    }
+    if (!id) throw new Error("El servidor no devolvió el código de empresa");
+    return id;
+  }
+  async function getBlob(id) {
+    const res = await fetch(BLOB + "/" + id, { headers: { Accept: "application/json" } });
+    if (!res.ok) throw new Error("No se encontró esa empresa. Revisa el código.");
+    return res.json();
+  }
+  async function putBlob(id, data) {
+    const res = await fetch(BLOB + "/" + id, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error("No se pudo actualizar la empresa (" + res.status + ")");
+    return true;
+  }
+  function orgForNet(org) {
+    const o = JSON.parse(JSON.stringify(org));
+    if (o.logo && o.logo.length > 160000) o.logo = "";
+    return o;
+  }
+  async function pullOrg(codeOrBlob) {
+    const parsed = parseInvite(codeOrBlob);
+    let org = findLocalOrg(parsed.code || parsed.blobId || codeOrBlob);
+    const blobId = parsed.blobId || (org && org.blobId) || "";
+    if (blobId) {
+      try {
+        const remote = await getBlob(blobId);
+        if (remote && remote.code) {
+          remote.blobId = blobId;
+          org = upsertOrg(remote);
+        }
+      } catch (e) {
+        if (!org) throw e;
+      }
+    }
+    if (!org && parsed.code) org = findLocalOrg(parsed.code);
+    if (!org) throw new Error("No encontramos esa empresa. Pide al administrador el código o el QR de acceso.");
+    return org;
+  }
+  async function pushOrg(org) {
+    upsertOrg(org);
+    org.updatedAt = nowISO();
+    try {
+      if (!org.blobId) org.blobId = await postBlob(orgForNet(org));
+      else await putBlob(org.blobId, orgForNet(org));
+    } catch (e) {
+      upsertOrg(org);
+      throw e;
+    }
+    upsertOrg(org);
+    return org;
+  }
+
+  function applyOrgToSettings(org, inspector) {
+    const cur = (() => {
+      try {
+        return JSON.parse(localStorage.getItem(SETTINGS) || "{}");
+      } catch (e) {
+        return {};
+      }
+    })();
+    const next = {
+      company: org.company || "",
+      rut: org.rut || "",
+      branch: org.branch || "",
+      inspector: inspector || cur.inspector || (org.admin && org.admin.name) || "",
+      logo: org.logo || cur.logo || "",
+    };
+    localStorage.setItem(SETTINGS, JSON.stringify(next));
+    return next;
+  }
+
+  function existingSettings() {
+    try {
+      return Object.assign(
+        { company: "", rut: "", branch: "", inspector: "", logo: "" },
+        JSON.parse(localStorage.getItem(SETTINGS) || "{}")
+      );
+    } catch (e) {
+      return { company: "", rut: "", branch: "", inspector: "", logo: "" };
+    }
+  }
+
+  function brandSvg(cls) {
+    return (
+      '<svg class="' +
+      (cls || "brand-logo") +
+      '" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" aria-hidden="true">' +
+      '<rect width="64" height="64" rx="16" fill="#1a2027"/>' +
+      '<path d="M16 0h32a16 16 0 0 1 16 16v6H0V16A16 16 0 0 1 16 0z" fill="#f5c400"/>' +
+      '<rect x="16.5" y="22" width="31" height="32" rx="4.5" fill="#fffef8"/>' +
+      '<rect x="26" y="17.5" width="12" height="8" rx="2.2" fill="#f5c400"/>' +
+      '<circle cx="44.5" cy="46.5" r="8.6" fill="#1b8f4e"/>' +
+      '<path d="M40.2 46.6l2.8 2.9 6.2-7.2" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>' +
+      "</svg>"
+    );
+  }
+
+  function photo(id, alt, cls) {
+    return (
+      '<img class="' +
+      (cls || "") +
+      '" src="' +
+      eqSrc(id) +
+      '" alt="' +
+      escapeHtml(alt) +
+      '" loading="lazy" onerror="window.mecImgFb&&window.mecImgFb(this)">'
+    );
+  }
+  function step(id, num, title, text) {
+    return (
+      '<article class="lp-step">' +
+      photo(id, title, "lp-step-img") +
+      "<div><span class=\"lp-n\">Paso " +
+      num +
+      "</span><h3>" +
+      escapeHtml(title) +
+      "</h3><p>" +
+      escapeHtml(text) +
+      "</p></div></article>"
+    );
+  }
+
+  function landingView() {
+    const sess = loadSession();
+    return (
+      '<div class="lp">' +
+      '<section class="lp-hero">' +
+      '<div class="lp-hero-inner">' +
+      brandSvg("lp-mark") +
+      "<p class=\"lp-kicker\">Inspecciones en terreno</p>" +
+      "<h1>Check list Técnico</h1>" +
+      "<p class=\"lp-lead\">Elige el equipo, marca cada punto, saca fotos, firmen en el celular y sal con un <b>PDF carta</b> y un <b>QR</b> de la ficha.</p>" +
+      '<div class="lp-cta">' +
+      '<button class="btn" data-go="#/admin">Ingreso administrador</button>' +
+      '<button class="btn ghost lp-cta-user" data-go="#/usuario">Ingreso usuarios</button>' +
+      "</div>" +
+      (sess && canInspect()
+        ? '<button class="btn steel" data-go="#/app">Ir a mis inspecciones</button>'
+        : sess && sess.status === "pending"
+          ? '<p class="lp-wait">Tu solicitud sigue pendiente. El administrador de la empresa debe autorizarte.</p>'
+          : "") +
+      "</div></section>" +
+      '<div class="lp-strip">' +
+      photo("escalera-tijera", "Escalera tijera", "lp-strip-img") +
+      photo("alza-hombre", "Alza hombre", "lp-strip-img") +
+      photo("soldadora", "Soldadora", "lp-strip-img") +
+      photo("extintor", "Extintor", "lp-strip-img") +
+      photo("compresor", "Compresor", "lp-strip-img") +
+      photo("arnes", "Arnés", "lp-strip-img") +
+      "</div>" +
+      '<div class="lp-body">' +
+      "<h2>Qué hace la app</h2>" +
+      '<p class="lp-intro">Es una bitácora de inspección para el celular. Sirve para el check del día en terreno: no reemplaza certificaciones ni fiscalizaciones oficiales.</p>' +
+      "<h2>Cómo se usa</h2>" +
+      '<div class="lp-steps">' +
+      step("escalera-tijera", "1", "Elige el equipo", "Buscas en el catálogo (escalera, alza hombre, tecle, soldadora, EPP…) y abres el check de ese tipo.") +
+      step("andamio", "2", "Marca cada punto", "OK, falla o no aplica. Si hay falla, escribes qué viste. No se puede guardar a medias.") +
+      step("generador", "3", "Saca fotos", "Al final del listado abres la cámara y dejas al menos una foto real del equipo.") +
+      step("eslingas", "4", "Firman en pantalla", "Inspector y supervisor firman con el dedo. El logo de la empresa va en la ficha.") +
+      step("extintor", "5", "PDF carta y QR", "Exportas en formato carta (8,5 × 11) o compartes un QR para que otro celular vea la misma ficha.") +
+      "</div>" +
+      "<h2>Qué incluye</h2>" +
+      '<div class="lp-features">' +
+      '<article class="lp-card">' +
+      photo("plataforma-tijera", "Plataforma tijera", "lp-card-img") +
+      "<div><span class=\"lp-n\">01</span><h3>Catálogo de equipos</h3><p>Escaleras, alza hombre, tecle, soldadora, EPP y más. Cada tipo trae su foto y sus puntos de control.</p></div></article>" +
+      '<article class="lp-card">' +
+      photo("tecle-cadena", "Tecle de cadena", "lp-card-img") +
+      "<div><span class=\"lp-n\">02</span><h3>Check punto a punto</h3><p>Marca OK, falla o N/A. Si hay falla, anotas el detalle. Todos los campos van obligatorios.</p></div></article>" +
+      '<article class="lp-card">' +
+      photo("camioneta", "Camioneta de servicio", "lp-card-img") +
+      "<div><span class=\"lp-n\">03</span><h3>Fotos del equipo</h3><p>Al final del check sacas fotos con la cámara. Quedan en la ficha junto al logo de la empresa.</p></div></article>" +
+      '<article class="lp-card">' +
+      photo("epp", "Elementos de protección", "lp-card-img") +
+      "<div><span class=\"lp-n\">04</span><h3>Firma, QR y PDF carta</h3><p>Firman inspector y supervisor en pantalla. Compartes la ficha con un QR o la exportas en formato carta (8,5 × 11).</p></div></article>" +
+      "</div>" +
+      "<h2>Cómo se entra</h2>" +
+      '<div class="lp-access">' +
+      '<div class="lp-access-col">' +
+      "<h3>Administrador</h3>" +
+      "<p>Registra la empresa (nombre, RUT, sucursal y logo). Recibe un <b>código de empresa</b> y autoriza a cada inspector.</p>" +
+      '<ul><li>Crea la cuenta de la empresa</li><li>Comparte el código o el QR</li><li>Aprueba o rechaza solicitudes</li></ul>' +
+      '<button class="btn" data-go="#/admin">Entrar como admin</button>' +
+      "</div>" +
+      '<div class="lp-access-col">' +
+      "<h3>Usuarios</h3>" +
+      "<p>Pides acceso con el código que te da tu empresa. <b>No entras al check hasta que el administrador te autorice.</b></p>" +
+      '<ul><li>Solicitas acceso con tu nombre</li><li>Esperas la autorización</li><li>Haces inspecciones en tu celular</li></ul>' +
+      '<button class="btn ghost" data-go="#/usuario">Entrar como usuario</button>' +
+      "</div></div>" +
+      '<p class="note">Las inspecciones de cada persona quedan en la memoria de <b>su</b> navegador. El registro de la empresa (quién está autorizado) se sincroniza cuando hay internet.</p>' +
+      "</div></div>"
+    );
+  }
+
+  function authShell(title, back, inner) {
+    return (
+      '<header class="top">' +
+      '<button class="back" data-go="' +
+      back +
+      '" aria-label="Volver">←</button>' +
+      "<div><h1>" +
+      escapeHtml(title) +
+      "</h1></div></header>" +
+      '<div class="wrap">' +
+      (authState.msg ? '<p class="banner-bad">' + escapeHtml(authState.msg) + "</p>" : "") +
+      inner +
+      "</div>"
+    );
+  }
+
+  function tabs(base, entrar, registro) {
+    const t = authState.tab;
+    return (
+      '<div class="auth-tabs">' +
+      '<button type="button" class="' +
+      (t === "entrar" ? "on" : "") +
+      '" data-go="' +
+      entrar +
+      '">Entrar</button>' +
+      '<button type="button" class="' +
+      (t === "registro" ? "on" : "") +
+      '" data-go="' +
+      registro +
+      '">Crear cuenta</button></div>'
+    );
+  }
+
+  function adminView() {
+    const t = authState.tab;
+    const pre = existingSettings();
+    if (t === "registro") {
+      return authShell(
+        "Administrador",
+        "#/",
+        tabs("#/admin", "#/admin", "#/admin/registro") +
+          '<div class="card">' +
+          "<p class=\"note\">Crea la empresa. Después autorizas a los inspectores que pidan acceso.</p>" +
+          "<label>Nombre o razón social <span class=\"req\">*</span></label>" +
+          '<input id="a-co" value="' +
+          escapeHtml(pre.company) +
+          '" autocomplete="organization">' +
+          "<label>RUT <span class=\"req\">*</span></label>" +
+          '<input id="a-rut" value="' +
+          escapeHtml(pre.rut) +
+          '">' +
+          "<label>Sucursal / lugar <span class=\"req\">*</span></label>" +
+          '<input id="a-br" value="' +
+          escapeHtml(pre.branch) +
+          '">' +
+          "<label>Logo de la empresa <span class=\"req\">*</span></label>" +
+          (authState.logo || pre.logo
+            ? '<div class="logo-preview"><img src="' + (authState.logo || pre.logo) + '" alt="Logo"></div>'
+            : '<p class="note">Obligatorio. Sale en el documento final.</p>') +
+          '<label class="btn ghost">Cargar logo<input id="a-logo" type="file" accept="image/*" hidden></label>' +
+          "<label>Tu nombre <span class=\"req\">*</span></label>" +
+          '<input id="a-name" value="' +
+          escapeHtml(pre.inspector) +
+          '" autocomplete="name">' +
+          "<label>Usuario <span class=\"req\">*</span></label>" +
+          '<input id="a-user" autocomplete="username" autocapitalize="none">' +
+          "<label>Clave <span class=\"req\">*</span></label>" +
+          '<input id="a-pass" type="password" autocomplete="new-password">' +
+          "<label>Repetir clave <span class=\"req\">*</span></label>" +
+          '<input id="a-pass2" type="password" autocomplete="new-password">' +
+          "</div>" +
+          '<button class="btn" id="a-register">' +
+          (authState.busy ? "Creando…" : "Registrar empresa") +
+          "</button>"
+      );
+    }
+    return authShell(
+      "Administrador",
+      "#/",
+      tabs("#/admin", "#/admin", "#/admin/registro") +
+        '<div class="card">' +
+        "<p class=\"note\">Entra con el usuario de la empresa. Si es otro celular, pega también el código de empresa.</p>" +
+        "<label>Código de empresa</label>" +
+        '<input id="a-invite" placeholder="Ej: K7M2PQ.xxxxxxxx" autocapitalize="none" autocomplete="off">' +
+        "<label>Usuario <span class=\"req\">*</span></label>" +
+        '<input id="a-user" autocomplete="username" autocapitalize="none">' +
+        "<label>Clave <span class=\"req\">*</span></label>" +
+        '<input id="a-pass" type="password" autocomplete="current-password">' +
+        "</div>" +
+        '<button class="btn" id="a-login">' +
+        (authState.busy ? "Entrando…" : "Entrar") +
+        "</button>" +
+        '<p class="note">¿Primera vez? <a href="#/admin/registro">Registra la empresa</a>.</p>'
+    );
+  }
+
+  function userView() {
+    const sess = loadSession();
+    if (sess && sess.role === "user" && sess.status === "pending") {
+      return authShell(
+        "Esperando autorización",
+        "#/",
+        '<div class="card">' +
+          "<p>Hola <b>" +
+          escapeHtml(sess.name) +
+          "</b>. Tu solicitud para <b>" +
+          escapeHtml(sess.companyCode) +
+          "</b> está en revisión.</p>" +
+          "<p class=\"note\">El administrador de tu empresa debe autorizarte en <b>Autorizar usuarios</b>.</p>" +
+          '<button class="btn" id="u-refresh">' +
+          (authState.busy ? "Consultando…" : "Ya me autorizaron — actualizar") +
+          "</button>" +
+          '<button class="btn ghost" id="logout" style="margin-top:8px">Salir</button>' +
+          "</div>"
+      );
+    }
+    const t = authState.tab;
+    if (t === "registro") {
+      return authShell(
+        "Usuario",
+        "#/",
+        tabs("#/usuario", "#/usuario", "#/usuario/registro") +
+          '<div class="card">' +
+          "<p class=\"note\">Pide acceso con el código que te dio el administrador. No podrás inspeccionar hasta que te autorice.</p>" +
+          "<label>Código de empresa <span class=\"req\">*</span></label>" +
+          '<input id="u-invite" value="' +
+          escapeHtml(authState.joinCode || (authState.joinBlob ? authState.joinBlob : "")) +
+          '" placeholder="Código o QR de la empresa" autocapitalize="none">' +
+          "<label>Tu nombre <span class=\"req\">*</span></label>" +
+          '<input id="u-name" autocomplete="name">' +
+          "<label>Usuario <span class=\"req\">*</span></label>" +
+          '<input id="u-user" autocomplete="username" autocapitalize="none">' +
+          "<label>Clave <span class=\"req\">*</span></label>" +
+          '<input id="u-pass" type="password" autocomplete="new-password">' +
+          "</div>" +
+          '<button class="btn" id="u-register">' +
+          (authState.busy ? "Enviando…" : "Solicitar acceso") +
+          "</button>"
+      );
+    }
+    return authShell(
+      "Usuario",
+      "#/",
+      tabs("#/usuario", "#/usuario", "#/usuario/registro") +
+        '<div class="card">' +
+        "<label>Código de empresa <span class=\"req\">*</span></label>" +
+        '<input id="u-invite" placeholder="El que te dio el admin" autocapitalize="none">' +
+        "<label>Usuario <span class=\"req\">*</span></label>" +
+        '<input id="u-user" autocomplete="username" autocapitalize="none">' +
+        "<label>Clave <span class=\"req\">*</span></label>" +
+        '<input id="u-pass" type="password" autocomplete="current-password">' +
+        "</div>" +
+        '<button class="btn" id="u-login">' +
+        (authState.busy ? "Entrando…" : "Entrar") +
+        "</button>" +
+        '<p class="note">¿Todavía no te dan acceso? <a href="#/usuario/registro">Solicítalo aquí</a>.</p>'
+    );
+  }
+
+  function teamView() {
+    const sess = loadSession();
+    const org = sess ? findLocalOrg(sess.companyCode || sess.blobId) : null;
+    if (!org) {
+      return authShell("Equipo", "#/app", '<p class="empty">No hay empresa en este celular.</p>');
+    }
+    const users = org.users || [];
+    const pending = users.filter((u) => u.status === "pending");
+    const ok = users.filter((u) => u.status === "approved");
+    const no = users.filter((u) => u.status === "rejected");
+    const invite = inviteOf(org);
+    let inner =
+      '<div class="card">' +
+      "<p class=\"note\">Comparte este código o el QR. Cada inspector solicita acceso y tú lo autorizas.</p>" +
+      '<div class="folio" id="org-code">' +
+      escapeHtml(org.code) +
+      "</div>" +
+      '<p class="note">Código completo (cópialo si el usuario está en otro celular):</p>' +
+      '<input id="org-invite" readonly value="' +
+      escapeHtml(invite) +
+      '">' +
+      '<div class="qrbox" style="margin-top:12px"><div id="join-qr" data-join="' +
+      escapeHtml(joinHref(org)) +
+      '"></div></div>' +
+      '<div class="actions"><button class="btn ghost" id="copy-invite">Copiar código</button>' +
+      '<button class="btn ghost" id="team-refresh">Actualizar lista</button></div>' +
+      "</div>" +
+      "<h3 style=\"margin:4px 0 8px\">Pendientes (" +
+      pending.length +
+      ")</h3>";
+    if (!pending.length) inner += '<p class="note">Nadie esperando autorización.</p>';
+    pending.forEach((u) => {
+      inner +=
+        '<div class="card team-row"><b>' +
+        escapeHtml(u.name) +
+        "</b><div class=\"note\">@" +
+        escapeHtml(u.user) +
+        "</div>" +
+        '<div class="actions" style="margin-top:8px">' +
+        '<button class="btn" data-approve="' +
+        escapeHtml(u.id) +
+        '">Autorizar</button>' +
+        '<button class="btn ghost" data-reject="' +
+        escapeHtml(u.id) +
+        '">Rechazar</button></div></div>';
+    });
+    inner += "<h3 style=\"margin:16px 0 8px\">Autorizados (" + ok.length + ")</h3>";
+    if (!ok.length) inner += '<p class="note">Aún no hay inspectores autorizados.</p>';
+    ok.forEach((u) => {
+      inner +=
+        '<div class="list-row" style="border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:8px;display:flex">' +
+        "<span style=\"flex:1\"><b>" +
+        escapeHtml(u.name) +
+        "</b><div class=\"note\">@" +
+        escapeHtml(u.user) +
+        '</div></span><button class="btn ghost" style="width:auto;padding:8px 12px" data-reject="' +
+        escapeHtml(u.id) +
+        '">Revocar</button></div>';
+    });
+    if (no.length) {
+      inner += "<h3 style=\"margin:16px 0 8px\">Rechazados</h3>";
+      no.forEach((u) => {
+        inner +=
+          '<p class="note">' +
+          escapeHtml(u.name) +
+          " · @" +
+          escapeHtml(u.user) +
+          ' <button class="btn ghost" style="width:auto;display:inline;padding:4px 8px" data-approve="' +
+          escapeHtml(u.id) +
+          '">Autorizar</button></p>';
+      });
+    }
+    return authShell("Autorizar usuarios", "#/app", inner);
+  }
+
+  function val(id) {
+    const el = document.getElementById(id);
+    return el ? el.value : "";
+  }
+
+  async function registerAdmin(compressImage) {
+    authState.msg = "";
+    const company = val("a-co").trim();
+    const rut = val("a-rut").trim();
+    const branch = val("a-br").trim();
+    const name = val("a-name").trim();
+    const user = val("a-user").trim().toLowerCase();
+    const pass = val("a-pass");
+    const pass2 = val("a-pass2");
+    const logo = authState.logo || existingSettings().logo || "";
+    if (blank(company) || blank(rut) || blank(branch) || blank(name) || blank(user) || blank(pass) || blank(logo)) {
+      throw new Error("Completa empresa, RUT, sucursal, logo, tu nombre, usuario y clave.");
+    }
+    if (pass.length < 4) throw new Error("La clave debe tener al menos 4 caracteres.");
+    if (pass !== pass2) throw new Error("Las claves no coinciden.");
+    const code = makeCode();
+    const passHash = await hashPass(code, user, pass);
+    const org = {
+      v: 2,
+      code: code,
+      blobId: "",
+      company: company,
+      rut: rut,
+      branch: branch,
+      logo: logo,
+      admin: { id: uid("A"), name: name, user: user, pass: passHash },
+      users: [],
+      createdAt: nowISO(),
+      updatedAt: nowISO(),
+    };
+    try {
+      await pushOrg(org);
+    } catch (e) {
+      upsertOrg(org);
+    }
+    applyOrgToSettings(org, name);
+    saveSession({
+      role: "admin",
+      companyCode: org.code,
+      blobId: org.blobId || "",
+      userId: org.admin.id,
+      user: user,
+      name: name,
+      status: "approved",
+    });
+    return org;
+  }
+
+  async function loginAdmin() {
+    authState.msg = "";
+    const invite = val("a-invite").trim();
+    const user = val("a-user").trim().toLowerCase();
+    const pass = val("a-pass");
+    if (blank(user) || blank(pass)) throw new Error("Ingresa usuario y clave.");
+    let org = null;
+    if (invite) org = await pullOrg(invite);
+    if (!org) {
+      const list = loadOrgs();
+      for (let i = 0; i < list.length; i++) {
+        const o = list[i];
+        if (o.admin && o.admin.user === user) {
+          org = o;
+          break;
+        }
+      }
+    }
+    if (!org) throw new Error("No hay una empresa en este celular. Pega el código o registra la empresa.");
+    if (org.blobId) {
+      try {
+        org = await pullOrg(org.blobId);
+      } catch (e) {}
+    }
+    const hash = await hashPass(org.code, user, pass);
+    if (!org.admin || org.admin.user !== user || org.admin.pass !== hash) {
+      throw new Error("Usuario o clave de administrador incorrectos.");
+    }
+    applyOrgToSettings(org, org.admin.name);
+    saveSession({
+      role: "admin",
+      companyCode: org.code,
+      blobId: org.blobId || "",
+      userId: org.admin.id,
+      user: user,
+      name: org.admin.name,
+      status: "approved",
+    });
+    return org;
+  }
+
+  async function registerUser() {
+    authState.msg = "";
+    const invite = val("u-invite").trim() || authState.joinBlob;
+    const name = val("u-name").trim();
+    const user = val("u-user").trim().toLowerCase();
+    const pass = val("u-pass");
+    if (blank(invite) || blank(name) || blank(user) || blank(pass)) {
+      throw new Error("Completa código de empresa, nombre, usuario y clave.");
+    }
+    if (pass.length < 4) throw new Error("La clave debe tener al menos 4 caracteres.");
+    const org = await pullOrg(invite);
+    org.users = org.users || [];
+    if (org.admin && org.admin.user === user) throw new Error("Ese usuario es el administrador. Entra por ingreso admin.");
+    if (org.users.some((u) => u.user === user)) throw new Error("Ese usuario ya pidió acceso. Entra o espera la autorización.");
+    const rec = {
+      id: uid("U"),
+      name: name,
+      user: user,
+      pass: await hashPass(org.code, user, pass),
+      status: "pending",
+      requestedAt: nowISO(),
+    };
+    org.users.push(rec);
+    try {
+      await pushOrg(org);
+    } catch (e) {
+      upsertOrg(org);
+      if (!org.blobId) {
+        throw new Error("La empresa aún no está en línea. Pide al admin que entre con internet y te reenvíe el código completo.");
+      }
+    }
+    saveSession({
+      role: "user",
+      companyCode: org.code,
+      blobId: org.blobId || "",
+      userId: rec.id,
+      user: user,
+      name: name,
+      status: "pending",
+    });
+    return rec;
+  }
+
+  async function loginUser() {
+    authState.msg = "";
+    const invite = val("u-invite").trim();
+    const user = val("u-user").trim().toLowerCase();
+    const pass = val("u-pass");
+    if (blank(invite) || blank(user) || blank(pass)) throw new Error("Completa código, usuario y clave.");
+    const org = await pullOrg(invite);
+    const rec = (org.users || []).find((u) => u.user === user);
+    if (!rec) throw new Error("No hay una solicitud con ese usuario. Pide acceso primero.");
+    const hash = await hashPass(org.code, user, pass);
+    if (rec.pass !== hash) throw new Error("Usuario o clave incorrectos.");
+    saveSession({
+      role: "user",
+      companyCode: org.code,
+      blobId: org.blobId || "",
+      userId: rec.id,
+      user: user,
+      name: rec.name,
+      status: rec.status,
+    });
+    if (rec.status === "rejected") throw new Error("El administrador rechazó tu acceso.");
+    if (rec.status !== "approved") throw new Error("PENDING");
+    applyOrgToSettings(org, rec.name);
+    return rec;
+  }
+
+  async function refreshUser() {
+    const sess = loadSession();
+    if (!sess || !sess.blobId && !sess.companyCode) throw new Error("No hay solicitud.");
+    const org = await pullOrg(sess.blobId || inviteOf(findLocalOrg(sess.companyCode)) || sess.companyCode);
+    const rec = (org.users || []).find((u) => u.id === sess.userId || u.user === sess.user);
+    if (!rec) throw new Error("El administrador no tiene tu solicitud. Vuelve a pedir acceso.");
+    sess.status = rec.status;
+    sess.name = rec.name;
+    sess.blobId = org.blobId || sess.blobId;
+    saveSession(sess);
+    if (rec.status === "approved") applyOrgToSettings(org, rec.name);
+    return rec;
+  }
+
+  async function setUserStatus(userId, status) {
+    const sess = loadSession();
+    if (!sess || sess.role !== "admin") throw new Error("Solo el administrador puede autorizar.");
+    let org = findLocalOrg(sess.companyCode || sess.blobId);
+    if (org && org.blobId) {
+      try {
+        org = await pullOrg(org.blobId);
+      } catch (e) {}
+    }
+    if (!org) throw new Error("No hay empresa.");
+    const rec = (org.users || []).find((u) => u.id === userId);
+    if (!rec) throw new Error("Usuario no encontrado.");
+    rec.status = status;
+    rec.decidedAt = nowISO();
+    await pushOrg(org);
+    return rec;
+  }
+
+  w.MEC_AUTH = {
+    authState: authState,
+    loadSession: loadSession,
+    saveSession: saveSession,
+    clearSession: clearSession,
+    isAdmin: isAdmin,
+    canInspect: canInspect,
+    findLocalOrg: findLocalOrg,
+    inviteOf: inviteOf,
+    landingView: landingView,
+    adminView: adminView,
+    userView: userView,
+    teamView: teamView,
+    registerAdmin: registerAdmin,
+    loginAdmin: loginAdmin,
+    registerUser: registerUser,
+    loginUser: loginUser,
+    refreshUser: refreshUser,
+    setUserStatus: setUserStatus,
+    applyOrgToSettings: applyOrgToSettings,
+    pullOrg: pullOrg,
+    pushOrg: pushOrg,
+    val: val,
+  };
+})(window);
+
+  </script>
+  <script>
 /* Check list Técnico — inspecciones genéricas, foto, firma y ficha QR */
 (function () {
   "use strict";
@@ -1523,6 +2505,15 @@ window.MEC_VERDICTS = [
     location.hash = path;
   }
 
+  function needInspect() {
+    const A = window.MEC_AUTH;
+    if (A && A.canInspect()) return true;
+    const s = A && A.loadSession();
+    if (s && s.role === "user" && s.status !== "approved") go("#/usuario");
+    else go("#/");
+    return false;
+  }
+
   window.addEventListener("hashchange", () => {
     route();
   });
@@ -1561,7 +2552,48 @@ window.MEC_VERDICTS = [
       render();
       return;
     }
+    const A = window.MEC_AUTH;
+    if (A) A.authState.msg = A.authState.msg || "";
+    if (p[0] === "admin") {
+      if (A) {
+        A.authState.tab = p[1] === "registro" ? "registro" : "entrar";
+        if (p[1] === "equipo") {
+          if (!A.isAdmin()) {
+            go("#/admin");
+            return;
+          }
+          state.view = "team";
+          render();
+          return;
+        }
+      }
+      state.view = "admin";
+      render();
+      return;
+    }
+    if (p[0] === "usuario") {
+      if (A) A.authState.tab = p[1] === "registro" ? "registro" : "entrar";
+      state.view = "user";
+      render();
+      return;
+    }
+    if (p[0] === "unirse") {
+      if (A) {
+        A.authState.tab = "registro";
+        A.authState.joinBlob = decodeURIComponent(p[1] || "");
+        A.authState.joinCode = A.authState.joinBlob;
+      }
+      state.view = "user";
+      render();
+      return;
+    }
+    if (p[0] === "bienvenida" || p.length === 0 || p[0] === "inicio") {
+      state.view = "landing";
+      render();
+      return;
+    }
     if (p[0] === "nuevo") {
+      if (!needInspect()) return;
       if (!settingsComplete()) {
         alert("Primero completa los datos de la empresa, incluido el logo.");
         go("#/ajustes");
@@ -1575,6 +2607,7 @@ window.MEC_VERDICTS = [
       return;
     }
     if (p[0] === "tipos") {
+      if (!needInspect()) return;
       if (!settingsComplete()) {
         alert("Primero completa los datos de la empresa, incluido el logo.");
         go("#/ajustes");
@@ -1585,13 +2618,26 @@ window.MEC_VERDICTS = [
       return;
     }
     if (p[0] === "historial") {
+      if (!needInspect()) return;
       state.view = "history";
       render();
       return;
     }
     if (p[0] === "ajustes") {
+      if (!needInspect()) return;
+      if (A && !A.isAdmin()) {
+        alert("Solo el administrador edita los datos de la empresa.");
+        go("#/app");
+        return;
+      }
       state.editSettings = Object.assign({}, loadSettings());
       state.view = "settings";
+      render();
+      return;
+    }
+    if (p[0] === "app") {
+      if (!needInspect()) return;
+      state.view = "home";
       render();
       return;
     }
@@ -1608,7 +2654,7 @@ window.MEC_VERDICTS = [
       afterQr();
       return;
     }
-    state.view = "home";
+    state.view = "landing";
     render();
   }
 
@@ -1626,6 +2672,8 @@ window.MEC_VERDICTS = [
   function home() {
     const s = loadSettings();
     const n = loadReports().length;
+    const A = window.MEC_AUTH;
+    const sess = A && A.loadSession();
     return (
       '<header class="top">' +
       (s.logo
@@ -1635,6 +2683,7 @@ window.MEC_VERDICTS = [
       APP_NAME +
       '</h1><div class="sub">' +
       escapeHtml(s.company || "Completa los datos de la empresa") +
+      (sess ? " · " + escapeHtml(sess.name || sess.user || "") : "") +
       "</div></div></header>" +
       '<div class="hero"><p>Elige qué vas a revisar, marca los checks y al final saca fotos del equipo. Se firma en el celular y se comparte con un QR.</p></div>' +
       '<div class="wrap">' +
@@ -1643,14 +2692,19 @@ window.MEC_VERDICTS = [
       '<button class="btn ghost" data-go="#/historial">Historial (' +
       n +
       ")</button>" +
-      '<button class="btn ghost" data-go="#/ajustes">Datos de la empresa' +
-      (settingsComplete() ? "" : " (obligatorio)") +
-      "</button>" +
+      (A && A.isAdmin()
+        ? '<button class="btn ghost" data-go="#/admin/equipo">Autorizar usuarios</button>' +
+          '<button class="btn ghost" data-go="#/ajustes">Datos de la empresa' +
+          (settingsComplete() ? "" : " (obligatorio)") +
+          "</button>"
+        : "") +
+      '<button class="btn ghost" data-go="#/">Web de bienvenida</button>' +
+      '<button class="btn ghost" id="logout">Cerrar sesión</button>' +
       "</div>" +
       (settingsComplete()
         ? ""
         : '<p class="banner-bad">Completa nombre, RUT, sucursal, inspector y el logo de la empresa antes de inspeccionar.</p>') +
-      '<p class="note">Las inspecciones quedan en la memoria de <b>este navegador</b>, en este celular. No hay cuenta en la nube: si borras los datos del sitio, usas otro teléfono u otro explorador, el historial no aparece. El QR sirve para mostrar esa ficha a otra persona.</p>' +
+      '<p class="note">Las inspecciones quedan en la memoria de <b>este navegador</b>, en este celular. El administrador de la empresa autoriza quién puede entrar.</p>' +
       '<p class="note">Bitácora de apoyo. No reemplaza certificaciones ni fiscalizaciones oficiales.</p>' +
       "</div>"
     );
@@ -1666,7 +2720,7 @@ window.MEC_VERDICTS = [
       if (!groups.includes(t.group)) groups.push(t.group);
     });
     let html =
-      topBar("Qué se inspecciona", "#/") +
+      topBar("Qué se inspecciona", "#/app") +
       '<div class="wrap"><input class="search" id="q" placeholder="Buscar…" value="' +
       escapeHtml(state.filter) +
       '">';
@@ -2052,7 +3106,7 @@ window.MEC_VERDICTS = [
 
   function historyView() {
     const rows = loadReports();
-    let html = topBar("Historial", "#/") + '<div class="wrap">';
+    let html = topBar("Historial", "#/app") + '<div class="wrap">';
     if (!rows.length) html += '<p class="empty">Aún no hay inspecciones en este navegador. Quedan guardadas solo en este celular.</p>';
     rows.forEach((r) => {
       html +=
@@ -2083,7 +3137,7 @@ window.MEC_VERDICTS = [
     if (!state.editSettings) state.editSettings = Object.assign({}, loadSettings());
     const s = state.editSettings;
     return (
-      topBar("Empresa", "#/") +
+      topBar("Empresa", "#/app") +
       '<div class="wrap"><div class="card">' +
       "<p class=\"note\">Todos los datos son obligatorios, incluido el logo. Aparece en el documento final.</p>" +
       "<label>" +
@@ -2122,7 +3176,7 @@ window.MEC_VERDICTS = [
 
   function qrView() {
     const r = state.report;
-    if (!r) return topBar("QR", "#/") + '<div class="wrap"><p class="empty">No hay ficha.</p></div>';
+    if (!r) return topBar("QR", "#/app") + '<div class="wrap"><p class="empty">No hay ficha.</p></div>';
     const link = shareUrl(r);
     return (
       topBar("Ficha y QR", "#/historial") +
@@ -2203,7 +3257,7 @@ window.MEC_VERDICTS = [
 
   function printView() {
     const r = state.report;
-    const back = r ? "#/local/" + encodeURIComponent(r.id) : "#/";
+    const back = r ? "#/local/" + encodeURIComponent(r.id) : "#/app";
     if (!r) {
       return topBar("PDF carta", back) + '<div class="wrap"><p class="empty">No hay ficha para exportar.</p></div>';
     }
@@ -2244,7 +3298,7 @@ window.MEC_VERDICTS = [
 
   function viewPane(title, r, err) {
     return (
-      topBar(title, "#/") +
+      topBar(title, "#/app") +
       '<div class="wrap">' +
       (err ? '<div class="banner-bad">' + escapeHtml(err) + "</div>" : "") +
       (r
@@ -2262,7 +3316,15 @@ window.MEC_VERDICTS = [
   }
 
   function render() {
-    if (state.view === "types") $app.innerHTML = typesView();
+    if ($app) {
+      $app.classList.toggle("wide", state.view === "landing");
+    }
+    const A = window.MEC_AUTH;
+    if (state.view === "landing") $app.innerHTML = A ? A.landingView() : home();
+    else if (state.view === "admin") $app.innerHTML = A ? A.adminView() : "";
+    else if (state.view === "user") $app.innerHTML = A ? A.userView() : "";
+    else if (state.view === "team") $app.innerHTML = A ? A.teamView() : "";
+    else if (state.view === "types") $app.innerHTML = typesView();
     else if (state.view === "form") $app.innerHTML = formView();
     else if (state.view === "history") $app.innerHTML = historyView();
     else if (state.view === "settings") $app.innerHTML = settingsView();
@@ -2357,7 +3419,20 @@ window.MEC_VERDICTS = [
           inspector: s.inspector.trim(),
           logo: s.logo,
         });
-        go("#/");
+        const A = window.MEC_AUTH;
+        if (A && A.isAdmin()) {
+          const sess = A.loadSession();
+          const org = sess ? A.findLocalOrg(sess.companyCode || sess.blobId) : null;
+          if (org) {
+            org.company = s.company.trim();
+            org.rut = s.rut.trim();
+            org.branch = s.branch.trim();
+            org.logo = s.logo;
+            if (org.admin) org.admin.name = s.inspector.trim();
+            A.pushOrg(org).catch(function () {});
+          }
+        }
+        go("#/app");
       };
     const save = document.getElementById("save");
     if (save)
@@ -2409,6 +3484,176 @@ window.MEC_VERDICTS = [
         state.draft = null;
         go("#/qr/" + d.id);
       };
+    afterAuth();
+  }
+
+  function afterAuth() {
+    const A = window.MEC_AUTH;
+    const logout = document.getElementById("logout");
+    if (logout)
+      logout.onclick = () => {
+        if (A) A.clearSession();
+        go("#/");
+      };
+    if (!A) return;
+    const fail = (e) => {
+      A.authState.busy = false;
+      if (e && e.message === "PENDING") {
+        go("#/usuario");
+        return;
+      }
+      A.authState.msg = (e && e.message) || "No se pudo completar.";
+      render();
+    };
+    const lock = (btn, label) => {
+      if (!btn) return;
+      btn.disabled = true;
+      btn.textContent = label;
+    };
+    const aLogo = document.getElementById("a-logo");
+    if (aLogo)
+      aLogo.onchange = async () => {
+        const f = aLogo.files && aLogo.files[0];
+        if (!f) return;
+        try {
+          A.authState.logo = await compressImage(f, 480, 0.84);
+        } catch (err) {
+          alert("No se pudo leer el logo.");
+          return;
+        }
+        render();
+      };
+    const aReg = document.getElementById("a-register");
+    if (aReg)
+      aReg.onclick = async () => {
+        A.authState.msg = "";
+        lock(aReg, "Creando…");
+        try {
+          await A.registerAdmin(compressImage);
+          A.authState.busy = false;
+          go("#/app");
+        } catch (e) {
+          fail(e);
+        }
+      };
+    const aLogin = document.getElementById("a-login");
+    if (aLogin)
+      aLogin.onclick = async () => {
+        A.authState.msg = "";
+        lock(aLogin, "Entrando…");
+        try {
+          await A.loginAdmin();
+          A.authState.busy = false;
+          go("#/app");
+        } catch (e) {
+          fail(e);
+        }
+      };
+    const uReg = document.getElementById("u-register");
+    if (uReg)
+      uReg.onclick = async () => {
+        A.authState.msg = "";
+        lock(uReg, "Enviando…");
+        try {
+          await A.registerUser();
+          A.authState.busy = false;
+          go("#/usuario");
+        } catch (e) {
+          fail(e);
+        }
+      };
+    const uLogin = document.getElementById("u-login");
+    if (uLogin)
+      uLogin.onclick = async () => {
+        A.authState.msg = "";
+        lock(uLogin, "Entrando…");
+        try {
+          await A.loginUser();
+          A.authState.busy = false;
+          go("#/app");
+        } catch (e) {
+          fail(e);
+        }
+      };
+    const uRef = document.getElementById("u-refresh");
+    if (uRef)
+      uRef.onclick = async () => {
+        A.authState.msg = "";
+        lock(uRef, "Consultando…");
+        try {
+          const rec = await A.refreshUser();
+          A.authState.busy = false;
+          if (rec.status === "approved") go("#/app");
+          else if (rec.status === "rejected") {
+            A.authState.msg = "El administrador rechazó tu acceso.";
+            render();
+          } else {
+            A.authState.msg = "";
+            render();
+            alert("Todavía está pendiente. Pide al admin que te autorice.");
+          }
+        } catch (e) {
+          fail(e);
+        }
+      };
+    const copyInv = document.getElementById("copy-invite");
+    if (copyInv)
+      copyInv.onclick = async () => {
+        const inp = document.getElementById("org-invite");
+        const text = inp ? inp.value : "";
+        try {
+          await navigator.clipboard.writeText(text);
+          copyInv.textContent = "Código copiado";
+        } catch (e) {
+          prompt("Copia el código de empresa:", text);
+        }
+      };
+    const teamRef = document.getElementById("team-refresh");
+    if (teamRef)
+      teamRef.onclick = async () => {
+        const sess = A.loadSession();
+        if (!sess) return;
+        teamRef.disabled = true;
+        try {
+          await A.pullOrg(sess.blobId || sess.companyCode);
+          render();
+        } catch (e) {
+          alert((e && e.message) || "No se pudo actualizar.");
+          teamRef.disabled = false;
+        }
+      };
+    const joinQr = document.getElementById("join-qr");
+    if (joinQr && joinQr.getAttribute("data-join")) drawQr(joinQr, joinQr.getAttribute("data-join"));
+    $app.querySelectorAll("[data-approve]").forEach((btn) => {
+      btn.onclick = async () => {
+        try {
+          await A.setUserStatus(btn.getAttribute("data-approve"), "approved");
+          render();
+        } catch (e) {
+          alert((e && e.message) || "No se pudo autorizar.");
+        }
+      };
+    });
+    $app.querySelectorAll("[data-reject]").forEach((btn) => {
+      btn.onclick = async () => {
+        try {
+          await A.setUserStatus(btn.getAttribute("data-reject"), "rejected");
+          render();
+        } catch (e) {
+          alert((e && e.message) || "No se pudo rechazar.");
+        }
+      };
+    });
+    ["a-pass", "a-pass2", "a-user", "u-pass", "u-user", "u-invite"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.onkeydown = (e) => {
+        if (e.key !== "Enter") return;
+        e.preventDefault();
+        const btn = document.getElementById("a-login") || document.getElementById("a-register") || document.getElementById("u-login") || document.getElementById("u-register");
+        if (btn) btn.click();
+      };
+    });
   }
 
   function boot() {

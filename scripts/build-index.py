@@ -6,6 +6,7 @@ root = Path(__file__).resolve().parents[1]
 css = (root / "css/app.css").read_text(encoding="utf-8")
 qr = (root / "js/qrcode.min.js").read_text(encoding="utf-8").split("//# sourceMappingURL")[0]
 data = (root / "js/data.js").read_text(encoding="utf-8")
+auth = (root / "js/auth.js").read_text(encoding="utf-8")
 app = (root / "js/app.js").read_text(encoding="utf-8")
 raw = "https://raw.githubusercontent.com/Caleushe-desing/Shooter/cursor/checklist-mecanica-9fc5/"
 
@@ -59,6 +60,9 @@ html = f"""<!DOCTYPE html>
   </script>
   <script>
 {pack_js(data)}
+  </script>
+  <script>
+{pack_js(auth)}
   </script>
   <script>
 {pack_js(app)}
