@@ -8,31 +8,393 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" href="icon.svg">
-  <link rel="apple-touch-icon" href="icon.svg">
-  <link rel="stylesheet" href="css/app.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%231a2027'/%3E%3Cpath d='M16 0h32a16 16 0 0 1 16 16v6H0V16A16 16 0 0 1 16 0z' fill='%23f5c400'/%3E%3C/svg%3E">
   <style>
-    html, body {
-      min-height: 100%;
-      margin: 0;
-      background: #e8eaee;
-      color: #1c2128;
-      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
-    }
-    .boot {
-      min-height: 100dvh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      padding: 24px;
-      text-align: center;
-    }
-    .boot-logo { width: 72px; height: 72px; border-radius: 16px; box-shadow: 0 8px 24px rgba(28,33,40,.18); }
-    .boot h1 { font-size: 22px; margin: 0; }
-    .boot p { color: #5c6570; max-width: 22rem; line-height: 1.45; margin: 0; }
+:root {
+  --bg: #e8eaee;
+  --paper: #fff;
+  --ink: #1c2128;
+  --muted: #5c6570;
+  --line: #d5d8de;
+  --steel: #2c333d;
+  --yellow: #f5c400;
+  --ok: #1f9d55;
+  --bad: #c62828;
+  --warn: #c77700;
+  --pad: 16px;
+  --radius: 14px;
+  --shadow: 0 8px 24px rgba(28, 33, 40, 0.08);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  line-height: 1.35;
+}
+
+body {
+  padding:
+    env(safe-area-inset-top)
+    env(safe-area-inset-right)
+    env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+}
+
+#app { max-width: 720px; margin: 0 auto; min-height: 100dvh; }
+
+.boot {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  text-align: center;
+}
+.boot .brand-logo,
+.boot-logo {
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+}
+.boot h1 { font-size: 22px; line-height: 1.2; max-width: 16rem; }
+.boot p { color: var(--muted); max-width: 22rem; line-height: 1.45; }
+.boot-spin {
+  width: 28px; height: 28px;
+  border: 3px solid var(--line);
+  border-top-color: var(--yellow);
+  border-radius: 50%;
+  animation: mec-spin 0.8s linear infinite;
+}
+@keyframes mec-spin { to { transform: rotate(360deg); } }
+
+.top {
+  background: var(--steel);
+  color: #fff;
+  padding: 14px var(--pad) 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.top h1 { font-size: 17px; font-weight: 750; letter-spacing: 0.01em; line-height: 1.2; }
+.top > div { min-width: 0; flex: 1; }
+.top .sub { font-size: 12px; color: #c5cad1; font-weight: 500; }
+.company-mark { background: #fff; object-fit: contain; padding: 3px; }
+.brand-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  flex: none;
+  background: #1a2027;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.12) inset;
+  object-fit: cover;
+  display: block;
+  overflow: hidden;
+}
+.eq-photo-missing {
+  display: none;
+}
+.report-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+.report-logo { width: 36px; height: 36px; border-radius: 9px; }
+.req { color: #c62828; font-weight: 800; }
+.report-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.report-head-text { flex: 1; min-width: 0; }
+.report-head-text b { font-size: 18px; display: block; }
+.company-logo {
+  max-width: 120px;
+  max-height: 72px;
+  object-fit: contain;
+  background: #fff;
+  padding: 4px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+}
+.logo-preview {
+  margin: 8px 0;
+  padding: 12px;
+  background: #f4f5f7;
+  border-radius: 10px;
+  text-align: center;
+}
+.logo-preview img { max-width: 180px; max-height: 90px; object-fit: contain; }
+
+.back, .icon-btn {
+  appearance: none; border: 0; background: #3a424e; color: #fff;
+  width: 40px; height: 40px; border-radius: 10px; font-size: 18px;
+}
+
+.wrap { padding: var(--pad); padding-bottom: 96px; }
+
+.hero {
+  background: var(--steel);
+  color: #fff;
+  padding: 8px var(--pad) 22px;
+}
+.hero p { color: #c5cad1; font-size: 14px; margin-top: 6px; }
+
+.card {
+  background: var(--paper);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.grid { display: grid; gap: 10px; }
+.grid-2 { grid-template-columns: 1fr 1fr; }
+
+.eq {
+  display: flex; align-items: center; gap: 12px;
+  text-align: left; width: 100%;
+  padding: 8px 10px 8px 8px; border-radius: 12px;
+  border: 1px solid var(--line); background: #fff;
+  color: inherit; font: inherit; cursor: pointer;
+}
+.eq:active { transform: scale(0.99); background: #f7f4ea; }
+.eq-thumb {
+  width: 72px; height: 72px; object-fit: cover;
+  border-radius: 10px; background: #eceff3; flex: none;
+}
+.eq-body { flex: 1; min-width: 0; }
+.eq b { display: block; font-size: 15px; }
+.eq-body > span:last-child { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
+.eq-hero {
+  border-radius: 14px; overflow: hidden;
+  margin-bottom: 12px; background: #dfe3e8;
+  box-shadow: var(--shadow);
+}
+.eq-hero-img { width: 100%; height: 180px; object-fit: cover; display: block; }
+.photo-empty {
+  display: grid; place-items: center;
+  background: repeating-linear-gradient(135deg, #e8eaee, #e8eaee 8px, #dfe3e8 8px, #dfe3e8 16px);
+  color: var(--muted); font-size: 13px; font-weight: 700;
+}
+.eq-hero .photo-empty { height: 180px; }
+.eq-mini.photo-empty { width: 44px; height: 44px; font-size: 0; }
+.eq-mini.photo-empty::after { content: "·"; font-size: 22px; color: #9aa3ad; }
+.photo-actions { display: grid; gap: 8px; margin: 10px 0 0; }
+.shot-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin: 10px 0;
+}
+.shot { position: relative; border-radius: 10px; overflow: hidden; background: #eceff3; }
+.shot img, .shot-img {
+  width: 100%; height: 140px; object-fit: cover; display: block; border-radius: 10px;
+}
+.shot-del {
+  position: absolute; top: 6px; right: 6px;
+  width: 32px; height: 32px; background: rgba(28,33,40,.72);
+}
+.item-head { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.item-text {
+  flex: 1; margin: 0; padding: 8px 10px; font-weight: 650; font-size: 14px;
+}
+.item-del { width: 36px; height: 36px; flex: none; background: #f3f4f6; color: #5c6570; }
+.eq-mini {
+  width: 44px; height: 44px; object-fit: cover;
+  border-radius: 8px; flex: none; background: #eceff3;
+}
+.tag {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; background: #f5c40033;
+  color: #7a5b00; padding: 3px 7px; border-radius: 99px; white-space: nowrap;
+  display: inline-block; margin-bottom: 4px;
+}
+
+label { display: block; font-size: 12px; font-weight: 700; color: var(--muted); margin: 10px 0 4px; }
+input, textarea, select {
+  width: 100%; padding: 12px; border-radius: 10px;
+  border: 1px solid var(--line); font: inherit; background: #fafbfc;
+}
+textarea { min-height: 72px; resize: vertical; }
+
+.item {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 10px;
+  background: #fff;
+}
+.item p { font-size: 14px; font-weight: 650; margin-bottom: 8px; }
+.item.ok { border-color: #b7e4c7; background: #f3fbf6; }
+.item.fail { border-color: #f5b5b5; background: #fff5f5; }
+.item.na { background: #f4f5f7; }
+
+.seg { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+.seg button {
+  appearance: none; border: 1px solid var(--line); background: #fff;
+  border-radius: 9px; padding: 10px 6px; font-weight: 700; font-size: 13px;
+  min-height: 44px;
+}
+.seg button.on-ok { background: var(--ok); color: #fff; border-color: var(--ok); }
+.seg button.on-fail { background: var(--bad); color: #fff; border-color: var(--bad); }
+.seg button.on-na { background: #6b7280; color: #fff; border-color: #6b7280; }
+
+.verdict { display: grid; gap: 8px; }
+.verdict button {
+  appearance: none; text-align: left; padding: 12px;
+  border-radius: 12px; border: 2px solid var(--line); background: #fff;
+  font: inherit;
+}
+.verdict button.on-apto { border-color: var(--ok); background: #eefaf3; }
+.verdict button.on-observado { border-color: var(--warn); background: #fff8e8; }
+.verdict button.on-rechazado { border-color: var(--bad); background: #fff1f1; }
+.verdict b { display: block; }
+.verdict small { color: var(--muted); }
+
+.pad-wrap {
+  border: 1px dashed #9aa3ad; border-radius: 12px;
+  background: #fffef8; overflow: hidden;
+}
+.pad-wrap canvas { display: block; width: 100%; height: 120px; touch-action: none; background: #fffef8; }
+.sig-img {
+  width: 100%;
+  height: 90px;
+  object-fit: contain;
+  background: #fffef8;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: block;
+}
+.pad-bar { display: flex; justify-content: space-between; padding: 6px 10px; font-size: 12px; color: var(--muted); }
+
+.btn {
+  appearance: none; border: 0; border-radius: 12px;
+  padding: 14px 16px; font-weight: 750; font-size: 15px; width: 100%;
+  background: var(--yellow); color: var(--steel); min-height: 48px;
+}
+.btn.steel { background: var(--steel); color: #fff; }
+.btn.ghost { background: #fff; border: 1px solid var(--line); color: var(--ink); }
+.btn.row { display: flex; gap: 8px; }
+.actions { display: grid; gap: 8px; margin-top: 12px; }
+
+.dock {
+  position: sticky; bottom: 0; padding: 10px var(--pad) 16px;
+  background: linear-gradient(transparent, var(--bg) 28%);
+}
+
+.list-row {
+  display: flex; gap: 10px; align-items: center;
+  padding: 12px 0; border-bottom: 1px solid var(--line);
+  width: 100%; background: none; border-left: 0; border-right: 0; border-top: 0;
+  font: inherit; color: inherit; text-align: left;
+}
+.dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.dot.apto { background: var(--ok); }
+.dot.observado { background: var(--warn); }
+.dot.rechazado { background: var(--bad); }
+
+.badge {
+  display: inline-block; padding: 4px 8px; border-radius: 99px;
+  font-size: 11px; font-weight: 800; text-transform: uppercase;
+}
+.badge.apto { background: #d8f3e3; color: #146c3a; }
+.badge.observado { background: #ffe8bf; color: #8a5200; }
+.badge.rechazado { background: #ffd0d0; color: #8e1515; }
+
+.qrbox {
+  background: #fff; border-radius: 16px; padding: 16px;
+  text-align: center; box-shadow: var(--shadow);
+}
+.qrbox img, .qrbox canvas { width: min(72vw, 260px); height: auto; margin: 8px auto; display: block; }
+.folio { font-family: ui-monospace, monospace; font-size: 13px; letter-spacing: 0.08em; }
+
+.report h2 { font-size: 16px; margin: 16px 0 8px; }
+.kv { display: grid; grid-template-columns: 110px 1fr; gap: 6px 10px; font-size: 14px; }
+.kv i { color: var(--muted); font-style: normal; }
+
+.search { margin: 12px 0; }
+
+.group-title {
+  font-size: 12px; font-weight: 800; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--muted); margin: 16px 0 8px;
+}
+
+.empty { text-align: center; color: var(--muted); padding: 32px 12px; }
+
+.banner-bad {
+  background: #c62828; color: #fff; padding: 10px 12px;
+  border-radius: 10px; font-weight: 700; margin-bottom: 12px;
+}
+
+.note { font-size: 12px; color: var(--muted); margin-top: 8px; }
+
+.letter-page {
+  max-width: 8.5in;
+  margin: 16px auto 32px;
+  background: #fff;
+  padding: 0.55in 0.6in;
+  box-shadow: var(--shadow);
+  color: #1c2128;
+}
+.letter-page .card.report { box-shadow: none; border: 1px solid var(--line); }
+.letter-foot {
+  margin-top: 18px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  font-size: 10px;
+  color: var(--muted);
+}
+
+@page {
+  size: letter portrait;
+  margin: 0.55in 0.6in;
+}
+
+@media print {
+  .top, .dock, .actions, .back, .icon-btn, .no-print, .shot-del, .search {
+    display: none !important;
+  }
+  html, body, #app {
+    background: #fff !important;
+    max-width: none;
+    min-height: 0;
+    padding: 0;
+    margin: 0;
+  }
+  .wrap { padding: 0; }
+  .letter-page {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+  }
+  .card, .card.report {
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+  .item, .report-head, .kv, .pad-wrap { break-inside: avoid; }
+  .eq-hero-img { height: 2in; }
+  .shot-img { height: 1.55in; }
+  .banner-bad { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+
   </style>
 </head>
 <body>
@@ -54,7 +416,7 @@
     <p style="padding:24px">Activa JavaScript para usar Check list Técnico.</p>
   </noscript>
   <script>
-    window.MEC_CDN = "https://cdn.jsdelivr.net/gh/Caleushe-desing/Shooter@cursor/checklist-mecanica-9fc5/";
+    window.MEC_CDN = 'https://raw.githubusercontent.com/Caleushe-desing/Shooter/cursor/checklist-mecanica-9fc5/';
     (function () {
       var h = location.hostname || "";
       var local = h === "localhost" || h === "127.0.0.1";
@@ -62,8 +424,2012 @@
       window.MEC_ASSET_BASE = local || pages ? "" : window.MEC_CDN;
     })();
   </script>
-  <script src="js/qrcode.min.js"></script>
-  <script src="js/data.js"></script>
-  <script src="js/app.js"></script>
+  <script>
+/**
+ * Minified by jsDelivr using Terser v5.37.0.
+ * Original file: /npm/qrcode-generator@1.4.4/qrcode.js
+ *
+ * Do NOT use SRI with dynamically generated files! More information: https://www.jsdelivr.com/using-sri-with-dynamic-files
+ */
+var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],f={},c=function(t,r){o=function(t){for(var r=new Array(t),e=0;e<t;e+=1){r[e]=new Array(t);for(var n=0;n<t;n+=1)r[e][n]=null}return r}(i=4*e+17),l(0,0),l(i-7,0),l(0,i-7),s(),h(),d(t,r),e>=7&&v(t),null==a&&(a=p(e,n,u)),w(a,r)},l=function(t,r){for(var e=-1;e<=7;e+=1)if(!(t+e<=-1||i<=t+e))for(var n=-1;n<=7;n+=1)r+n<=-1||i<=r+n||(o[t+e][r+n]=0<=e&&e<=6&&(0==n||6==n)||0<=n&&n<=6&&(0==e||6==e)||2<=e&&e<=4&&2<=n&&n<=4)},h=function(){for(var t=8;t<i-8;t+=1)null==o[t][6]&&(o[t][6]=t%2==0);for(var r=8;r<i-8;r+=1)null==o[6][r]&&(o[6][r]=r%2==0)},s=function(){for(var t=B.getPatternPosition(e),r=0;r<t.length;r+=1)for(var n=0;n<t.length;n+=1){var i=t[r],a=t[n];if(null==o[i][a])for(var u=-2;u<=2;u+=1)for(var f=-2;f<=2;f+=1)o[i+u][a+f]=-2==u||2==u||-2==f||2==f||0==u&&0==f}},v=function(t){for(var r=B.getBCHTypeNumber(e),n=0;n<18;n+=1){var a=!t&&1==(r>>n&1);o[Math.floor(n/3)][n%3+i-8-3]=a}for(n=0;n<18;n+=1){a=!t&&1==(r>>n&1);o[n%3+i-8-3][Math.floor(n/3)]=a}},d=function(t,r){for(var e=n<<3|r,a=B.getBCHTypeInfo(e),u=0;u<15;u+=1){var f=!t&&1==(a>>u&1);u<6?o[u][8]=f:u<8?o[u+1][8]=f:o[i-15+u][8]=f}for(u=0;u<15;u+=1){f=!t&&1==(a>>u&1);u<8?o[8][i-u-1]=f:u<9?o[8][15-u-1+1]=f:o[8][15-u-1]=f}o[i-8][8]=!t},w=function(t,r){for(var e=-1,n=i-1,a=7,u=0,f=B.getMaskFunction(r),c=i-1;c>0;c-=2)for(6==c&&(c-=1);;){for(var g=0;g<2;g+=1)if(null==o[n][c-g]){var l=!1;u<t.length&&(l=1==(t[u]>>>a&1)),f(n,c-g)&&(l=!l),o[n][c-g]=l,-1==(a-=1)&&(u+=1,a=7)}if((n+=e)<0||i<=n){n-=e,e=-e;break}}},p=function(t,r,e){for(var n=A.getRSBlocks(t,r),o=b(),i=0;i<e.length;i+=1){var a=e[i];o.put(a.getMode(),4),o.put(a.getLength(),B.getLengthInBits(a.getMode(),t)),a.write(o)}var u=0;for(i=0;i<n.length;i+=1)u+=n[i].dataCount;if(o.getLengthInBits()>8*u)throw"code length overflow. ("+o.getLengthInBits()+">"+8*u+")";for(o.getLengthInBits()+4<=8*u&&o.put(0,4);o.getLengthInBits()%8!=0;)o.putBit(!1);for(;!(o.getLengthInBits()>=8*u||(o.put(236,8),o.getLengthInBits()>=8*u));)o.put(17,8);return function(t,r){for(var e=0,n=0,o=0,i=new Array(r.length),a=new Array(r.length),u=0;u<r.length;u+=1){var f=r[u].dataCount,c=r[u].totalCount-f;n=Math.max(n,f),o=Math.max(o,c),i[u]=new Array(f);for(var g=0;g<i[u].length;g+=1)i[u][g]=255&t.getBuffer()[g+e];e+=f;var l=B.getErrorCorrectPolynomial(c),h=k(i[u],l.getLength()-1).mod(l);for(a[u]=new Array(l.getLength()-1),g=0;g<a[u].length;g+=1){var s=g+h.getLength()-a[u].length;a[u][g]=s>=0?h.getAt(s):0}}var v=0;for(g=0;g<r.length;g+=1)v+=r[g].totalCount;var d=new Array(v),w=0;for(g=0;g<n;g+=1)for(u=0;u<r.length;u+=1)g<i[u].length&&(d[w]=i[u][g],w+=1);for(g=0;g<o;g+=1)for(u=0;u<r.length;u+=1)g<a[u].length&&(d[w]=a[u][g],w+=1);return d}(o,n)};f.addData=function(t,r){var e=null;switch(r=r||"Byte"){case"Numeric":e=M(t);break;case"Alphanumeric":e=x(t);break;case"Byte":e=m(t);break;case"Kanji":e=L(t);break;default:throw"mode:"+r}u.push(e),a=null},f.isDark=function(t,r){if(t<0||i<=t||r<0||i<=r)throw t+","+r;return o[t][r]},f.getModuleCount=function(){return i},f.make=function(){if(e<1){for(var t=1;t<40;t++){for(var r=A.getRSBlocks(t,n),o=b(),i=0;i<u.length;i++){var a=u[i];o.put(a.getMode(),4),o.put(a.getLength(),B.getLengthInBits(a.getMode(),t)),a.write(o)}var g=0;for(i=0;i<r.length;i++)g+=r[i].dataCount;if(o.getLengthInBits()<=8*g)break}e=t}c(!1,function(){for(var t=0,r=0,e=0;e<8;e+=1){c(!0,e);var n=B.getLostPoint(f);(0==e||t>n)&&(t=n,r=e)}return r}())},f.createTableTag=function(t,r){t=t||2;var e="";e+='<table style="',e+=" border-width: 0px; border-style: none;",e+=" border-collapse: collapse;",e+=" padding: 0px; margin: "+(r=void 0===r?4*t:r)+"px;",e+='">',e+="<tbody>";for(var n=0;n<f.getModuleCount();n+=1){e+="<tr>";for(var o=0;o<f.getModuleCount();o+=1)e+='<td style="',e+=" border-width: 0px; border-style: none;",e+=" border-collapse: collapse;",e+=" padding: 0px; margin: 0px;",e+=" width: "+t+"px;",e+=" height: "+t+"px;",e+=" background-color: ",e+=f.isDark(n,o)?"#000000":"#ffffff",e+=";",e+='"/>';e+="</tr>"}return e+="</tbody>",e+="</table>"},f.createSvgTag=function(t,r,e,n){var o={};"object"==typeof arguments[0]&&(t=(o=arguments[0]).cellSize,r=o.margin,e=o.alt,n=o.title),t=t||2,r=void 0===r?4*t:r,(e="string"==typeof e?{text:e}:e||{}).text=e.text||null,e.id=e.text?e.id||"qrcode-description":null,(n="string"==typeof n?{text:n}:n||{}).text=n.text||null,n.id=n.text?n.id||"qrcode-title":null;var i,a,u,c,g=f.getModuleCount()*t+2*r,l="";for(c="l"+t+",0 0,"+t+" -"+t+",0 0,-"+t+"z ",l+='<svg version="1.1" xmlns="http://www.w3.org/2000/svg"',l+=o.scalable?"":' width="'+g+'px" height="'+g+'px"',l+=' viewBox="0 0 '+g+" "+g+'" ',l+=' preserveAspectRatio="xMinYMin meet"',l+=n.text||e.text?' role="img" aria-labelledby="'+y([n.id,e.id].join(" ").trim())+'"':"",l+=">",l+=n.text?'<title id="'+y(n.id)+'">'+y(n.text)+"</title>":"",l+=e.text?'<description id="'+y(e.id)+'">'+y(e.text)+"</description>":"",l+='<rect width="100%" height="100%" fill="white" cx="0" cy="0"/>',l+='<path d="',a=0;a<f.getModuleCount();a+=1)for(u=a*t+r,i=0;i<f.getModuleCount();i+=1)f.isDark(a,i)&&(l+="M"+(i*t+r)+","+u+c);return l+='" stroke="transparent" fill="black"/>',l+="</svg>"},f.createDataURL=function(t,r){t=t||2,r=void 0===r?4*t:r;var e=f.getModuleCount()*t+2*r,n=r,o=e-r;return I(e,e,(function(r,e){if(n<=r&&r<o&&n<=e&&e<o){var i=Math.floor((r-n)/t),a=Math.floor((e-n)/t);return f.isDark(a,i)?0:1}return 1}))},f.createImgTag=function(t,r,e){t=t||2,r=void 0===r?4*t:r;var n=f.getModuleCount()*t+2*r,o="";return o+="<img",o+=' src="',o+=f.createDataURL(t,r),o+='"',o+=' width="',o+=n,o+='"',o+=' height="',o+=n,o+='"',e&&(o+=' alt="',o+=y(e),o+='"'),o+="/>"};var y=function(t){for(var r="",e=0;e<t.length;e+=1){var n=t.charAt(e);switch(n){case"<":r+="&lt;";break;case">":r+="&gt;";break;case"&":r+="&amp;";break;case'"':r+="&quot;";break;default:r+=n}}return r};return f.createASCII=function(t,r){if((t=t||1)<2)return function(t){t=void 0===t?2:t;var r,e,n,o,i,a=1*f.getModuleCount()+2*t,u=t,c=a-t,g={"██":"█","█ ":"▀"," █":"▄","  ":" "},l={"██":"▀","█ ":"▀"," █":" ","  ":" "},h="";for(r=0;r<a;r+=2){for(n=Math.floor((r-u)/1),o=Math.floor((r+1-u)/1),e=0;e<a;e+=1)i="█",u<=e&&e<c&&u<=r&&r<c&&f.isDark(n,Math.floor((e-u)/1))&&(i=" "),u<=e&&e<c&&u<=r+1&&r+1<c&&f.isDark(o,Math.floor((e-u)/1))?i+=" ":i+="█",h+=t<1&&r+1>=c?l[i]:g[i];h+="\n"}return a%2&&t>0?h.substring(0,h.length-a-1)+Array(a+1).join("▀"):h.substring(0,h.length-1)}(r);t-=1,r=void 0===r?2*t:r;var e,n,o,i,a=f.getModuleCount()*t+2*r,u=r,c=a-r,g=Array(t+1).join("██"),l=Array(t+1).join("  "),h="",s="";for(e=0;e<a;e+=1){for(o=Math.floor((e-u)/t),s="",n=0;n<a;n+=1)i=1,u<=n&&n<c&&u<=e&&e<c&&f.isDark(o,Math.floor((n-u)/t))&&(i=0),s+=i?g:l;for(o=0;o<t;o+=1)h+=s+"\n"}return h.substring(0,h.length-1)},f.renderTo2dContext=function(t,r){r=r||2;for(var e=f.getModuleCount(),n=0;n<e;n++)for(var o=0;o<e;o++)t.fillStyle=f.isDark(n,o)?"black":"white",t.fillRect(n*r,o*r,r,r)},f};t.stringToBytes=(t.stringToBytesFuncs={default:function(t){for(var r=[],e=0;e<t.length;e+=1){var n=t.charCodeAt(e);r.push(255&n)}return r}}).default,t.createStringToBytes=function(t,r){var e=function(){for(var e=S(t),n=function(){var t=e.read();if(-1==t)throw"eof";return t},o=0,i={};;){var a=e.read();if(-1==a)break;var u=n(),f=n()<<8|n();i[String.fromCharCode(a<<8|u)]=f,o+=1}if(o!=r)throw o+" != "+r;return i}(),n="?".charCodeAt(0);return function(t){for(var r=[],o=0;o<t.length;o+=1){var i=t.charCodeAt(o);if(i<128)r.push(i);else{var a=e[t.charAt(o)];"number"==typeof a?(255&a)==a?r.push(a):(r.push(a>>>8),r.push(255&a)):r.push(n)}}return r}};var r,e,n,o,i,a=1,u=2,f=4,c=8,g={L:1,M:0,Q:3,H:2},l=0,h=1,s=2,v=3,d=4,w=5,p=6,y=7,B=(r=[[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50],[6,30,54],[6,32,58],[6,34,62],[6,26,46,66],[6,26,48,70],[6,26,50,74],[6,30,54,78],[6,30,56,82],[6,30,58,86],[6,34,62,90],[6,28,50,72,94],[6,26,50,74,98],[6,30,54,78,102],[6,28,54,80,106],[6,32,58,84,110],[6,30,58,86,114],[6,34,62,90,118],[6,26,50,74,98,122],[6,30,54,78,102,126],[6,26,52,78,104,130],[6,30,56,82,108,134],[6,34,60,86,112,138],[6,30,58,86,114,142],[6,34,62,90,118,146],[6,30,54,78,102,126,150],[6,24,50,76,102,128,154],[6,28,54,80,106,132,158],[6,32,58,84,110,136,162],[6,26,54,82,110,138,166],[6,30,58,86,114,142,170]],e=1335,n=7973,i=function(t){for(var r=0;0!=t;)r+=1,t>>>=1;return r},(o={}).getBCHTypeInfo=function(t){for(var r=t<<10;i(r)-i(e)>=0;)r^=e<<i(r)-i(e);return 21522^(t<<10|r)},o.getBCHTypeNumber=function(t){for(var r=t<<12;i(r)-i(n)>=0;)r^=n<<i(r)-i(n);return t<<12|r},o.getPatternPosition=function(t){return r[t-1]},o.getMaskFunction=function(t){switch(t){case l:return function(t,r){return(t+r)%2==0};case h:return function(t,r){return t%2==0};case s:return function(t,r){return r%3==0};case v:return function(t,r){return(t+r)%3==0};case d:return function(t,r){return(Math.floor(t/2)+Math.floor(r/3))%2==0};case w:return function(t,r){return t*r%2+t*r%3==0};case p:return function(t,r){return(t*r%2+t*r%3)%2==0};case y:return function(t,r){return(t*r%3+(t+r)%2)%2==0};default:throw"bad maskPattern:"+t}},o.getErrorCorrectPolynomial=function(t){for(var r=k([1],0),e=0;e<t;e+=1)r=r.multiply(k([1,C.gexp(e)],0));return r},o.getLengthInBits=function(t,r){if(1<=r&&r<10)switch(t){case a:return 10;case u:return 9;case f:case c:return 8;default:throw"mode:"+t}else if(r<27)switch(t){case a:return 12;case u:return 11;case f:return 16;case c:return 10;default:throw"mode:"+t}else{if(!(r<41))throw"type:"+r;switch(t){case a:return 14;case u:return 13;case f:return 16;case c:return 12;default:throw"mode:"+t}}},o.getLostPoint=function(t){for(var r=t.getModuleCount(),e=0,n=0;n<r;n+=1)for(var o=0;o<r;o+=1){for(var i=0,a=t.isDark(n,o),u=-1;u<=1;u+=1)if(!(n+u<0||r<=n+u))for(var f=-1;f<=1;f+=1)o+f<0||r<=o+f||0==u&&0==f||a==t.isDark(n+u,o+f)&&(i+=1);i>5&&(e+=3+i-5)}for(n=0;n<r-1;n+=1)for(o=0;o<r-1;o+=1){var c=0;t.isDark(n,o)&&(c+=1),t.isDark(n+1,o)&&(c+=1),t.isDark(n,o+1)&&(c+=1),t.isDark(n+1,o+1)&&(c+=1),0!=c&&4!=c||(e+=3)}for(n=0;n<r;n+=1)for(o=0;o<r-6;o+=1)t.isDark(n,o)&&!t.isDark(n,o+1)&&t.isDark(n,o+2)&&t.isDark(n,o+3)&&t.isDark(n,o+4)&&!t.isDark(n,o+5)&&t.isDark(n,o+6)&&(e+=40);for(o=0;o<r;o+=1)for(n=0;n<r-6;n+=1)t.isDark(n,o)&&!t.isDark(n+1,o)&&t.isDark(n+2,o)&&t.isDark(n+3,o)&&t.isDark(n+4,o)&&!t.isDark(n+5,o)&&t.isDark(n+6,o)&&(e+=40);var g=0;for(o=0;o<r;o+=1)for(n=0;n<r;n+=1)t.isDark(n,o)&&(g+=1);return e+=Math.abs(100*g/r/r-50)/5*10},o),C=function(){for(var t=new Array(256),r=new Array(256),e=0;e<8;e+=1)t[e]=1<<e;for(e=8;e<256;e+=1)t[e]=t[e-4]^t[e-5]^t[e-6]^t[e-8];for(e=0;e<255;e+=1)r[t[e]]=e;var n={glog:function(t){if(t<1)throw"glog("+t+")";return r[t]},gexp:function(r){for(;r<0;)r+=255;for(;r>=256;)r-=255;return t[r]}};return n}();function k(t,r){if(void 0===t.length)throw t.length+"/"+r;var e=function(){for(var e=0;e<t.length&&0==t[e];)e+=1;for(var n=new Array(t.length-e+r),o=0;o<t.length-e;o+=1)n[o]=t[o+e];return n}(),n={getAt:function(t){return e[t]},getLength:function(){return e.length},multiply:function(t){for(var r=new Array(n.getLength()+t.getLength()-1),e=0;e<n.getLength();e+=1)for(var o=0;o<t.getLength();o+=1)r[e+o]^=C.gexp(C.glog(n.getAt(e))+C.glog(t.getAt(o)));return k(r,0)},mod:function(t){if(n.getLength()-t.getLength()<0)return n;for(var r=C.glog(n.getAt(0))-C.glog(t.getAt(0)),e=new Array(n.getLength()),o=0;o<n.getLength();o+=1)e[o]=n.getAt(o);for(o=0;o<t.getLength();o+=1)e[o]^=C.gexp(C.glog(t.getAt(o))+r);return k(e,0).mod(t)}};return n}var A=function(){var t=[[1,26,19],[1,26,16],[1,26,13],[1,26,9],[1,44,34],[1,44,28],[1,44,22],[1,44,16],[1,70,55],[1,70,44],[2,35,17],[2,35,13],[1,100,80],[2,50,32],[2,50,24],[4,25,9],[1,134,108],[2,67,43],[2,33,15,2,34,16],[2,33,11,2,34,12],[2,86,68],[4,43,27],[4,43,19],[4,43,15],[2,98,78],[4,49,31],[2,32,14,4,33,15],[4,39,13,1,40,14],[2,121,97],[2,60,38,2,61,39],[4,40,18,2,41,19],[4,40,14,2,41,15],[2,146,116],[3,58,36,2,59,37],[4,36,16,4,37,17],[4,36,12,4,37,13],[2,86,68,2,87,69],[4,69,43,1,70,44],[6,43,19,2,44,20],[6,43,15,2,44,16],[4,101,81],[1,80,50,4,81,51],[4,50,22,4,51,23],[3,36,12,8,37,13],[2,116,92,2,117,93],[6,58,36,2,59,37],[4,46,20,6,47,21],[7,42,14,4,43,15],[4,133,107],[8,59,37,1,60,38],[8,44,20,4,45,21],[12,33,11,4,34,12],[3,145,115,1,146,116],[4,64,40,5,65,41],[11,36,16,5,37,17],[11,36,12,5,37,13],[5,109,87,1,110,88],[5,65,41,5,66,42],[5,54,24,7,55,25],[11,36,12,7,37,13],[5,122,98,1,123,99],[7,73,45,3,74,46],[15,43,19,2,44,20],[3,45,15,13,46,16],[1,135,107,5,136,108],[10,74,46,1,75,47],[1,50,22,15,51,23],[2,42,14,17,43,15],[5,150,120,1,151,121],[9,69,43,4,70,44],[17,50,22,1,51,23],[2,42,14,19,43,15],[3,141,113,4,142,114],[3,70,44,11,71,45],[17,47,21,4,48,22],[9,39,13,16,40,14],[3,135,107,5,136,108],[3,67,41,13,68,42],[15,54,24,5,55,25],[15,43,15,10,44,16],[4,144,116,4,145,117],[17,68,42],[17,50,22,6,51,23],[19,46,16,6,47,17],[2,139,111,7,140,112],[17,74,46],[7,54,24,16,55,25],[34,37,13],[4,151,121,5,152,122],[4,75,47,14,76,48],[11,54,24,14,55,25],[16,45,15,14,46,16],[6,147,117,4,148,118],[6,73,45,14,74,46],[11,54,24,16,55,25],[30,46,16,2,47,17],[8,132,106,4,133,107],[8,75,47,13,76,48],[7,54,24,22,55,25],[22,45,15,13,46,16],[10,142,114,2,143,115],[19,74,46,4,75,47],[28,50,22,6,51,23],[33,46,16,4,47,17],[8,152,122,4,153,123],[22,73,45,3,74,46],[8,53,23,26,54,24],[12,45,15,28,46,16],[3,147,117,10,148,118],[3,73,45,23,74,46],[4,54,24,31,55,25],[11,45,15,31,46,16],[7,146,116,7,147,117],[21,73,45,7,74,46],[1,53,23,37,54,24],[19,45,15,26,46,16],[5,145,115,10,146,116],[19,75,47,10,76,48],[15,54,24,25,55,25],[23,45,15,25,46,16],[13,145,115,3,146,116],[2,74,46,29,75,47],[42,54,24,1,55,25],[23,45,15,28,46,16],[17,145,115],[10,74,46,23,75,47],[10,54,24,35,55,25],[19,45,15,35,46,16],[17,145,115,1,146,116],[14,74,46,21,75,47],[29,54,24,19,55,25],[11,45,15,46,46,16],[13,145,115,6,146,116],[14,74,46,23,75,47],[44,54,24,7,55,25],[59,46,16,1,47,17],[12,151,121,7,152,122],[12,75,47,26,76,48],[39,54,24,14,55,25],[22,45,15,41,46,16],[6,151,121,14,152,122],[6,75,47,34,76,48],[46,54,24,10,55,25],[2,45,15,64,46,16],[17,152,122,4,153,123],[29,74,46,14,75,47],[49,54,24,10,55,25],[24,45,15,46,46,16],[4,152,122,18,153,123],[13,74,46,32,75,47],[48,54,24,14,55,25],[42,45,15,32,46,16],[20,147,117,4,148,118],[40,75,47,7,76,48],[43,54,24,22,55,25],[10,45,15,67,46,16],[19,148,118,6,149,119],[18,75,47,31,76,48],[34,54,24,34,55,25],[20,45,15,61,46,16]],r=function(t,r){var e={};return e.totalCount=t,e.dataCount=r,e},e={};return e.getRSBlocks=function(e,n){var o=function(r,e){switch(e){case g.L:return t[4*(r-1)+0];case g.M:return t[4*(r-1)+1];case g.Q:return t[4*(r-1)+2];case g.H:return t[4*(r-1)+3];default:return}}(e,n);if(void 0===o)throw"bad rs block @ typeNumber:"+e+"/errorCorrectionLevel:"+n;for(var i=o.length/3,a=[],u=0;u<i;u+=1)for(var f=o[3*u+0],c=o[3*u+1],l=o[3*u+2],h=0;h<f;h+=1)a.push(r(c,l));return a},e}(),b=function(){var t=[],r=0,e={getBuffer:function(){return t},getAt:function(r){var e=Math.floor(r/8);return 1==(t[e]>>>7-r%8&1)},put:function(t,r){for(var n=0;n<r;n+=1)e.putBit(1==(t>>>r-n-1&1))},getLengthInBits:function(){return r},putBit:function(e){var n=Math.floor(r/8);t.length<=n&&t.push(0),e&&(t[n]|=128>>>r%8),r+=1}};return e},M=function(t){var r=a,e=t,n={getMode:function(){return r},getLength:function(t){return e.length},write:function(t){for(var r=e,n=0;n+2<r.length;)t.put(o(r.substring(n,n+3)),10),n+=3;n<r.length&&(r.length-n==1?t.put(o(r.substring(n,n+1)),4):r.length-n==2&&t.put(o(r.substring(n,n+2)),7))}},o=function(t){for(var r=0,e=0;e<t.length;e+=1)r=10*r+i(t.charAt(e));return r},i=function(t){if("0"<=t&&t<="9")return t.charCodeAt(0)-"0".charCodeAt(0);throw"illegal char :"+t};return n},x=function(t){var r=u,e=t,n={getMode:function(){return r},getLength:function(t){return e.length},write:function(t){for(var r=e,n=0;n+1<r.length;)t.put(45*o(r.charAt(n))+o(r.charAt(n+1)),11),n+=2;n<r.length&&t.put(o(r.charAt(n)),6)}},o=function(t){if("0"<=t&&t<="9")return t.charCodeAt(0)-"0".charCodeAt(0);if("A"<=t&&t<="Z")return t.charCodeAt(0)-"A".charCodeAt(0)+10;switch(t){case" ":return 36;case"$":return 37;case"%":return 38;case"*":return 39;case"+":return 40;case"-":return 41;case".":return 42;case"/":return 43;case":":return 44;default:throw"illegal char :"+t}};return n},m=function(r){var e=f,n=t.stringToBytes(r),o={getMode:function(){return e},getLength:function(t){return n.length},write:function(t){for(var r=0;r<n.length;r+=1)t.put(n[r],8)}};return o},L=function(r){var e=c,n=t.stringToBytesFuncs.SJIS;if(!n)throw"sjis not supported.";!function(){var t=n("友");if(2!=t.length||38726!=(t[0]<<8|t[1]))throw"sjis not supported."}();var o=n(r),i={getMode:function(){return e},getLength:function(t){return~~(o.length/2)},write:function(t){for(var r=o,e=0;e+1<r.length;){var n=(255&r[e])<<8|255&r[e+1];if(33088<=n&&n<=40956)n-=33088;else{if(!(57408<=n&&n<=60351))throw"illegal char at "+(e+1)+"/"+n;n-=49472}n=192*(n>>>8&255)+(255&n),t.put(n,13),e+=2}if(e<r.length)throw"illegal char at "+(e+1)}};return i},D=function(){var t=[],r={writeByte:function(r){t.push(255&r)},writeShort:function(t){r.writeByte(t),r.writeByte(t>>>8)},writeBytes:function(t,e,n){e=e||0,n=n||t.length;for(var o=0;o<n;o+=1)r.writeByte(t[o+e])},writeString:function(t){for(var e=0;e<t.length;e+=1)r.writeByte(t.charCodeAt(e))},toByteArray:function(){return t},toString:function(){var r="";r+="[";for(var e=0;e<t.length;e+=1)e>0&&(r+=","),r+=t[e];return r+="]"}};return r},S=function(t){var r=t,e=0,n=0,o=0,i={read:function(){for(;o<8;){if(e>=r.length){if(0==o)return-1;throw"unexpected end of file./"+o}var t=r.charAt(e);if(e+=1,"="==t)return o=0,-1;t.match(/^\s$/)||(n=n<<6|a(t.charCodeAt(0)),o+=6)}var i=n>>>o-8&255;return o-=8,i}},a=function(t){if(65<=t&&t<=90)return t-65;if(97<=t&&t<=122)return t-97+26;if(48<=t&&t<=57)return t-48+52;if(43==t)return 62;if(47==t)return 63;throw"c:"+t};return i},I=function(t,r,e){for(var n=function(t,r){var e=t,n=r,o=new Array(t*r),i={setPixel:function(t,r,n){o[r*e+t]=n},write:function(t){t.writeString("GIF87a"),t.writeShort(e),t.writeShort(n),t.writeByte(128),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(255),t.writeByte(255),t.writeByte(255),t.writeString(","),t.writeShort(0),t.writeShort(0),t.writeShort(e),t.writeShort(n),t.writeByte(0);var r=a(2);t.writeByte(2);for(var o=0;r.length-o>255;)t.writeByte(255),t.writeBytes(r,o,255),o+=255;t.writeByte(r.length-o),t.writeBytes(r,o,r.length-o),t.writeByte(0),t.writeString(";")}},a=function(t){for(var r=1<<t,e=1+(1<<t),n=t+1,i=u(),a=0;a<r;a+=1)i.add(String.fromCharCode(a));i.add(String.fromCharCode(r)),i.add(String.fromCharCode(e));var f,c,g,l=D(),h=(f=l,c=0,g=0,{write:function(t,r){if(t>>>r!=0)throw"length over";for(;c+r>=8;)f.writeByte(255&(t<<c|g)),r-=8-c,t>>>=8-c,g=0,c=0;g|=t<<c,c+=r},flush:function(){c>0&&f.writeByte(g)}});h.write(r,n);var s=0,v=String.fromCharCode(o[s]);for(s+=1;s<o.length;){var d=String.fromCharCode(o[s]);s+=1,i.contains(v+d)?v+=d:(h.write(i.indexOf(v),n),i.size()<4095&&(i.size()==1<<n&&(n+=1),i.add(v+d)),v=d)}return h.write(i.indexOf(v),n),h.write(e,n),h.flush(),l.toByteArray()},u=function(){var t={},r=0,e={add:function(n){if(e.contains(n))throw"dup key:"+n;t[n]=r,r+=1},size:function(){return r},indexOf:function(r){return t[r]},contains:function(r){return void 0!==t[r]}};return e};return i}(t,r),o=0;o<r;o+=1)for(var i=0;i<t;i+=1)n.setPixel(i,o,e(i,o));var a=D();n.write(a);for(var u=function(){var t=0,r=0,e=0,n="",o={},i=function(t){n+=String.fromCharCode(a(63&t))},a=function(t){if(t<0);else{if(t<26)return 65+t;if(t<52)return t-26+97;if(t<62)return t-52+48;if(62==t)return 43;if(63==t)return 47}throw"n:"+t};return o.writeByte=function(n){for(t=t<<8|255&n,r+=8,e+=1;r>=6;)i(t>>>r-6),r-=6},o.flush=function(){if(r>0&&(i(t<<6-r),t=0,r=0),e%3!=0)for(var o=3-e%3,a=0;a<o;a+=1)n+="="},o.toString=function(){return n},o}(),f=a.toByteArray(),c=0;c<f.length;c+=1)u.writeByte(f[c]);return u.flush(),"data:image/gif;base64,"+u};return t}();qrcode.stringToBytesFuncs["UTF-8"]=function(t){return function(t){for(var r=[],e=0;e<t.length;e++){var n=t.charCodeAt(e);n<128?r.push(n):n<2048?r.push(192|n>>6,128|63&n):n<55296||n>=57344?r.push(224|n>>12,128|n>>6&63,128|63&n):(e++,n=65536+((1023&n)<<10|1023&t.charCodeAt(e)),r.push(240|n>>18,128|n>>12&63,128|n>>6&63,128|63&n))}return r}(t)},function(t){"function"==typeof define&&define.amd?define([],t):"object"==typeof exports&&(module.exports=t())}((function(){return qrcode}));
+
+  </script>
+  <script>
+/* Plantillas de inspección + un check libre */
+window.MEC_TEMPLATES = [
+  {
+    id: "libre",
+    name: "Otro / lo que quieras",
+    group: "General",
+    hint: "Check libre: cambia los puntos y úsalo para cualquier cosa.",
+    items: [
+      "Identificación o nombre visible",
+      "Estado general (sin daños evidentes)",
+      "Limpieza",
+      "Piezas, partes o accesorios completos",
+      "Funciona o se puede usar bien",
+      "Elementos de seguridad en su lugar (si aplica)",
+      "Sin fallas, fugas, ruidos o condiciones anormales",
+      "El lugar de uso está despejado y es seguro",
+      "Hay instrucciones o datos necesarios (si aplica)",
+      "Queda listo para usar"
+    ]
+  },
+  {
+    id: "escalera-tijera",
+    name: "Escalera tijera",
+    group: "Altura",
+    hint: "Inspección visual y funcional antes de cada uso.",
+    items: [
+      "Identificación y capacidad de carga visibles",
+      "Largueros sin fisuras, abolladuras ni corrosión",
+      "Peldaños completos, firmes y antideslizantes",
+      "Zapatas / tacos de goma en buen estado",
+      "Spreader o traba de apertura funciona y queda bloqueado",
+      "Bisagras y remaches sin holgura excesiva",
+      "Sin reparaciones improvisadas (alambre, cinta, soldadura casera)",
+      "Limpia de grasa, aceite o barro que cause resbalón",
+      "Largo adecuado: no se usará el último peldaño como plataforma",
+      "Está sobre superficie firme y nivelada"
+    ]
+  },
+  {
+    id: "escalera-extensible",
+    name: "Escalera extensible / de apoyo",
+    group: "Altura",
+    hint: "Ángulo 4:1, 3 peldaños sobre el punto de apoyo.",
+    items: [
+      "Identificación y largo nominal visibles",
+      "Largueros rectos, sin grietas ni deformación",
+      "Peldaños y ensambles en buen estado",
+      "Zapatas antideslizantes presentes y firmes",
+      "Cuerda, polea y trava de extensión operan",
+      "Ganchos / garras de techo (si aplica) sin desgaste crítico",
+      "Trabas de sección superior enganchan en ambos lados",
+      "Sin peldaños flojos ni faltantes",
+      "Superficie de apoyo estable; se amarrará en la parte superior",
+      "No hay líneas eléctricas en la trayectoria"
+    ]
+  },
+  {
+    id: "alza-hombre",
+    name: "Alza hombre / brazo articulado",
+    group: "Altura",
+    hint: "Solo personal autorizado. Arnés obligatorio en canastillo.",
+    items: [
+      "Operador con autorización vigente para este equipo",
+      "Manual, carga máxima y número de equipo visibles",
+      "Estructura, pasadores y soldaduras sin fisuras visibles",
+      "Sin fugas de aceite en cilindros, mangueras o uniones",
+      "Neumáticos / orugas con presión y sin cortes graves",
+      "Controles de canastillo y de base responden",
+      "Paro de emergencia (canastillo y base) corta el movimiento",
+      "Alarma de descenso / movimiento funciona",
+      "Barandas, puerta o cadena de acceso cierran bien",
+      "Punto de anclaje del arnés en buen estado",
+      "Sensor de inclinación / nivelación operativo",
+      "Batería o combustible suficiente para el trabajo",
+      "Área de trabajo despejada; sin líneas eléctricas cercanas",
+      "Estabilizadores se despliegan y traban (si el equipo los tiene)"
+    ]
+  },
+  {
+    id: "plataforma-tijera",
+    name: "Plataforma tijera elevadora",
+    group: "Altura",
+    hint: "No superar carga ni ocupantes indicados en la placa.",
+    items: [
+      "Placa de capacidad y cantidad de ocupantes legible",
+      "Tijera, pasadores y topes sin fisuras ni holgura anormal",
+      "Mangueras y cilindros sin fugas",
+      "Piso de plataforma antideslizante y sin huecos",
+      "Barandas y puerta de acceso firmes",
+      "Controles y paro de emergencia operan",
+      "Alarma de descenso funciona",
+      "Ruedas, frenos y pothole protection (si aplica) OK",
+      "Batería, cables y cargador en buen estado",
+      "Área nivelada, sin desniveles ni tapas de cámara inestables"
+    ]
+  },
+  {
+    id: "tecle-hidraulico",
+    name: "Tecle hidráulico",
+    group: "Izaje",
+    hint: "Nunca izar personas. No exceder la capacidad.",
+    items: [
+      "Capacidad de carga (toneladas) visible y legible",
+      "Cuerpo y pistón sin fisuras, abolladuras ni fugas",
+      "Mangueras, racores y bomba sin filtraciones",
+      "Aceite hidráulico en nivel y sin aspecto lechoso",
+      "Válvula de retención sostiene la carga de prueba ligera",
+      "Gancho con pestillo de seguridad operativo",
+      "Cadena o eslinga de izaje en buen estado",
+      "Palanca / bomba opera suave, sin saltos",
+      "Válvula de alivio no está anulada ni puenteada",
+      "Apoyo del tecle estable; no se usará de costado"
+    ]
+  },
+  {
+    id: "tecle-cadena",
+    name: "Tecle de cadena / polipasto manual",
+    group: "Izaje",
+    hint: "Revisar eslabones, freno y gancho en cada turno.",
+    items: [
+      "Placa de capacidad visible",
+      "Cadena de carga sin eslabones abiertos, torcidos ni alargados",
+      "Cadena de maniobra sin nudos ni desgaste extremo",
+      "Gancho superior e inferior con pestillo",
+      "Ganchos no están abiertos más de lo permitido (no “boca abierta”)",
+      "Freno sostiene la carga; no desliza al soltar",
+      "Carcasa y engranajes sin ruidos anómalos ni golpes",
+      "Lubricación razonable; sin óxido profundo en la cadena",
+      "Tope final de cadena presente",
+      "Punto de anclaje / viga capaz para la carga prevista"
+    ]
+  },
+  {
+    id: "tecle-electrico",
+    name: "Tecle eléctrico / polipasto",
+    group: "Izaje",
+    hint: "Probar subida, bajada y paro antes de izar.",
+    items: [
+      "Capacidad y número de serie visibles",
+      "Botonera: sube, baja, paro de emergencia",
+      "Cable de alimentación y aislación sin cortes",
+      "Cadena o cable de izaje sin hilos rotos ni deformación",
+      "Gancho con pestillo y giro libre",
+      "Freno eléctrico sostiene al cortar comando",
+      "Límite de carrera superior funciona",
+      "No hay ruidos de caja reductora anómalos",
+      "Carro o trolley se desplaza y frena",
+      "Puesta a tierra / protección eléctrica aparente"
+    ]
+  },
+  {
+    id: "puente-grua",
+    name: "Puente grúa / pórtico",
+    group: "Izaje",
+    hint: "Inspección pre-uso del operador. No reemplaza la inspección certificada.",
+    items: [
+      "Operador autorizado para este puente",
+      "Ruta de izaje despejada; piso libre de personal ajeno",
+      "Botonera / radio y paro de emergencia",
+      "Alarmas y bocina de movimiento",
+      "Gancho, pestillo y bloque inferior",
+      "Cable o cadena de izaje sin defectos visibles",
+      "Carro y puente se desplazan en ambos sentidos",
+      "Límites de carrera y anti-colisión (si existen)",
+      "No hay fugas en motor-reductor ni sobrecalentamiento previo",
+      "Carga a izar identificada y bajo la capacidad"
+    ]
+  },
+  {
+    id: "grua-piso",
+    name: "Grúa hidráulica de piso (shop crane)",
+    group: "Izaje",
+    hint: "Patas extendidas. Carga centrada. Nunca bajo la carga.",
+    items: [
+      "Capacidad por alcance (placa) legible",
+      "Pluma, pasadores y soldaduras sin fisuras",
+      "Cilindro y bomba sin fugas",
+      "Ruedas y frenos / trabas de rueda",
+      "Patas o bases extendidas y firmes",
+      "Cadena o gancho de izaje con pestillo",
+      "Válvula sostiene; no baja sola",
+      "Piso resistente y nivelado",
+      "No se usará para izar personas ni para golpear"
+    ]
+  },
+  {
+    id: "eslingas",
+    name: "Eslingas, estrobos y fajas",
+    group: "Izaje",
+    hint: "Retirar de servicio ante corte, quemadura o deformación.",
+    items: [
+      "Identificación de capacidad (ojal / etiqueta) presente",
+      "Faja: sin cortes, deshilachado ni quemaduras",
+      "Cable: sin hilos rotos, kinks ni aplastamiento",
+      "Cadena: sin eslabones alargados, torcidos ni grietas",
+      "Ojal, guarda-canto y costuras en buen estado",
+      "Ganchos o grilletes compatibles y con seguro",
+      "Ángulo de izaje considerado (no aplastar la carga)",
+      "Protección de aristas vivas prevista",
+      "Almacenada limpia, sin aceite ni nudos permanentes"
+    ]
+  },
+  {
+    id: "cadenas-ganchos",
+    name: "Cadenas, ganchos y grilletes",
+    group: "Izaje",
+    hint: "No mezclar grados. Nunca soldar un eslabón.",
+    items: [
+      "Grado y WLL visibles o identificados",
+      "Eslabones sin alargamiento, desgaste ni grietas",
+      "Gancho sin abertura excesiva; pestillo OK",
+      "Grillete con pasador del tipo correcto (no perno improvisado)",
+      "No hay soldaduras ni alambres de “reparación”",
+      "Pernos y tuercas apretados, con chaveta si corresponde",
+      "Compatible con la eslinga y el punto de izaje",
+      "Libre de corrosión profunda"
+    ]
+  },
+  {
+    id: "gato-botella",
+    name: "Gato hidráulico de botella",
+    group: "Hidráulica",
+    hint: "Usar torres o soportes. El gato no es un apoyo permanente.",
+    items: [
+      "Capacidad visible",
+      "Pistón y cuerpo sin fugas ni picaduras",
+      "Válvula de descarga cierra y abre",
+      "Extensión de tornillo (si tiene) en buen estado",
+      "Base amplia, sin deformar",
+      "Punto de apoyo del vehículo / máquina identificado",
+      "Piso firme; no se usará sobre tierra suelta",
+      "Torres de sostén disponibles para trabajar bajo carga"
+    ]
+  },
+  {
+    id: "gato-carretilla",
+    name: "Gato carretilla / cocodrilo",
+    group: "Hidráulica",
+    hint: "Nunca permanecer bajo el vehículo solo con el gato.",
+    items: [
+      "Capacidad acorde al vehículo",
+      "Ruedas y eje giran; manilla encaja",
+      "Sin fugas en el cilindro",
+      "Soporte / cuna en buen estado, no resbala",
+      "Válvula de bajada controlada, no cae de golpe",
+      "Chasis del gato sin soldaduras rotas",
+      "Se usarán torres una vez alcanzada la altura"
+    ]
+  },
+  {
+    id: "prensa-hidraulica",
+    name: "Prensa hidráulica de taller",
+    group: "Hidráulica",
+    hint: "Usar protección facial. Piezas pueden salir disparadas.",
+    items: [
+      "Capacidad y estado del manómetro",
+      "Mangueras y cilindro sin fugas",
+      "Mesa, pasadores y apoyo de pieza firmes",
+      "Plato / puntal sin fisuras",
+      "Válvula y bomba operan",
+      "Protección o pantalla disponible",
+      "Área despejada detrás de la prensa",
+      "No se prensarán materiales frágiles sin resguardo"
+    ]
+  },
+  {
+    id: "andamio",
+    name: "Andamio",
+    group: "Altura",
+    hint: "Montaje según fabricante. Barandas desde 1,8 m.",
+    items: [
+      "Bases, husillos y placas de apoyo nivelados",
+      "Marcos, crucetas y pasadores completos",
+      "Plataformas / tablones sin rotura y trabados",
+      "Barandas interior, exterior y rodapié",
+      "Acceso por escalera interior, no trepar por marcos",
+      "Amarres o estabilizadores según altura",
+      "No hay sobrecarga de material en la plataforma",
+      "Lejos de líneas eléctricas",
+      "Ruedas trabadas si es andamio de torre móvil"
+    ]
+  },
+  {
+    id: "arnes",
+    name: "Arnés y línea de vida",
+    group: "Seguridad",
+    hint: "Inspección por el usuario antes de cada uso.",
+    items: [
+      "Etiqueta y fecha de fabricación / vida útil",
+      "Cintas sin cortes, deshilachado ni rayos UV extremos",
+      "Costuras sin hilos sueltos ni quemaduras",
+      "Hebillas, argollas D y ajustadores sin deformar",
+      "Argolla dorsal y/o frontal según el trabajo",
+      "Cabo de vida y absorbedor sin haber sido activados",
+      "Ganchos con seguro doble y cierre completo",
+      "Punto de anclaje certificado identificado",
+      "Arnés ajusta: no queda suelto ni tira el cuello"
+    ]
+  },
+  {
+    id: "compresor",
+    name: "Compresor de aire",
+    group: "Taller",
+    hint: "Drenar condensado. Nunca superar la presión de trabajo.",
+    items: [
+      "Manómetro de estanque y de línea legibles",
+      "Válvula de seguridad no está precintada de más ni anulada",
+      "Estanque sin corrosión profunda ni golpes graves",
+      "Drenaje de condensado opera (se drena al inicio)",
+      "Correas, guardas y anclaje del equipo",
+      "Mangueras y acoples sin grietas; acople de seguridad",
+      "No hay fugas audibles graves",
+      "Área ventilada; no encerrar el equipo",
+      "Aceite del compresor (si no es oil-free) en nivel"
+    ]
+  },
+  {
+    id: "esmeril-angular",
+    name: "Esmeril angular / amoladora",
+    group: "Taller",
+    hint: "Disco correcto. Guarda puesta. Cara y oídos protegidos.",
+    items: [
+      "Carcasa, interruptor y cable sin daños",
+      "Guarda / protector de disco instalado",
+      "Disco para el material y RPM ≥ las de la máquina",
+      "Disco sin vencimiento, grietas ni humedad",
+      "Bridas y tuerca correctas, disco asienta bien",
+      "Empuñadura auxiliar colocada",
+      "Prueba en vacío: sin vibración excesiva",
+      "EPP: cara, ojos, oídos y guantes adecuados",
+      "Chispas no apuntan a personas ni a combustibles"
+    ]
+  },
+  {
+    id: "esmeril-banco",
+    name: "Esmeril de banco",
+    group: "Taller",
+    hint: "Apoyapieza a ≤ 3 mm de la piedra. Nunca piedra de costado.",
+    items: [
+      "Fijación al banco firme",
+      "Guardas laterales y protectores presentes",
+      "Piedras sin grietas (sonido / visual)",
+      "Apoyapieza ajustada cerca de la piedra",
+      "Visor transparente en buen estado",
+      "Piedras no están desgastadas al plato",
+      "Interruptor y puesta a tierra",
+      "Área limpia de viruta y trapos"
+    ]
+  },
+  {
+    id: "soldadora",
+    name: "Soldadora (electrodo / MIG / TIG)",
+    group: "Taller",
+    hint: "Ventilación, pantalla y riesgo de incendio.",
+    items: [
+      "Cables de poder y masa sin aislación rota",
+      "Conectores y pinza / antorcha en buen estado",
+      "Puesta a masa cerca del punto de soldadura",
+      "Gas (MIG/TIG): regulador, manguera y fugas",
+      "Pantalla o careta con filtro adecuado",
+      "Ropa de cuero / ignífuga, no ropa sintética",
+      "Extintor y vigilancia de incendio previstos",
+      "Extracción o ventilación del humo",
+      "No hay solventes ni combustibles en el radio de chispa",
+      "Área señalizada para terceros"
+    ]
+  },
+  {
+    id: "cilindros-gas",
+    name: "Cilindros de gas (oxígeno / acetileno / CO2)",
+    group: "Taller",
+    hint: "Oxígeno lejos de grasas. Acetileno vertical.",
+    items: [
+      "Cilindros de pie, encadenados o en carro",
+      "Capuchones puestos cuando no se usa",
+      "Reguladores del gas correcto, sin aceite ni grasa",
+      "Mangueras sin cortes; retroceso / válvulas check (oxiacetileno)",
+      "Identificación de gas por color / etiqueta",
+      "Vencimiento de prueba hidrostática no superado",
+      "Válvulas cierran; no hay fugas con agua jabonosa",
+      "Oxígeno separado de combustibles",
+      "Área ventilada, lejos de arcos y llamas abiertas"
+    ]
+  },
+  {
+    id: "extintor",
+    name: "Extintor",
+    group: "Seguridad",
+    hint: "Uno por zona de riesgo. Acceso libre.",
+    items: [
+      "Acceso libre; no está tapado ni en el suelo",
+      "Precinto y pasador de seguridad presentes",
+      "Manómetro en zona verde (si es presurizado)",
+      "Tipo (ABC / CO2 / acetato) acorde al riesgo",
+      "Manguera, pitón y gatillo sin daños",
+      "Etiqueta de última recarga / mantención vigente",
+      "Soporte o muro firme; altura razonable",
+      "Señalética visible"
+    ]
+  },
+  {
+    id: "generador",
+    name: "Generador eléctrico",
+    group: "Taller",
+    hint: "Nunca en recinto cerrado. No retroalimentar el tablero.",
+    items: [
+      "Exterior, ventilado, lejos de puertas y tomas de aire",
+      "Nivel de combustible y de aceite",
+      "Estanque y mangueras sin fugas",
+      "Escape no apunta a personas ni a ventanas",
+      "Conexiones eléctricas secas; no sobrecargar",
+      "Puesta a tierra si el fabricante lo exige",
+      "Paro de emergencia / llave opera",
+      "Extintor cerca",
+      "No se conectará a la red de la empresa sin transferencia"
+    ]
+  },
+  {
+    id: "taladro-columna",
+    name: "Taladro de columna / banco",
+    group: "Taller",
+    hint: "Pieza amarrada. Pelo recogido. No guantes con broca girando.",
+    items: [
+      "Fijación al piso o banco",
+      "Guarda de mandril / broca (si existe)",
+      "Mandril y broca firmes, broca afilada y recta",
+      "Prensa o morsa para la pieza disponible",
+      "Velocidad acorde al diámetro y material",
+      "Interruptor y parada funcionan",
+      "Iluminación del punto de trabajo",
+      "Viruta se retirará con gancho, no con la mano"
+    ]
+  },
+  {
+    id: "herramientas-manuales",
+    name: "Herramientas manuales",
+    group: "Taller",
+    hint: "Carro o maleta del técnico / cuadrilla.",
+    items: [
+      "Llaves y dados sin grietas ni boca abierta",
+      "Alicates y cortes con aislación (si hay riesgo eléctrico)",
+      "Martillos: cabeza firme, mango sin astillas",
+      "Destornilladores: punta no redondeada, mango intacto",
+      "Cinceles sin cabeza de hongo",
+      "Torquímetro calibrado / no se usa como palanca",
+      "No hay herramientas improvisadas o “hechizas” críticas",
+      "Orden: se devuelven al carro; no quedan en alturas"
+    ]
+  },
+  {
+    id: "banco-prensa",
+    name: "Banco de trabajo y morsa",
+    group: "Taller",
+    hint: "Superficie firme. Mordazas paralelas.",
+    items: [
+      "Banco estable, sin balanceo",
+      "Morsa anclada, mordazas sin dentado destruido",
+      "Husillo de morsa opera",
+      "Iluminación suficiente",
+      "Tomas eléctricas en buen estado, no sobrecargadas",
+      "Sin trampas de viruta ni aceite en el piso del puesto",
+      "Protecciones de esmeril o taladro de banco (si están en el mismo puesto)"
+    ]
+  },
+  {
+    id: "epp",
+    name: "EPP del personal",
+    group: "Seguridad",
+    hint: "Check diario de la cuadrilla o del ingreso a faena.",
+    items: [
+      "Casco sin grietas; arnés interno sano",
+      "Lentes o pantalla según la tarea",
+      "Protección auditiva disponible en zona de ruido",
+      "Guantes del tipo correcto (no usar con máquinas rotativas)",
+      "Calzado de seguridad con puntera y suela en buen estado",
+      "Ropa de trabajo, chaleco o alta visibilidad si hay tránsito",
+      "Arnés si hay trabajo en altura",
+      "Mascarilla / respirador si hay polvo, humo o solvente"
+    ]
+  },
+  {
+    id: "orden-aseo",
+    name: "Orden, aseo y patio de taller",
+    group: "Seguridad",
+    hint: "Inspección de área al inicio de turno.",
+    items: [
+      "Pisos secos, sin charcos de aceite ni mangueras sueltas",
+      "Pasillos y salidas de emergencia libres",
+      "Residuos metálicos y trapos con grasa en contenedor",
+      "Iluminación general operativa",
+      "Extintores y botiquín accesibles",
+      "Material no se apila de forma inestable",
+      "Pozos, canales y fosos señalizados o tapados",
+      "Área de soldadura aislada de combustibles"
+    ]
+  },
+  {
+    id: "bloqueo-energi",
+    name: "Bloqueo de energías (LOTO)",
+    group: "Seguridad",
+    hint: "Antes de mantener, desatascar o entrar a un equipo.",
+    items: [
+      "Equipo identificado y notificado a operación",
+      "Se cortó la energía (eléctrica, hidráulica, neumática, gravedad)",
+      "Candado y tarjeta personales colocados",
+      "Prueba de intento de arranque: no parte",
+      "Energías residuales liberadas (presión, condensadores, brazos)",
+      "Solo el dueño del candado lo retira",
+      "Hay candados de más si interviene más de una persona"
+    ]
+  },
+  {
+    id: "camioneta",
+    name: "Camioneta / vehículo de servicio",
+    group: "Vehículos",
+    hint: "Check de salida a terreno.",
+    items: [
+      "Documentos, seguro y revisión técnica (si aplica)",
+      "Luces, frenos, bocina y parabrisas",
+      "Neumáticos y rueda de repuesto",
+      "Aceite, refrigerante y combustible",
+      "Carga y herramientas amarradas en caja / rack",
+      "Escalera o tecle de viaje bien sujetos",
+      "Botiquín, extintor y triángulos",
+      "Conductor con licencia acorde"
+    ]
+  }
+];
+
+window.MEC_VERDICTS = [
+  { id: "apto", name: "Apto para uso", hint: "Se puede usar en este turno." },
+  { id: "observado", name: "Apto con observaciones", hint: "Usar con restricciones anotadas." },
+  { id: "rechazado", name: "No apto / fuera de servicio", hint: "Bloquear y etiquetar. No usar." }
+];
+
+  </script>
+  <script>
+/* Check list Técnico — inspecciones genéricas, foto, firma y ficha QR */
+(function () {
+  "use strict";
+
+  const APP_NAME = "Check list Técnico";
+  const STORE = "meccheck-reports-v1";
+  const SETTINGS = "meccheck-settings-v1";
+  const BLOB = "https://jsonblob.com/api/jsonBlob";
+  const CDN = "https://raw.githubusercontent.com/Caleushe-desing/Shooter/cursor/checklist-mecanica-9fc5/";
+
+  if (typeof window.MEC_ASSET_BASE !== "string") {
+    const h = location.hostname || "";
+    const local = h === "localhost" || h === "127.0.0.1";
+    const pages = /\.github\.io$/i.test(h) && !/html-?preview/i.test(h);
+    window.MEC_ASSET_BASE = local || pages ? "" : CDN;
+  }
+  if (!window.MEC_CDN) window.MEC_CDN = CDN;
+
+  const $app = document.getElementById("app");
+  const state = {
+    view: "home",
+    draft: null,
+    report: null,
+    filter: "",
+    remoteError: "",
+    publishing: false,
+  };
+
+  function uid() {
+    const d = new Date();
+    const p = String(d.getFullYear()).slice(2) + pad(d.getMonth() + 1) + pad(d.getDate());
+    const r = Math.random().toString(36).slice(2, 6).toUpperCase();
+    return "MC-" + p + "-" + r;
+  }
+  function pad(n) {
+    return String(n).padStart(2, "0");
+  }
+  function nowISO() {
+    return new Date().toISOString();
+  }
+  function fmtDate(iso) {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    return d.toLocaleString("es-CL", { dateStyle: "short", timeStyle: "short" });
+  }
+  function escapeHtml(s) {
+    return String(s || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function loadSettings() {
+    try {
+      return Object.assign(
+        { company: "", rut: "", branch: "", inspector: "", logo: "" },
+        JSON.parse(localStorage.getItem(SETTINGS) || "{}")
+      );
+    } catch (e) {
+      return { company: "", rut: "", branch: "", inspector: "", logo: "" };
+    }
+  }
+  function saveSettings(s) {
+    localStorage.setItem(SETTINGS, JSON.stringify(s));
+  }
+  function blank(s) {
+    return !String(s || "").trim();
+  }
+  function settingsComplete(s) {
+    s = s || loadSettings();
+    return !blank(s.company) && !blank(s.rut) && !blank(s.branch) && !blank(s.inspector) && !blank(s.logo);
+  }
+  function reqLabel(text) {
+    return escapeHtml(text) + ' <span class="req">*</span>';
+  }
+  function loadReports() {
+    try {
+      return JSON.parse(localStorage.getItem(STORE) || "[]");
+    } catch (e) {
+      return [];
+    }
+  }
+  function saveReports(list) {
+    try {
+      localStorage.setItem(STORE, JSON.stringify(list));
+    } catch (e) {
+      const slim = list.map((r, i) => {
+        if (i < 12) return r;
+        const c = JSON.parse(JSON.stringify(r));
+        if (c.equipment) {
+          c.equipment.photo = "";
+          c.equipment.photos = [];
+        }
+        return c;
+      });
+      try {
+        localStorage.setItem(STORE, JSON.stringify(slim.slice(0, 40)));
+      } catch (e2) {
+        localStorage.setItem(STORE, JSON.stringify(list.slice(0, 8)));
+      }
+    }
+  }
+  function upsertReport(rep) {
+    const list = loadReports().filter((r) => r.id !== rep.id);
+    list.unshift(rep);
+    saveReports(list.slice(0, 120));
+  }
+  function getReport(id) {
+    return loadReports().find((r) => r.id === id);
+  }
+  function templateById(id) {
+    return (window.MEC_TEMPLATES || []).find((t) => t.id === id);
+  }
+  function eqPhoto(typeId) {
+    if (!typeId || typeId === "libre") return "";
+    if (window.MEC_PHOTOS && window.MEC_PHOTOS[typeId]) return window.MEC_PHOTOS[typeId];
+    return (window.MEC_ASSET_BASE || "") + "img/equipos/" + typeId + ".jpg";
+  }
+  function eqPhotoTag(typeId, cls, alt) {
+    const src = eqPhoto(typeId);
+    if (!src) return "";
+    return (
+      '<img class="' +
+      (cls || "eq-photo") +
+      '" src="' +
+      src +
+      '" alt="' +
+      escapeHtml(alt || "") +
+      '" loading="lazy" onerror="window.mecImgFb&&window.mecImgFb(this)">'
+    );
+  }
+  window.mecImgFb = function (el) {
+    if (!el || el.dataset.fb) return;
+    el.dataset.fb = "1";
+    el.removeAttribute("src");
+    el.classList.add("eq-photo-missing");
+  };
+  function userPhotos(r) {
+    if (!r || !r.equipment) return [];
+    if (r.equipment.photos && r.equipment.photos.length) return r.equipment.photos;
+    if (r.equipment.photo) return [r.equipment.photo];
+    return [];
+  }
+  function ensurePhotos(d) {
+    if (!d.equipment) d.equipment = { code: "", location: "", photo: "", photos: [] };
+    if (!d.equipment.photos) d.equipment.photos = userPhotos(d);
+  }
+  function compressImage(file, max, quality) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        const limit = max || 960;
+        let w = img.width;
+        let h = img.height;
+        if (w > limit || h > limit) {
+          const s = limit / Math.max(w, h);
+          w = Math.round(w * s);
+          h = Math.round(h * s);
+        }
+        const c = document.createElement("canvas");
+        c.width = w;
+        c.height = h;
+        const ctx = c.getContext("2d");
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(url);
+        resolve(c.toDataURL("image/jpeg", quality || 0.72));
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error("foto"));
+      };
+      img.src = url;
+    });
+  }
+  function brandLogo(cls) {
+    return (
+      '<svg class="' +
+      (cls || "brand-logo") +
+      '" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="40" height="40" aria-hidden="true">' +
+      '<rect width="64" height="64" rx="16" fill="#1a2027"/>' +
+      '<path d="M16 0h32a16 16 0 0 1 16 16v6H0V16A16 16 0 0 1 16 0z" fill="#f5c400"/>' +
+      '<rect x="16.5" y="22" width="31" height="32" rx="4.5" fill="#fffef8"/>' +
+      '<rect x="26" y="17.5" width="12" height="8" rx="2.2" fill="#f5c400"/>' +
+      '<circle cx="44.5" cy="46.5" r="8.6" fill="#1b8f4e"/>' +
+      '<path d="M40.2 46.6l2.8 2.9 6.2-7.2" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>' +
+      "</svg>"
+    );
+  }
+  function newDraft(typeId) {
+    const t = templateById(typeId) || templateById("libre") || (window.MEC_TEMPLATES || [])[0];
+    const s = loadSettings();
+    return {
+      id: uid(),
+      createdAt: nowISO(),
+      company: s.company,
+      rut: s.rut,
+      branch: s.branch,
+      companyLogo: s.logo || "",
+      type: t ? t.id : "libre",
+      typeName: t ? t.name : "",
+      group: t ? t.group : "General",
+      equipment: { code: "", location: "", photo: "", photos: [] },
+      inspector: s.inspector,
+      cargo: "",
+      items: ((t && t.items) || []).map((text, i) => ({
+        id: (t ? t.id : "libre") + "-" + (i + 1),
+        text: text,
+        result: "",
+        note: "",
+      })),
+      observations: "",
+      verdict: "",
+      signatures: { inspector: "", supervisor: "" },
+      strokes: { inspector: [], supervisor: [] },
+      supervisorName: "",
+      blobId: "",
+      shareCode: "",
+    };
+  }
+
+  /* ---------- signature pads ---------- */
+  const pads = {};
+  function bindPad(canvas, key) {
+    const ctx = canvas.getContext("2d");
+    const ratio = window.devicePixelRatio || 1;
+    const cssW = canvas.clientWidth || 300;
+    const cssH = canvas.clientHeight || 120;
+    canvas.width = Math.floor(cssW * ratio);
+    canvas.height = Math.floor(cssH * ratio);
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    function paintPaper() {
+      ctx.fillStyle = "#fffef8";
+      ctx.fillRect(0, 0, cssW, cssH);
+    }
+    paintPaper();
+    ctx.strokeStyle = "#1a1a1a";
+    ctx.lineWidth = 2.2;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    let drawing = false;
+    let last = null;
+    const strokes = (state.draft.strokes && state.draft.strokes[key] && state.draft.strokes[key].map((s) => s.slice())) || [];
+    let current = [];
+    if (!state.draft.strokes) state.draft.strokes = { inspector: [], supervisor: [] };
+    const pos = (e) => {
+      const r = canvas.getBoundingClientRect();
+      const src = e.touches ? e.touches[0] : e;
+      return { x: Math.round(src.clientX - r.left), y: Math.round(src.clientY - r.top) };
+    };
+    const start = (e) => {
+      e.preventDefault();
+      drawing = true;
+      last = pos(e);
+      current = [last];
+    };
+    const move = (e) => {
+      if (!drawing) return;
+      e.preventDefault();
+      const p = pos(e);
+      if (Math.abs(p.x - last.x) + Math.abs(p.y - last.y) < 2) return;
+      ctx.beginPath();
+      ctx.moveTo(last.x, last.y);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+      last = p;
+      current.push(p);
+    };
+    const end = (e) => {
+      if (!drawing) return;
+      drawing = false;
+      if (current.length) strokes.push(current.map((p) => [p.x, p.y]));
+      current = [];
+      state.draft.strokes[key] = strokes;
+      try {
+        state.draft.signatures[key] = canvas.toDataURL("image/png");
+      } catch (err) {}
+    };
+    canvas.addEventListener("pointerdown", start);
+    canvas.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", end);
+    canvas.addEventListener("touchstart", start, { passive: false });
+    canvas.addEventListener("touchmove", move, { passive: false });
+    canvas.addEventListener("touchend", end);
+    pads[key] = {
+      canvas: canvas,
+      clear: () => {
+        paintPaper();
+        strokes.length = 0;
+        if (state.draft) {
+          state.draft.signatures[key] = "";
+          state.draft.strokes[key] = [];
+        }
+      },
+    };
+    const existingStrokes = state.draft && state.draft.strokes && state.draft.strokes[key];
+    if (existingStrokes && existingStrokes.length) {
+      existingStrokes.forEach((st) => {
+        if (!st.length) return;
+        ctx.beginPath();
+        ctx.moveTo(st[0][0], st[0][1]);
+        for (let i = 1; i < st.length; i++) ctx.lineTo(st[i][0], st[i][1]);
+        ctx.stroke();
+      });
+    } else {
+      const existing = state.draft && state.draft.signatures[key];
+      if (existing) {
+        const img = new Image();
+        img.onload = () => ctx.drawImage(img, 0, 0, cssW, cssH);
+        img.src = existing;
+      }
+    }
+  }
+
+  function capStrokes(strokes, maxPts) {
+    if (!strokes || !strokes.length) return [];
+    const copy = strokes.map((s) => s.filter(Boolean));
+    let n = copy.reduce((a, s) => a + s.length, 0);
+    if (n <= maxPts) return copy;
+    const step = Math.ceil(n / maxPts);
+    return copy.map((s) => s.filter((_, i) => i === 0 || i === s.length - 1 || i % step === 0));
+  }
+
+  function compactReport(r) {
+    return {
+      v: 1,
+      id: r.id,
+      at: r.createdAt,
+      co: r.company,
+      rut: r.rut,
+      br: r.branch,
+      ty: r.type,
+      tn: r.typeName,
+      gp: r.group,
+      eq: r.equipment
+        ? { code: r.equipment.code || "", location: r.equipment.location || "", brand: r.equipment.brand || "", model: r.equipment.model || "" }
+        : {},
+      ins: r.inspector,
+      car: r.cargo,
+      tx: (r.items || []).map((i) => i.text),
+      rs: (r.items || []).map((i) => (i.result === "ok" ? "o" : i.result === "fail" ? "f" : i.result === "na" ? "n" : ".")).join(""),
+      nt: (r.items || []).reduce((a, i, idx) => {
+        if (i.note) a[idx] = i.note;
+        return a;
+      }, {}),
+      ob: r.observations,
+      ve: r.verdict,
+      si: capStrokes((r.strokes && r.strokes.inspector) || [], 280),
+      ss: capStrokes((r.strokes && r.strokes.supervisor) || [], 180),
+      sn: r.supervisorName,
+    };
+  }
+
+  function expandReport(c) {
+    const t = templateById(c.ty);
+    const texts = c.tx && c.tx.length ? c.tx : t ? t.items : [];
+    const items = [];
+    const rs = c.rs || "";
+    const n = Math.max(texts.length, rs.length);
+    for (let i = 0; i < n; i++) {
+      const ch = rs[i];
+      items.push({
+        id: (c.ty || "x") + "-" + (i + 1),
+        text: texts[i] || "Punto " + (i + 1),
+        result: ch === "o" ? "ok" : ch === "f" ? "fail" : ch === "n" ? "na" : "",
+        note: (c.nt && c.nt[i]) || "",
+      });
+    }
+    return {
+      id: c.id,
+      createdAt: c.at,
+      company: c.co,
+      rut: c.rut,
+      branch: c.br,
+      companyLogo: c.lg || "",
+      type: c.ty,
+      typeName: c.tn || (t && t.name) || c.ty,
+      group: c.gp || (t && t.group) || "",
+      equipment: c.eq || {},
+      inspector: c.ins,
+      cargo: c.car,
+      items: items,
+      observations: c.ob,
+      verdict: c.ve,
+      strokes: { inspector: c.si || [], supervisor: c.ss || [] },
+      signatures: { inspector: "", supervisor: "" },
+      supervisorName: c.sn || "",
+      blobId: "",
+      shareCode: "",
+    };
+  }
+
+  function b64url(bytes) {
+    let s = "";
+    for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+    return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+  function b64urlToBytes(s) {
+    const b64 = s.replace(/-/g, "+").replace(/_/g, "/");
+    const pad = b64.length % 4 === 0 ? "" : "=".repeat(4 - (b64.length % 4));
+    const bin = atob(b64 + pad);
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+
+  async function encodeShare(report) {
+    const json = JSON.stringify(compactReport(report));
+    if (typeof CompressionStream === "function") {
+      const buf = new TextEncoder().encode(json);
+      const stream = new Blob([buf]).stream().pipeThrough(new CompressionStream("deflate-raw"));
+      const ab = await new Response(stream).arrayBuffer();
+      return "z" + b64url(new Uint8Array(ab));
+    }
+    return "u" + btoa(unescape(encodeURIComponent(json))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+
+  async function decodeShare(code) {
+    if (!code) throw new Error("Ficha vacía");
+    if (code[0] === "z") {
+      const bytes = b64urlToBytes(code.slice(1));
+      const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+      const ab = await new Response(stream).arrayBuffer();
+      return expandReport(JSON.parse(new TextDecoder().decode(ab)));
+    }
+    if (code[0] === "u") {
+      const raw = code.slice(1).replace(/-/g, "+").replace(/_/g, "/");
+      const pad = raw.length % 4 === 0 ? "" : "=".repeat(4 - (raw.length % 4));
+      return expandReport(JSON.parse(decodeURIComponent(escape(atob(raw + pad)))));
+    }
+    return expandReport(JSON.parse(decodeURIComponent(escape(atob(code)))));
+  }
+
+  function strokesSvg(strokes) {
+    if (!strokes || !strokes.length) return "";
+    let d = "";
+    strokes.forEach((st) => {
+      if (!st || !st.length) return;
+      d += "M" + st[0][0] + " " + st[0][1];
+      for (let i = 1; i < st.length; i++) d += "L" + st[i][0] + " " + st[i][1];
+    });
+    return (
+      '<svg class="sig-img" viewBox="0 0 300 120" preserveAspectRatio="xMidYMid meet"><rect width="300" height="120" fill="#fffef8"/><path d="' +
+      d +
+      '" fill="none" stroke="#1a1a1a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+    );
+  }
+
+  function sigBlock(label, jpeg, strokes) {
+    const hasStrokes = strokes && strokes.length;
+    const art = hasStrokes
+      ? strokesSvg(strokes)
+      : jpeg && jpeg.indexOf("data:image") === 0
+        ? '<img class="sig-img" alt="' + escapeHtml(label) + '" src="' + jpeg + '">'
+        : "";
+    return (
+      "<div><div class=\"note\">" +
+      escapeHtml(label) +
+      "</div>" +
+      (art || "<p class=\"note\">Sin firma</p>") +
+      "</div>"
+    );
+  }
+  function publicBase() {
+    return location.origin && location.origin !== "null"
+      ? location.origin + location.pathname
+      : location.href.split("#")[0];
+  }
+  function viewUrl(blobId) {
+    return publicBase() + "#/r/" + blobId;
+  }
+  function localViewUrl(id) {
+    return publicBase() + "#/local/" + id;
+  }
+  function shareUrl(r) {
+    if (r && r.shareCode) return publicBase() + "#/v/" + r.shareCode;
+    if (r && r.blobId) return viewUrl(r.blobId);
+    if (r) return localViewUrl(r.id);
+    return publicBase();
+  }
+
+  function drawQr(el, text) {
+    el.innerHTML = "";
+    try {
+      const qr = qrcode(0, text.length > 500 ? "L" : "M");
+      qr.addData(text);
+      qr.make();
+      el.innerHTML = qr.createSvgTag(4, 8);
+      const svg = el.querySelector("svg");
+      if (svg) {
+        svg.setAttribute("width", "260");
+        svg.setAttribute("height", "260");
+        svg.style.maxWidth = "100%";
+      }
+    } catch (e) {
+      const img = document.createElement("img");
+      img.alt = "QR";
+      img.src = "https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=" + encodeURIComponent(text);
+      el.appendChild(img);
+    }
+  }
+
+  async function publish(report) {
+    const slim = JSON.parse(JSON.stringify(report));
+    const res = await fetch(BLOB, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(slim),
+    });
+    if (!res.ok) throw new Error("No se pudo publicar (" + res.status + ")");
+    const loc = res.headers.get("Location") || res.headers.get("location") || res.headers.get("X-jsonblob");
+    let id = "";
+    if (loc) id = String(loc).split("/").pop();
+    if (!id) {
+      try {
+        const body = await res.json();
+        id = body.id || body.blobId || "";
+      } catch (e) {}
+    }
+    if (!id) {
+      const hdrs = [...res.headers.entries()];
+      const hit = hdrs.find((h) => /jsonblob|location/i.test(h[0]));
+      if (hit) id = String(hit[1]).split("/").pop();
+    }
+    if (!id) throw new Error("El servidor no devolvió un ID público");
+    return id;
+  }
+
+  async function fetchRemote(id) {
+    const res = await fetch(BLOB + "/" + id, { headers: { Accept: "application/json" } });
+    if (!res.ok) throw new Error("Ficha no encontrada");
+    return res.json();
+  }
+
+  /* ---------- routing ---------- */
+  function parseHash() {
+    const raw = (location.hash || "#/").replace(/^#/, "");
+    const parts = raw.split("/").filter(Boolean);
+    return parts;
+  }
+
+  function go(path) {
+    location.hash = path;
+  }
+
+  window.addEventListener("hashchange", () => {
+    route();
+  });
+
+  async function route() {
+    const p = parseHash();
+    if (p[0] === "v" && p[1]) {
+      state.view = "remote";
+      state.remoteError = "";
+      state.report = null;
+      render();
+      try {
+        state.report = await decodeShare(decodeURIComponent(p.slice(1).join("/")));
+      } catch (e) {
+        state.remoteError = "No se pudo leer esta ficha. Pide que te reenvíen el QR o el enlace.";
+      }
+      render();
+      return;
+    }
+    if (p[0] === "r" && p[1]) {
+      state.view = "remote";
+      state.remoteError = "";
+      render();
+      try {
+        state.report = await fetchRemote(p[1]);
+      } catch (e) {
+        state.remoteError = e.message || "No se pudo abrir la ficha";
+        state.report = null;
+      }
+      render();
+      return;
+    }
+    if (p[0] === "local" && p[1]) {
+      state.view = "view";
+      state.report = getReport(p[1]) || null;
+      render();
+      return;
+    }
+    if (p[0] === "nuevo") {
+      if (!settingsComplete()) {
+        alert("Primero completa los datos de la empresa, incluido el logo.");
+        go("#/ajustes");
+        return;
+      }
+      const typeId = p[1] || "libre";
+      if (!state.draft || state.draft.type !== typeId) state.draft = newDraft(typeId);
+      state.view = "form";
+      render();
+      afterForm();
+      return;
+    }
+    if (p[0] === "tipos") {
+      if (!settingsComplete()) {
+        alert("Primero completa los datos de la empresa, incluido el logo.");
+        go("#/ajustes");
+        return;
+      }
+      state.view = "types";
+      render();
+      return;
+    }
+    if (p[0] === "historial") {
+      state.view = "history";
+      render();
+      return;
+    }
+    if (p[0] === "ajustes") {
+      state.editSettings = Object.assign({}, loadSettings());
+      state.view = "settings";
+      render();
+      return;
+    }
+    if (p[0] === "pdf") {
+      state.view = "print";
+      if (p[1]) state.report = getReport(decodeURIComponent(p[1])) || state.report;
+      render();
+      return;
+    }
+    if (p[0] === "qr" && p[1]) {
+      state.view = "qr";
+      state.report = getReport(p[1]) || state.report;
+      render();
+      afterQr();
+      return;
+    }
+    state.view = "home";
+    render();
+  }
+
+  /* ---------- UI ---------- */
+  function topBar(title, back) {
+    return (
+      '<header class="top">' +
+      (back ? '<button class="back" data-go="' + back + '" aria-label="Volver">←</button>' : brandLogo()) +
+      '<div><h1>' +
+      escapeHtml(title) +
+      "</h1></div></header>"
+    );
+  }
+
+  function home() {
+    const s = loadSettings();
+    const n = loadReports().length;
+    return (
+      '<header class="top">' +
+      (s.logo
+        ? '<img class="brand-logo company-mark" src="' + s.logo + '" alt="' + escapeHtml(s.company) + '">'
+        : brandLogo()) +
+      '<div><h1>' +
+      APP_NAME +
+      '</h1><div class="sub">' +
+      escapeHtml(s.company || "Completa los datos de la empresa") +
+      "</div></div></header>" +
+      '<div class="hero"><p>Elige qué vas a revisar, marca los checks y al final saca fotos del equipo. Se firma en el celular y se comparte con un QR.</p></div>' +
+      '<div class="wrap">' +
+      '<button class="btn" data-go="#/tipos">Nueva inspección</button>' +
+      '<div class="actions">' +
+      '<button class="btn ghost" data-go="#/historial">Historial (' +
+      n +
+      ")</button>" +
+      '<button class="btn ghost" data-go="#/ajustes">Datos de la empresa' +
+      (settingsComplete() ? "" : " (obligatorio)") +
+      "</button>" +
+      "</div>" +
+      (settingsComplete()
+        ? ""
+        : '<p class="banner-bad">Completa nombre, RUT, sucursal, inspector y el logo de la empresa antes de inspeccionar.</p>') +
+      '<p class="note">Las inspecciones quedan en la memoria de <b>este navegador</b>, en este celular. No hay cuenta en la nube: si borras los datos del sitio, usas otro teléfono u otro explorador, el historial no aparece. El QR sirve para mostrar esa ficha a otra persona.</p>' +
+      '<p class="note">Bitácora de apoyo. No reemplaza certificaciones ni fiscalizaciones oficiales.</p>' +
+      "</div>"
+    );
+  }
+
+  function typesView() {
+    const q = (state.filter || "").toLowerCase();
+    const list = (window.MEC_TEMPLATES || []).filter(
+      (t) => !q || (t.name + " " + t.group + " " + t.hint).toLowerCase().indexOf(q) >= 0
+    );
+    const groups = [];
+    list.forEach((t) => {
+      if (!groups.includes(t.group)) groups.push(t.group);
+    });
+    let html =
+      topBar("Qué se inspecciona", "#/") +
+      '<div class="wrap"><input class="search" id="q" placeholder="Buscar…" value="' +
+      escapeHtml(state.filter) +
+      '">';
+    if (!list.length) {
+      html += '<p class="empty">Sin coincidencias.</p></div>';
+      return html;
+    }
+    groups.forEach((g) => {
+      html += '<div class="group-title">' + escapeHtml(g) + '</div><div class="grid">';
+      list
+        .filter((t) => t.group === g)
+        .forEach((t) => {
+          html +=
+            '<button class="eq" data-go="#/nuevo/' +
+            t.id +
+            '">' +
+            (eqPhotoTag(t.id, "eq-thumb", t.name) || '<div class="eq-thumb photo-empty"></div>') +
+            '<span class="eq-body"><span class="tag">' +
+            escapeHtml(t.group) +
+            "</span><b>" +
+            escapeHtml(t.name) +
+            "</b><span>" +
+            escapeHtml(t.hint) +
+            "</span></span></button>";
+        });
+      html += "</div>";
+    });
+    html += "</div>";
+    return html;
+  }
+
+  function formView() {
+    const d = state.draft;
+    if (!d) return home();
+    if (!d.equipment) d.equipment = { code: "", location: "", photo: "", photos: [] };
+    const catalog = eqPhotoTag(d.type, "eq-hero-img", d.typeName);
+    let html =
+      topBar(d.typeName || "Nueva inspección", "#/tipos") +
+      '<div class="wrap">' +
+      (catalog ? '<div class="eq-hero">' + catalog + "</div>" : "") +
+      '<p class="note">Folio <span class="folio">' +
+      escapeHtml(d.id) +
+      "</span>. Puedes ajustar los puntos. Al final saca fotos del equipo.</p>" +
+      '<div class="card"><label>' +
+      reqLabel("Qué se inspecciona") +
+      '</label><input id="f-name" required placeholder="Nombre de lo que se revisa" value="' +
+      escapeHtml(d.typeName) +
+      '">' +
+      "<label>" +
+      reqLabel("Código / referencia") +
+      '</label><input id="f-code" required value="' +
+      escapeHtml(d.equipment.code || "") +
+      '">' +
+      "<label>" +
+      reqLabel("Ubicación") +
+      '</label><input id="f-loc" required value="' +
+      escapeHtml(d.equipment.location || "") +
+      '">' +
+      "<label>" +
+      reqLabel("Quién revisa") +
+      '</label><input id="f-insp" required value="' +
+      escapeHtml(d.inspector) +
+      '">' +
+      "<label>" +
+      reqLabel("Cargo") +
+      '</label><input id="f-cargo" required value="' +
+      escapeHtml(d.cargo) +
+      '"></div>' +
+      "<h3 style=\"margin:8px 0\">Puntos de control</h3>";
+
+    d.items.forEach((it, i) => {
+      html +=
+        '<div class="item ' +
+        escapeHtml(it.result) +
+        '"><div class="item-head"><input class="item-text" data-item-text="' +
+        i +
+        '" value="' +
+        escapeHtml(it.text) +
+        '"><button type="button" class="icon-btn item-del" data-del-item="' +
+        i +
+        '" aria-label="Quitar punto">×</button></div><div class="seg">' +
+        '<button data-item="' +
+        i +
+        '" data-res="ok" class="' +
+        (it.result === "ok" ? "on-ok" : "") +
+        '">OK</button>' +
+        '<button data-item="' +
+        i +
+        '" data-res="fail" class="' +
+        (it.result === "fail" ? "on-fail" : "") +
+        '">Falla</button>' +
+        '<button data-item="' +
+        i +
+        '" data-res="na" class="' +
+        (it.result === "na" ? "on-na" : "") +
+        '">N/A</button></div>' +
+        (it.result === "fail"
+          ? '<label>' +
+            reqLabel("Detalle de la falla") +
+            '</label><input data-note="' +
+            i +
+            '" required placeholder="¿Qué se vio?" value="' +
+            escapeHtml(it.note) +
+            '">'
+          : "") +
+        "</div>";
+    });
+    html +=
+      '<div class="card"><label>Agregar un punto</label><input id="new-item" placeholder="Escribe el check y agrégalo">' +
+      '<button type="button" class="btn" id="add-item" style="margin-top:8px">Agregar al listado</button></div>';
+
+    const shots = userPhotos(d);
+    html +=
+      '<div class="card"><h3 style="margin:0 0 8px">Fotos del equipo <span class="req">*</span></h3>' +
+      '<p class="note">Obligatorio: al terminar el check, saca al menos una foto del equipo.</p>' +
+      '<div class="shot-grid">';
+    shots.forEach((src, i) => {
+      html +=
+        '<div class="shot"><img src="' +
+        src +
+        '" alt="Foto ' +
+        (i + 1) +
+        '"><button type="button" class="icon-btn shot-del" data-del-shot="' +
+        i +
+        '" aria-label="Quitar foto">×</button></div>';
+    });
+    html +=
+      "</div>" +
+      '<div class="photo-actions">' +
+      '<label class="btn">Tomar foto<input id="f-photo-cam" type="file" accept="image/*" capture="environment" hidden></label>' +
+      '<label class="btn ghost">Elegir de galería<input id="f-photo-gal" type="file" accept="image/*" hidden></label>' +
+      "</div></div>";
+
+    html +=
+      '<div class="card"><label>' +
+      reqLabel("Observaciones generales") +
+      '</label><textarea id="f-obs" required placeholder="Anota lo relevante">' +
+      escapeHtml(d.observations) +
+      "</textarea></div>" +
+      '<div class="card"><label>' +
+      reqLabel("Resultado") +
+      '</label><div class="verdict">';
+    (window.MEC_VERDICTS || []).forEach((v) => {
+      html +=
+        '<button data-verdict="' +
+        v.id +
+        '" class="' +
+        (d.verdict === v.id ? "on-" + v.id : "") +
+        '"><b>' +
+        escapeHtml(v.name) +
+        "</b><small>" +
+        escapeHtml(v.hint) +
+        "</small></button>";
+    });
+    html +=
+      "</div></div>" +
+      '<div class="card"><label>' +
+      reqLabel("Firma de quien revisa") +
+      '</label>' +
+      '<div class="pad-wrap"><canvas id="pad-insp"></canvas><div class="pad-bar"><span>Firme dentro del recuadro</span><button class="icon-btn" id="clr-insp" type="button" style="width:auto;padding:4px 8px;font-size:12px">Borrar</button></div></div>' +
+      "<label>" +
+      reqLabel("Nombre del supervisor") +
+      '</label><input id="f-sup" required placeholder="Nombre y apellido" value="' +
+      escapeHtml(d.supervisorName) +
+      '">' +
+      "<label>" +
+      reqLabel("Firma del supervisor") +
+      "</label>" +
+      '<div class="pad-wrap" style="margin-top:8px"><canvas id="pad-sup"></canvas><div class="pad-bar"><span>Firma supervisor</span><button class="icon-btn" id="clr-sup" type="button" style="width:auto;padding:4px 8px;font-size:12px">Borrar</button></div></div></div>' +
+      "</div>" +
+      '<div class="dock"><button class="btn" id="save">Guardar, firmar y crear QR</button></div>';
+    return html;
+  }
+
+  function readForm() {
+    const d = state.draft;
+    if (!d) return;
+    const val = (id) => {
+      const el = document.getElementById(id);
+      return el ? el.value : "";
+    };
+    d.typeName = val("f-name") || d.typeName;
+    if (!d.equipment) d.equipment = { code: "", location: "", photo: "", photos: [] };
+    d.equipment.code = val("f-code");
+    d.equipment.location = val("f-loc");
+    d.inspector = val("f-insp");
+    d.cargo = val("f-cargo");
+    d.observations = val("f-obs");
+    d.supervisorName = val("f-sup");
+    document.querySelectorAll("input[data-item-text]").forEach((el) => {
+      const i = +el.getAttribute("data-item-text");
+      if (d.items[i]) d.items[i].text = el.value;
+    });
+    document.querySelectorAll("input[data-note]").forEach((el) => {
+      d.items[+el.getAttribute("data-note")].note = el.value;
+    });
+    try {
+      if (pads.inspector && pads.inspector.canvas && state.draft.strokes.inspector && state.draft.strokes.inspector.length) {
+        d.signatures.inspector = pads.inspector.canvas.toDataURL("image/png");
+      }
+      if (pads.supervisor && pads.supervisor.canvas && state.draft.strokes.supervisor && state.draft.strokes.supervisor.length) {
+        d.signatures.supervisor = pads.supervisor.canvas.toDataURL("image/png");
+      }
+    } catch (e) {}
+  }
+
+  function afterForm() {
+    const a = document.getElementById("pad-insp");
+    const b = document.getElementById("pad-sup");
+    if (a) bindPad(a, "inspector");
+    if (b) bindPad(b, "supervisor");
+    const ci = document.getElementById("clr-insp");
+    const cs = document.getElementById("clr-sup");
+    if (ci) ci.onclick = () => pads.inspector && pads.inspector.clear();
+    if (cs) cs.onclick = () => pads.supervisor && pads.supervisor.clear();
+    const bindShot = (id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.onchange = async () => {
+        const f = el.files && el.files[0];
+        if (!f) return;
+        readForm();
+        try {
+          ensurePhotos(state.draft);
+          const data = await compressImage(f);
+          if (state.draft.equipment.photos.length >= 8) {
+            alert("Puedes adjuntar hasta 8 fotos.");
+            return;
+          }
+          state.draft.equipment.photos.push(data);
+          state.draft.equipment.photo = data;
+        } catch (e) {
+          alert("No se pudo leer la foto.");
+          return;
+        }
+        render();
+        afterForm();
+      };
+    };
+    bindShot("f-photo-cam");
+    bindShot("f-photo-gal");
+    $app.querySelectorAll("[data-del-shot]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        readForm();
+        ensurePhotos(state.draft);
+        const i = +btn.getAttribute("data-del-shot");
+        state.draft.equipment.photos.splice(i, 1);
+        state.draft.equipment.photo = state.draft.equipment.photos[0] || "";
+        render();
+        afterForm();
+      });
+    });
+    const add = document.getElementById("add-item");
+    if (add)
+      add.onclick = () => {
+        readForm();
+        const inp = document.getElementById("new-item");
+        const text = inp ? inp.value.trim() : "";
+        if (!text) {
+          alert("Escribe el punto a revisar.");
+          return;
+        }
+        state.draft.items.push({ id: "c-" + Date.now(), text: text, result: "", note: "" });
+        render();
+        afterForm();
+      };
+    $app.querySelectorAll("[data-del-item]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        readForm();
+        if (state.draft.items.length <= 1) {
+          alert("Debe quedar al menos un punto de control.");
+          return;
+        }
+        const i = +btn.getAttribute("data-del-item");
+        state.draft.items.splice(i, 1);
+        render();
+        afterForm();
+      });
+    });
+  }
+
+  function reportHtml(r, publicLink) {
+    if (!r) return '<p class="empty">Ficha no encontrada.</p>';
+    const v = (window.MEC_VERDICTS || []).find((x) => x.id === r.verdict);
+    let items = "";
+    (r.items || []).forEach((it, i) => {
+      const mark = it.result === "ok" ? "OK" : it.result === "fail" ? "FALLA" : it.result === "na" ? "N/A" : "—";
+      items +=
+        '<div class="item ' +
+        escapeHtml(it.result || "") +
+        '"><p>' +
+        (i + 1) +
+        ". " +
+        escapeHtml(it.text) +
+        ' <span class="badge ' +
+        escapeHtml(it.result || "") +
+        '">' +
+        mark +
+        "</span></p>" +
+        (it.note ? "<div class=\"note\">" + escapeHtml(it.note) + "</div>" : "") +
+        "</div>";
+    });
+    return (
+      (r.verdict === "rechazado" ? '<div class="banner-bad">NO APTO — NO USAR</div>' : "") +
+      '<div class="card report">' +
+      '<div class="report-head">' +
+      (r.companyLogo
+        ? '<img class="company-logo" src="' + r.companyLogo + '" alt="' + escapeHtml(r.company || "Logo") + '">'
+        : "") +
+      '<div class="report-head-text"><b>' +
+      escapeHtml(r.company || "") +
+      "</b><div class=\"note\">" +
+      escapeHtml(r.rut || "") +
+      (r.branch ? " · " + escapeHtml(r.branch) : "") +
+      "</div></div>" +
+      brandLogo("brand-logo report-logo") +
+      "</div>" +
+      '<div class="report-brand"><span>' +
+      APP_NAME +
+      "</span></div>" +
+      (eqPhoto(r.type)
+        ? '<div class="eq-hero">' + eqPhotoTag(r.type, "eq-hero-img", r.typeName) + "</div>"
+        : "") +
+      (userPhotos(r).length
+        ? '<h2>Fotos del equipo</h2><div class="shot-grid report-shots">' +
+          userPhotos(r)
+            .map(function (src, i) {
+              return '<img class="shot-img" src="' + src + '" alt="Foto ' + (i + 1) + '">';
+            })
+            .join("") +
+          "</div>"
+        : "") +
+      "<div class=\"kv\">" +
+      "<i>Empresa</i><b>" +
+      escapeHtml(r.company) +
+      "</b>" +
+      "<i>RUT</i><span>" +
+      escapeHtml(r.rut || "—") +
+      "</span>" +
+      "<i>Sucursal</i><span>" +
+      escapeHtml(r.branch || "—") +
+      "</span>" +
+      "<i>Folio</i><span class=\"folio\">" +
+      escapeHtml(r.id) +
+      "</span>" +
+      "<i>Fecha</i><span>" +
+      escapeHtml(fmtDate(r.createdAt)) +
+      "</span>" +
+      "<i>Qué se revisó</i><b>" +
+      escapeHtml(r.typeName) +
+      "</b>" +
+      "<i>Código</i><span>" +
+      escapeHtml(r.equipment && r.equipment.code ? r.equipment.code : "—") +
+      "</span>" +
+      "<i>Ubicación</i><span>" +
+      escapeHtml((r.equipment && r.equipment.location) || "—") +
+      "</span>" +
+      "<i>Quién revisó</i><span>" +
+      escapeHtml(r.inspector || "—") +
+      " · " +
+      escapeHtml(r.cargo || "") +
+      "</span>" +
+      "<i>Resultado</i><span class=\"badge " +
+      escapeHtml(r.verdict) +
+      '">' +
+      escapeHtml(v ? v.name : r.verdict || "Sin cierre") +
+      "</span></div>" +
+      (r.observations ? "<h2>Observaciones</h2><p>" + escapeHtml(r.observations) + "</p>" : "") +
+      "<h2>Puntos</h2>" +
+      items +
+      "<h2>Firmas</h2><div class=\"grid grid-2\">" +
+      sigBlock("Inspector", r.signatures && r.signatures.inspector, r.strokes && r.strokes.inspector) +
+      sigBlock(
+        "Supervisor " + (r.supervisorName || ""),
+        r.signatures && r.signatures.supervisor,
+        r.strokes && r.strokes.supervisor
+      ) +
+      "</div>" +
+      (publicLink ? '<p class="note" style="margin-top:12px">Ficha pública: ' + escapeHtml(publicLink) + "</p>" : "") +
+      "</div>"
+    );
+  }
+
+  function historyView() {
+    const rows = loadReports();
+    let html = topBar("Historial", "#/") + '<div class="wrap">';
+    if (!rows.length) html += '<p class="empty">Aún no hay inspecciones en este navegador. Quedan guardadas solo en este celular.</p>';
+    rows.forEach((r) => {
+      html +=
+        '<button class="list-row" data-go="#/local/' +
+        encodeURIComponent(r.id) +
+        '">' +
+        (eqPhotoTag(r.type, "eq-mini", r.typeName) ||
+          (userPhotos(r)[0]
+            ? '<img class="eq-mini" src="' + userPhotos(r)[0] + '" alt="">'
+            : '<div class="eq-mini photo-empty"></div>')) +
+        '<span class="dot ' +
+        escapeHtml(r.verdict || "") +
+        '"></span><span style="flex:1"><b>' +
+        escapeHtml(r.typeName) +
+        "</b><div class=\"note\">" +
+        escapeHtml(r.id) +
+        " · " +
+        escapeHtml(fmtDate(r.createdAt)) +
+        " · " +
+        escapeHtml((r.equipment && r.equipment.code) || "sin código") +
+        "</div></span></button>";
+    });
+    html += "</div>";
+    return html;
+  }
+
+  function settingsView() {
+    if (!state.editSettings) state.editSettings = Object.assign({}, loadSettings());
+    const s = state.editSettings;
+    return (
+      topBar("Empresa", "#/") +
+      '<div class="wrap"><div class="card">' +
+      "<p class=\"note\">Todos los datos son obligatorios, incluido el logo. Aparece en el documento final.</p>" +
+      "<label>" +
+      reqLabel("Nombre o razón social") +
+      '</label><input id="s-co" required value="' +
+      escapeHtml(s.company) +
+      '">' +
+      "<label>" +
+      reqLabel("RUT") +
+      '</label><input id="s-rut" required value="' +
+      escapeHtml(s.rut) +
+      '">' +
+      "<label>" +
+      reqLabel("Sucursal / lugar") +
+      '</label><input id="s-br" required value="' +
+      escapeHtml(s.branch) +
+      '">' +
+      "<label>" +
+      reqLabel("Inspector por defecto") +
+      '</label><input id="s-in" required value="' +
+      escapeHtml(s.inspector) +
+      '">' +
+      "<label>" +
+      reqLabel("Logo de la empresa") +
+      "</label>" +
+      (s.logo
+        ? '<div class="logo-preview"><img src="' + s.logo + '" alt="Logo"></div>'
+        : '<p class="note">Aún no hay logo.</p>') +
+      '<div class="photo-actions">' +
+      '<label class="btn">Cargar logo<input id="s-logo" type="file" accept="image/*" hidden></label>' +
+      (s.logo ? '<button type="button" class="btn ghost" id="clr-logo">Quitar logo</button>' : "") +
+      "</div>" +
+      '</div><button class="btn" id="save-set">Guardar</button></div>'
+    );
+  }
+
+  function qrView() {
+    const r = state.report;
+    if (!r) return topBar("QR", "#/") + '<div class="wrap"><p class="empty">No hay ficha.</p></div>';
+    const link = shareUrl(r);
+    return (
+      topBar("Ficha y QR", "#/historial") +
+      '<div class="wrap">' +
+      '<div class="qrbox"><div class="note">Cualquiera con el celular puede escanear este código y ver la inspección</div>' +
+      '<div id="qr"></div>' +
+      '<div class="folio">' +
+      escapeHtml(r.id) +
+      "</div>" +
+      '<p class="note" id="qr-link">' +
+      escapeHtml(link) +
+      "</p></div>" +
+      '<div class="actions">' +
+      '<button class="btn" id="copy">Copiar enlace</button>' +
+      '<button class="btn ghost" id="share">Compartir</button>' +
+      '<button class="btn" id="print">Exportar PDF carta</button>' +
+      '<button class="btn ghost" data-go="#/local/' +
+      encodeURIComponent(r.id) +
+      '">Ver ficha completa</button>' +
+      "</div>" +
+      (r.shareCode
+        ? '<p class="note">El QR lleva la ficha completa (puntos, resultado y firma). Quien lo escanee la ve en su celular, sin instalar la app.</p>'
+        : '<p class="note">Genera de nuevo la ficha para crear el enlace público.</p>') +
+      "</div>"
+    );
+  }
+
+  function afterQr() {
+    const r = state.report;
+    if (!r) return;
+    const link = shareUrl(r);
+    const box = document.getElementById("qr");
+    if (box) drawQr(box, link);
+    const copy = document.getElementById("copy");
+    if (copy)
+      copy.onclick = async () => {
+        try {
+          await navigator.clipboard.writeText(link);
+          copy.textContent = "Enlace copiado";
+        } catch (e) {
+          prompt("Copia el enlace:", link);
+        }
+      };
+    const share = document.getElementById("share");
+    if (share)
+      share.onclick = async () => {
+        const text = r.typeName + " " + r.id + " — " + (r.verdict || "");
+        if (navigator.share) {
+          try {
+            await navigator.share({ title: APP_NAME + " " + r.id, text: text, url: link });
+          } catch (e) {}
+        } else {
+          window.open("https://wa.me/?text=" + encodeURIComponent(text + " " + link));
+        }
+      };
+    const printBtn = document.getElementById("print");
+    if (printBtn)
+      printBtn.onclick = () => {
+        if (r) go("#/pdf/" + encodeURIComponent(r.id));
+      };
+    const retry = document.getElementById("retry");
+    if (retry)
+      retry.onclick = async () => {
+        retry.disabled = true;
+        retry.textContent = "Publicando…";
+        try {
+          const id = await publish(r);
+          r.blobId = id;
+          upsertReport(r);
+          go("#/qr/" + r.id);
+        } catch (e) {
+          alert(e.message || "No se pudo publicar. Revisa la conexión.");
+          retry.disabled = false;
+          retry.textContent = "Publicar para que otros lo vean";
+        }
+      };
+  }
+
+  function printView() {
+    const r = state.report;
+    const back = r ? "#/local/" + encodeURIComponent(r.id) : "#/";
+    if (!r) {
+      return topBar("PDF carta", back) + '<div class="wrap"><p class="empty">No hay ficha para exportar.</p></div>';
+    }
+    return (
+      topBar("PDF carta", back) +
+      '<div class="wrap no-print">' +
+      '<p class="note">Tamaño <b>carta</b> (8,5 × 11 pulgadas). En el cuadro elige <b>Guardar como PDF</b> y papel <b>Carta / Letter</b>.</p>' +
+      '<div class="actions">' +
+      '<button class="btn" id="export-pdf">Exportar PDF carta</button>' +
+      '<button class="btn ghost" data-go="#/qr/' +
+      encodeURIComponent(r.id) +
+      '">Volver al QR</button>' +
+      "</div></div>" +
+      '<div class="letter-page" id="letter-doc">' +
+      reportHtml(r, "") +
+      '<div class="letter-foot">Documento generado por ' +
+      escapeHtml(APP_NAME) +
+      " · Folio " +
+      escapeHtml(r.id) +
+      " · Formato carta</div></div>"
+    );
+  }
+
+  function exportLetterPdf(r) {
+    if (!r) return;
+    const prev = document.title;
+    document.title = (r.company || APP_NAME) + " — " + r.id + " — carta";
+    document.body.classList.add("print-letter");
+    const done = function () {
+      document.title = prev;
+      document.body.classList.remove("print-letter");
+      window.removeEventListener("afterprint", done);
+    };
+    window.addEventListener("afterprint", done);
+    window.print();
+    setTimeout(done, 5000);
+  }
+
+  function viewPane(title, r, err) {
+    return (
+      topBar(title, "#/") +
+      '<div class="wrap">' +
+      (err ? '<div class="banner-bad">' + escapeHtml(err) + "</div>" : "") +
+      (r
+        ? reportHtml(r, r.blobId ? viewUrl(r.blobId) : "") +
+          '<div class="actions">' +
+          '<button class="btn" data-go="#/pdf/' +
+          encodeURIComponent(r.id) +
+          '">Exportar PDF carta</button>' +
+          '<button class="btn ghost" data-go="#/qr/' +
+          encodeURIComponent(r.id) +
+          '">Ver QR</button></div>'
+        : "") +
+      "</div>"
+    );
+  }
+
+  function render() {
+    if (state.view === "types") $app.innerHTML = typesView();
+    else if (state.view === "form") $app.innerHTML = formView();
+    else if (state.view === "history") $app.innerHTML = historyView();
+    else if (state.view === "settings") $app.innerHTML = settingsView();
+    else if (state.view === "qr") $app.innerHTML = qrView();
+    else if (state.view === "print") $app.innerHTML = printView();
+    else if (state.view === "view") $app.innerHTML = viewPane("Inspección", state.report, state.report ? "" : "No está en este celular.");
+    else if (state.view === "remote") $app.innerHTML = viewPane("Ficha pública", state.report, state.remoteError);
+    else $app.innerHTML = home();
+    bindUi();
+  }
+
+  function bindUi() {
+    $app.querySelectorAll("[data-go]").forEach((el) => {
+      el.addEventListener("click", () => go(el.getAttribute("data-go")));
+    });
+    const exportPdf = document.getElementById("export-pdf");
+    if (exportPdf) exportPdf.onclick = () => exportLetterPdf(state.report);
+    const q = document.getElementById("q");
+    if (q)
+      q.addEventListener("input", () => {
+        state.filter = q.value;
+        const keep = q.selectionStart;
+        render();
+        const nq = document.getElementById("q");
+        if (nq) {
+          nq.focus();
+          nq.setSelectionRange(keep, keep);
+        }
+      });
+    $app.querySelectorAll("[data-item]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        readForm();
+        const i = +btn.getAttribute("data-item");
+        state.draft.items[i].result = btn.getAttribute("data-res");
+        render();
+        afterForm();
+      });
+    });
+    $app.querySelectorAll("[data-verdict]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        readForm();
+        state.draft.verdict = btn.getAttribute("data-verdict");
+        render();
+        afterForm();
+      });
+    });
+    function readSettingsForm() {
+      if (!state.editSettings) state.editSettings = Object.assign({}, loadSettings());
+      const g = (id) => {
+        const el = document.getElementById(id);
+        return el ? el.value : state.editSettings[id] || "";
+      };
+      state.editSettings.company = g("s-co");
+      state.editSettings.rut = g("s-rut");
+      state.editSettings.branch = g("s-br");
+      state.editSettings.inspector = g("s-in");
+    }
+    const logoIn = document.getElementById("s-logo");
+    if (logoIn)
+      logoIn.onchange = async () => {
+        const f = logoIn.files && logoIn.files[0];
+        if (!f) return;
+        readSettingsForm();
+        try {
+          state.editSettings.logo = await compressImage(f, 480, 0.84);
+        } catch (e) {
+          alert("No se pudo leer el logo.");
+          return;
+        }
+        render();
+      };
+    const clrLogo = document.getElementById("clr-logo");
+    if (clrLogo)
+      clrLogo.onclick = () => {
+        readSettingsForm();
+        state.editSettings.logo = "";
+        render();
+      };
+    const saveSet = document.getElementById("save-set");
+    if (saveSet)
+      saveSet.onclick = () => {
+        readSettingsForm();
+        const s = state.editSettings;
+        if (blank(s.company) || blank(s.rut) || blank(s.branch) || blank(s.inspector) || blank(s.logo)) {
+          alert("Todos los datos de la empresa son obligatorios, incluido el logo.");
+          return;
+        }
+        saveSettings({
+          company: s.company.trim(),
+          rut: s.rut.trim(),
+          branch: s.branch.trim(),
+          inspector: s.inspector.trim(),
+          logo: s.logo,
+        });
+        go("#/");
+      };
+    const save = document.getElementById("save");
+    if (save)
+      save.onclick = async () => {
+        readForm();
+        const d = state.draft;
+        const missing = [];
+        if (blank(d.typeName)) missing.push("qué se inspecciona");
+        if (blank(d.equipment && d.equipment.code)) missing.push("código / referencia");
+        if (blank(d.equipment && d.equipment.location)) missing.push("ubicación");
+        if (blank(d.inspector)) missing.push("quién revisa");
+        if (blank(d.cargo)) missing.push("cargo");
+        if (!d.items.length) missing.push("al menos un punto de control");
+        const pending = d.items.filter((it) => !it.result);
+        if (pending.length) missing.push("marcar todos los puntos (quedan " + pending.length + ")");
+        const fails = d.items.filter((it) => it.result === "fail" && blank(it.note));
+        if (fails.length) missing.push("detalle de cada falla");
+        if (!userPhotos(d).length) missing.push("al menos una foto del equipo");
+        if (blank(d.observations)) missing.push("observaciones");
+        if (!d.verdict) missing.push("resultado");
+        if (!d.signatures.inspector) missing.push("firma de quien revisa");
+        if (blank(d.supervisorName)) missing.push("nombre del supervisor");
+        if (!d.signatures.supervisor) missing.push("firma del supervisor");
+        if (missing.length) {
+          alert("Falta completar: " + missing.join(", ") + ".");
+          return;
+        }
+        const set = loadSettings();
+        d.company = set.company;
+        d.rut = set.rut;
+        d.branch = set.branch;
+        d.companyLogo = set.logo || d.companyLogo || "";
+        d.createdAt = d.createdAt || nowISO();
+        save.disabled = true;
+        save.textContent = "Generando QR…";
+        try {
+          d.shareCode = await encodeShare(d);
+        } catch (e) {
+          d.shareCode = "";
+        }
+        try {
+          const id = await publish(d);
+          d.blobId = id;
+        } catch (e) {
+          d.blobId = "";
+        }
+        upsertReport(d);
+        state.report = d;
+        state.draft = null;
+        go("#/qr/" + d.id);
+      };
+  }
+
+  function boot() {
+    try {
+      route();
+    } catch (e) {
+      if ($app) {
+        $app.innerHTML =
+          '<div class="boot">' +
+          brandLogo("brand-logo boot-logo") +
+          "<h1>" +
+          APP_NAME +
+          '</h1><p id="boot-msg">No se pudo iniciar. Recarga. Evita enlaces Raw o jsDelivr: GitHub los muestra como texto y el celular queda en blanco.</p></div>';
+      }
+      console.error(e);
+    }
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
+  else boot();
+})();
+
+  </script>
 </body>
 </html>

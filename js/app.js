@@ -6,7 +6,7 @@
   const STORE = "meccheck-reports-v1";
   const SETTINGS = "meccheck-settings-v1";
   const BLOB = "https://jsonblob.com/api/jsonBlob";
-  const CDN = "https://cdn.jsdelivr.net/gh/Caleushe-desing/Shooter@cursor/checklist-mecanica-9fc5/";
+  const CDN = "https://raw.githubusercontent.com/Caleushe-desing/Shooter/cursor/checklist-mecanica-9fc5/";
 
   if (typeof window.MEC_ASSET_BASE !== "string") {
     const h = location.hostname || "";
@@ -130,6 +130,12 @@
       '" loading="lazy" onerror="window.mecImgFb&&window.mecImgFb(this)">'
     );
   }
+  window.mecImgFb = function (el) {
+    if (!el || el.dataset.fb) return;
+    el.dataset.fb = "1";
+    el.removeAttribute("src");
+    el.classList.add("eq-photo-missing");
+  };
   function userPhotos(r) {
     if (!r || !r.equipment) return [];
     if (r.equipment.photos && r.equipment.photos.length) return r.equipment.photos;
@@ -171,15 +177,17 @@
     });
   }
   function brandLogo(cls) {
-    const src = (window.MEC_ASSET_BASE || "") + "icon.svg";
     return (
-      '<img class="' +
+      '<svg class="' +
       (cls || "brand-logo") +
-      '" src="' +
-      src +
-      '" alt="' +
-      escapeHtml(APP_NAME) +
-      '" width="40" height="40" onerror="window.mecImgFb&&window.mecImgFb(this)">'
+      '" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="40" height="40" aria-hidden="true">' +
+      '<rect width="64" height="64" rx="16" fill="#1a2027"/>' +
+      '<path d="M16 0h32a16 16 0 0 1 16 16v6H0V16A16 16 0 0 1 16 0z" fill="#f5c400"/>' +
+      '<rect x="16.5" y="22" width="31" height="32" rx="4.5" fill="#fffef8"/>' +
+      '<rect x="26" y="17.5" width="12" height="8" rx="2.2" fill="#f5c400"/>' +
+      '<circle cx="44.5" cy="46.5" r="8.6" fill="#1b8f4e"/>' +
+      '<path d="M40.2 46.6l2.8 2.9 6.2-7.2" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>' +
+      "</svg>"
     );
   }
   function newDraft(typeId) {
