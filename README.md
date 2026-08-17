@@ -37,3 +37,5 @@ Tras cambiar `css/` o `js/`:
 ```bash
 python3 scripts/build-index.py
 ```
+
+Detalle técnico para seguir desarrollando: [ESPECIFICACION.md](ESPECIFICACION.md).
